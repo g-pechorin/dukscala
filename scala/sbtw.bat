@@ -1,0 +1,1 @@
+@sbtw/bin/sbt.bat %2 %*
