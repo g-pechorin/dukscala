@@ -1,0 +1,5 @@
+#import(peterlavalle.scad40.Model)
+<%@ val obj: Model.MemberVariable %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+
+var ${obj.name} : ${nephrite(obj.kind).trim} = ???
