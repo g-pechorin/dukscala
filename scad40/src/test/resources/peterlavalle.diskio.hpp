@@ -461,15 +461,14 @@ namespace peterlavalle {
 
 #pragma region "Implementations"
 
-
 inline scad40::duk_str::duk_str(duk_context* ctx) :
-scad40::duk_str(ctx, nullptr)
+	scad40::duk_str(ctx, nullptr)
 {
 
 }
 
 inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
-scad40::object(ctx)
+	scad40::object(ctx)
 {
 	duk_push_global_stash(ctx);
 	if (nullptr == str)
@@ -485,7 +484,7 @@ scad40::object(ctx)
 }
 
 inline scad40::object::object(duk_context* ctx) :
-_ctx(ctx)
+	_ctx(ctx)
 {
 	assert(nullptr != _ctx);
 }
@@ -541,9 +540,9 @@ inline const char* scad40::object::type_string(void)
 
 	const char* str = typeid(T).name();
 	size_t len = strlen(str);
-	char* ptr = (const char*)malloc(len + 1)
+	char* ptr = (const char*)malloc(len + 1);
 
-		size_t src = 0, out = 0;
+	size_t src = 0, out = 0;
 
 	while (str[src])
 	{
@@ -570,4 +569,5 @@ inline const char* scad40::object::type_string(void)
 	ptr[out] = '\0';
 	return _ptr = ptr;
 }
+
 #pragma endregion
