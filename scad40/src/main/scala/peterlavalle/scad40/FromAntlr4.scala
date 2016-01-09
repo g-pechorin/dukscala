@@ -16,12 +16,17 @@ object FromAntlr4 {
   def apply(typeidContext: DefineParser.TypeIdContext, done: List[Model.TDeclaration]): Model.TKind = {
     typeidContext match {
       case defined: DefineParser.DefinedContext =>
-        done.find(_.name == defined.NAME.getText) match {
+        val name: String = defined.UNAME.getText
+        done.find(_.name == name) match {
           case Some(tType) =>
             KindDeclaration(tType)
+          case None =>
+            sys.error("Can't find declaration `%s`".format(name))
         }
       case builtin: DefineParser.BuiltinContext =>
         builtin.ATOMIC().getText match {
+          case "bool" =>
+            Model.KindBool
           case "sint8" =>
             Model.KindSInt8
           case "sint16" =>
@@ -39,7 +44,7 @@ object FromAntlr4 {
   }
 
   def apply(valueContext: DefineParser.ValueContext, done: List[Model.TDeclaration]): (String, Model.TKind) =
-    (valueContext.NAME().getText, FromAntlr4(valueContext.typeId(), done))
+    (valueContext.LNAME().getText, FromAntlr4(valueContext.typeId(), done))
 
   def apply(definitionContext: DefineParser.DefinitionContext, done: List[Model.TDeclaration]): Stream[Model.TMember] =
     if (null == definitionContext)
@@ -60,12 +65,12 @@ object FromAntlr4 {
 
                 case methodContext: DefineParser.MethodContext =>
                   Model.MemberFunction(
-                    methodContext.NAME.getText, {
+                    methodContext.LNAME.getText, {
                       def argRecu(todo: List[DefineParser.ValueContext], seen: List[Model.Argument]): Stream[Model.Argument] =
                         todo match {
                           case Nil => Empty
                           case head :: tail =>
-                            val name = head.NAME().getText
+                            val name = head.LNAME().getText
 
                             require(
                               !seen.exists(_.name == name),
@@ -102,7 +107,7 @@ object FromAntlr4 {
     }
 
   def apply(packnameContext: DefineParser.PacknameContext): String =
-    packnameContext.NAME().map(_.getText).reduce(_ + "." + _)
+    packnameContext.LNAME.map(_.getText).reduce(_ + "." + _)
 
   def apply(declarationStream: Stream[DefineParser.DeclarationContext]): Stream[Model.TDeclaration] = {
     def recu(declarationStream: Stream[DefineParser.DeclarationContext], done: List[Model.TDeclaration]): Stream[Model.TDeclaration] =
@@ -111,14 +116,17 @@ object FromAntlr4 {
           Empty
 
 
-
         case head #:: tail =>
           val next = {
 
             head match {
-              case (select: DefineParser.DeclSelContext)   =>
+              case (select: DefineParser.DeclSelContext) =>
 
-                select.NAME.map(_.getText).toList match {
+                select.UNAME().map(_.getText).toList match {
+                  case Nil =>
+                    sys.error("The grammar should require at least two states")
+                  case name :: _ :: _ :: Nil =>
+                    sys.error("The grammar should require at least two states")
                   case name :: values =>
                     require(
                       !done.exists(_.name == name),
@@ -137,11 +145,11 @@ object FromAntlr4 {
                 val (model, name, members) =
                   head match {
                     case script: DefineParser.DeclScrContext =>
-                      (Model.Script, script.NAME().getText, script.definition())
+                      (Model.Script, script.UNAME().getText, script.definition())
                     case native: DefineParser.DeclNatContext =>
-                      (Model.Native, native.NAME().getText, native.definition())
+                      (Model.Native, native.UNAME().getText, native.definition())
                     case global: DefineParser.DeclGloContext =>
-                      (Model.Global, global.NAME().getText, global.definition())
+                      (Model.Global, global.UNAME().getText, global.definition())
                   }
 
                 require(

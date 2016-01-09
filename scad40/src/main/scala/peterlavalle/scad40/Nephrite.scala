@@ -14,9 +14,15 @@ import scala.io.Source
 class Nephrite private(prefolder: String, val obj: Any, val parent: Nephrite, val engine: TemplateEngine) {
 
   def this(prefolder: String) =
-    this(prefolder, null, null, Nephrite(List())())
+    this(prefolder, null, null, Nephrite(List())(prefolder))
 
   require(prefolder.matches("((\\w+\\-)*\\w+/)+"))
+
+  def apply(pattern: String, replacement: String, obj: AnyRef): String =
+    this (obj).replaceAll("^[ \t]*\n", "").replaceAll(pattern, replacement)
+
+  def apply(replacement: String, obj: AnyRef): String =
+    this ("\r?\n", replacement, obj)
 
   def apply(obj: AnyRef, extras: (String, Any)*) = {
     val uri: String = obj.getClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.') + ".ssp"
@@ -34,17 +40,8 @@ class Nephrite private(prefolder: String, val obj: Any, val parent: Nephrite, va
         "obj" -> obj,
         "nephrite" -> new Nephrite(prefolder, obj, this, engine)
       ) ++ extras.toMap
-    //scala-js/peterlavalle/scad40/Model.KindSInt32.ssp
-    //    try {
-    leikata(engine.layout(prefolder + uri, bounds))
-    //    } catch {
-    //      case templateException: TemplateException =>
-    //        throw new Exception(
-    //          "For template `%s` in `%s`"
-    //            .format(uri, prefolder),
-    //          templateException
-    //        )
-    //    }
+
+    leikata(engine.layout(prefolder + uri, bounds)).replaceAll("[ \t]\r?\n", "\n")
   }
 
   val depth: Int =
@@ -56,7 +53,7 @@ class Nephrite private(prefolder: String, val obj: Any, val parent: Nephrite, va
 
 object Nephrite {
 
-  def apply(imports: List[String])(lookup: (String => String) = _ => null) = {
+  def apply(imports: List[String])(prefolder: String, lookup: (String => String) = _ => null) = {
     val engine = new TemplateEngine {
 
       override protected def createRenderContext(uri: String, out: PrintWriter): RenderContext = {
@@ -79,7 +76,6 @@ object Nephrite {
       }
     }
     engine.importStatements = engine.importStatements ++ imports
-
     engine.escapeMarkup = false
     engine.resourceLoader =
       new ResourceLoader {
@@ -93,7 +89,23 @@ object Nephrite {
               val stream =
                 ClassLoader.getSystemResourceAsStream(name)
 
-              require(null != stream, "Failed to load resource `%s`".format(name))
+              require(name.startsWith(prefolder))
+
+              val uri = name.substring(prefolder.length).replaceAll("\\.ssp$", "")
+              val packageName = uri.replaceAll("\\..*", "").replace("/", ".")
+              val className = uri.replaceAll(".*/", "")
+              val localName = className.substring(0, 1).toLowerCase + className.substring(1).replace(".", "")
+
+              require(null != stream,
+                s"""Failed to load resource `$name`
+                    |		<%-- maybe try this? --%>
+                    |			#import($packageName)
+                    |			<%@ val $localName: $className %>
+                    |			<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+                    |			?? default template $${$localName} ??
+                    |
+                """.stripMargin
+              )
 
               Some(
                 Resource.fromSource(

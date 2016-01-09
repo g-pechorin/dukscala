@@ -1,9 +1,8 @@
 package peterlavalle.scad40
 
 import junit.framework.TestCase
-import org.antlr.v4.runtime.{CommonTokenStream, ANTLRInputStream}
+import org.antlr.v4.runtime.{ANTLRInputStream, CommonTokenStream}
 import org.junit.Assert._
-import peterlavalle.scad40.Model
 
 import scala.collection.immutable.Stream.Empty
 
@@ -93,7 +92,7 @@ class FromAntlr4Test extends TestCase {
             Model.MemberFunction("foo", Stream(), Model.KindVoid)
           )),
           Model.Select("Thing", Set(
-            "value", "value2", "athird"
+            "Value", "Value2", "AThird"
           )),
           Model.Native("ClassThing", Stream(
             Model.MemberFunction("functo", Stream(), Model.KindVoid),
@@ -138,9 +137,9 @@ class FromAntlr4Test extends TestCase {
           |
           |  // works like an enum?
           |  select Thing {
-          |    value,
-          |    value2,
-          |    athird
+          |    Value,
+          |    Value2,
+          |    AThird
           |  }
           |
           |  // these are constructed/implemented in **native** (and passed in from native)

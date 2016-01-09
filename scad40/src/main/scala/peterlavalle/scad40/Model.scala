@@ -12,6 +12,10 @@ object Model {
     val name: String = "void"
   }
 
+  case object KindBool extends TKind {
+    val name: String = "bool"
+  }
+
   case object KindSInt8 extends TKind {
     val name: String = "sint8"
   }
@@ -38,6 +42,7 @@ object Model {
 
   case class KindDeclaration(declaration: TDeclaration) extends TKind {
     val name: String = "@" + declaration.name
+    require(!declaration.isInstanceOf[Global])
   }
 
   sealed trait TMember {

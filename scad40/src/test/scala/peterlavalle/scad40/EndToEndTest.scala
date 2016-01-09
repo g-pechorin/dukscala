@@ -1,46 +1,103 @@
 package peterlavalle.scad40
 
-import org.antlr.v4.runtime.{ANTLRInputStream, CommonTokenStream}
+import java.util
+
+import org.antlr.v4.runtime._
+import org.antlr.v4.runtime.atn.ATNConfigSet
+import org.antlr.v4.runtime.dfa.DFA
 import org.junit.Assert._
 import junit.framework.TestCase
+
+import scala.io.Source
 
 class EndToEndTest extends TestCase {
   val source =
     """
       |
       |module peterlavalle.diskio {
+      |
+      | script ChangeListener {
+      |   def fileChanged(path: string)
+      | }
+      |
       | native Reading {
       |   def read(): sint8
       |   def close()
+      |   def endOfFile(): bool
+      |
+      |   var number: single
+      |   val path: string
       | }
+      |
       | global Disk {
       |   def open(path: string): Reading
+      |   var pwd: string
+      |
+      |   def subscribe(path: string, listener: ChangeListener)
+      |   def unsubscribe(path: string, listener: ChangeListener)
       | }
+      |
       |}
       |
     """.stripMargin
 
-  def prefixIs(preFolder: String, expected: String) =
+  def prefixIs(preFolder: String, expected: String) = {
+
+    object Fail extends ANTLRErrorListener {
+      override def reportContextSensitivity(parser: Parser, dfa: DFA, i: Int, i1: Int, i2: Int, atnConfigSet: ATNConfigSet): Unit =
+        ???
+
+      override def reportAmbiguity(parser: Parser, dfa: DFA, i: Int, i1: Int, b: Boolean, bitSet: util.BitSet, atnConfigSet: ATNConfigSet): Unit =
+        ???
+
+      override def reportAttemptingFullContext(parser: Parser, dfa: DFA, i: Int, i1: Int, bitSet: util.BitSet, atnConfigSet: ATNConfigSet): Unit =
+        ???
+
+      override def syntaxError(r: Recognizer[_, _], o: scala.Any,
+                               line: Int, charPositionInLine: Int,
+                               message: String, recognitionException: RecognitionException): Unit = {
+        throw new Exception(message + "@" + line + "/" + charPositionInLine, recognitionException)
+      }
+    }
+
+    val lexer: DefineLexer = new DefineLexer(
+      new ANTLRInputStream(
+        source
+      )
+    )
+
+
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(Fail)
+
+    val parser: DefineParser = new DefineParser(
+      new CommonTokenStream(
+        lexer
+      )
+    )
+
+    parser.removeErrorListeners()
+    parser.addErrorListener(Fail)
+
     assertEquals(
       leikata(expected),
       new Nephrite(preFolder)(FromAntlr4(
-        new DefineParser(
-          new CommonTokenStream(
-            new DefineLexer(
-              new ANTLRInputStream(
-                source
-              )
-            )
-          )
-        ).module()))
+        parser.module()))
     )
-
+  }
 
 
   def testScalaJS(): Unit =
     prefixIs("scala-js/",
       """
-        |package peterlavalle.diskio
+        |package peterlavalle.diskio {
+        |
+        |    @ScalaJSDefined
+        |    trait ChangeListener extends js.Object {
+        |
+        |        def fileChanged(path: String): Unit
+        |
+        |    }
         |
         |    @js.native
         |    class Reading extends js.Object {
@@ -51,6 +108,15 @@ class EndToEndTest extends TestCase {
         |        @js.native
         |        def close(): Unit = js.native
         |
+        |        @js.native
+        |        def endOfFile(): Bool = js.native
+        |
+        |        @js.native
+        |        var number: Float = js.native
+        |
+        |        @js.native
+        |        val path: String = js.native
+        |
         |    }
         |
         |    @js.native
@@ -59,57 +125,24 @@ class EndToEndTest extends TestCase {
         |        @js.native
         |        def open(path: String): Reading = js.native
         |
+        |        @js.native
+        |        var pwd: String = js.native
+        |
+        |        @js.native
+        |        def subscribe(path: String, listener: ChangeListener): Unit = js.native
+        |
+        |        @js.native
+        |        def unsubscribe(path: String, listener: ChangeListener): Unit = js.native
+        |
         |    }
+        |}
       """.stripMargin
     )
 
-
-  def testDuk40(): Unit =
-    prefixIs("Duk40/",
-      """
-        |#pragma once
-        |
-        |#include <duktape.h>
-        |#include <stdint.h>
-        |
-        |namespace peterlavalle {
-        |namespace diskio {
-        |
-        |    struct Reading
-        |    {
-        |        virtual uint8_t read(void) = 0;
-        |        virtual void close(void) = 0;
-        |
-        |        std::shared_ptr<Reading> to(duk_context* ctx, duk_idx_t index)
-        |        {
-        |            assert(false && "??? scad40 needs to provide this");
-        |        }
-        |
-        |        bool is(duk_context* ctx, duk_idx_t index)
-        |        {
-        |            assert(false && "??? scad40 needs to provide this");
-        |        }
-        |
-        |        void push(duk_context* ctx, std::shared_ptr<Reading>& )
-        |        {
-        |            assert(false && "??? scad40 needs to provide this");
-        |        }
-        |    };
-        |
-        |    template<typename T>
-        |    struct Disk
-        |    {
-        |        std::shared_ptr<Reading> open(const char* path);
-        |    };
-        |
-        |    template<typename T>
-        |    void Duk40(duk_context* ctx, T&)
-        |    {
-        |        assert(false && "??? scad40 needs to provide this");
-        |    }
-        |}
-        |}
-      """.stripMargin
+  def testDukAla(): Unit =
+    prefixIs(
+      "dukd40/",
+      Source.fromInputStream(ClassLoader.getSystemResourceAsStream(getName + ".hpp")).mkString
     )
 }
 

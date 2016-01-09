@@ -1,0 +1,53 @@
+#import(peterlavalle.scad40.Model)
+<%@ val modelNative: Model.Native %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+struct ${modelNative.name} : public scad40::object
+{
+	/// the ${modelNative.name} constructor
+	/// the user must implement this
+	${modelNative.name}(void);
+
+	/// the user's requested members
+	/// the user must implement these
+#for (member <- modelNative.members)
+	${nephrite("\n\t", member)}
+#end
+
+	/// the Reading destructor
+	/// the user must implement this
+	~${modelNative.name}(void);
+
+	/// pushes this object onto its hosting stack
+	void Push(void)
+	{
+		assert(false && "??? scad40 needs to provide this");
+	}
+
+	/// queries if the passed index is a ${modelNative.name} object
+	static bool Is(duk_context* ctx, duk_idx_t index)
+	{
+		idx = idx < 0 ? duk_normalize(ctx, idx) : idx;
+
+		assert(false && "??? scad40 needs to provide this");
+	}
+
+	/// pulls the the passed index into a ${modelNative.name} object
+	/// ... if the passed index is not a ${modelNative.name} object - behaviour is undefined
+	static scad40::duk_ref${ "<" + modelNative.name + ">"} To(duk_context* ctx, duk_idx_t idx)
+	{
+		idx = idx < 0 ? duk_normalize(ctx, idx) : idx;
+
+		if (!Is(ctx, idx))
+		{
+			duk_error(ctx, 314, "Tried to grab `%s` as a {${modelNative.name}} (which it is not)", duk_to_string(ctx, idx);
+		}
+
+		assert(false && "??? scad40 needs to provide this");
+	}
+
+	/// creates a new ${modelNative.name} object and returns a magical pointer to it
+	static scad40::duk_ref${ "<" + modelNative.name + ">"} New(duk_context* ctx)
+	{
+		assert(false && "??? scad40 needs to provide this");
+	}
+};

@@ -1,29 +1,32 @@
 // define a grammar called Hello
 grammar Define;
 
-RESERVED : 'function';
+RESERVED : 'function' | 'String';
 VOID : 'void';
-ATOMIC : ('sint'('8'|'16'|'32')) | 'single' | 'double' | 'string';
+ATOMIC : 'bool' | 'double' | 'single' | ('sint'('8'|'16'|'32')) | 'string';
 
 WS  : [ \t\r\n]+ -> skip ;
 LINE_COMMENT : '//' ~('\n')* ('\n'|EOF) -> skip ;
 
 fragment
-Letter : [a-z]|[A-Z];
+ULetter : [A-Z];
+
+fragment
+LLetter : [a-z];
 
 fragment
 Digit : [0-9];
 
-
-NAME : Letter (Letter|Digit)*;
+UNAME : ULetter (LLetter|ULetter|Digit)*;
+LNAME : UNAME|(LLetter (LLetter|ULetter|Digit)*);
 
 typeId
     : ATOMIC #builtin
-    | NAME #defined
+    | UNAME #defined
     ;
 returnType : typeId | VOID;
 
-packname : (NAME '.')+ NAME;
+packname : (LNAME '.')+ LNAME;
 
 module :
     'module' packname
@@ -33,16 +36,16 @@ module :
 ;
 
 declaration
-    : 'global' NAME definition? #declGlo
-    | 'native' NAME definition? #declNat
-    | 'script' NAME definition? #declScr
-    | 'select' NAME '{' NAME (',' NAME)+ '}' #declSel
+    : 'global' UNAME definition? #declGlo
+    | 'native' UNAME definition? #declNat
+    | 'script' UNAME definition? #declScr
+    | 'select' UNAME '{' UNAME (',' UNAME)+ '}' #declSel
     ;
 
-value: NAME ':' typeId;
+value: LNAME ':' typeId;
 
 member
-    : 'def' NAME '(' (value (',' value)*)? ')' (':' returnType)? #method
+    : 'def' LNAME '(' (value (',' value)*)? ')' (':' returnType)? #method
     | ('val'|'def') value #read
     | 'var' value #accessor
     ;

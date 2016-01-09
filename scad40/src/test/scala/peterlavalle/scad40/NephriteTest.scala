@@ -17,12 +17,12 @@ class NephriteTest extends TestCase {
     */
   def testWhat(): Unit = {
     val engine =
-      Nephrite(List()) {
+      Nephrite(List())("", {
         case name if name.startsWith("/foo/bar.") && name.endsWith(extension) =>
           """
             |why hello there
           """.stripMargin
-      }
+      })
 
     assertEquals("why hello there", engine.layout("/foo/bar." + extension).trim)
   }
@@ -35,7 +35,7 @@ class NephriteTest extends TestCase {
     import peterlavalle.scad40.Deboog
 
     val engine =
-      Nephrite(List("import peterlavalle.scad40.Deboog._")) {
+      Nephrite(List("import peterlavalle.scad40.Deboog._"))("", {
         case name if name.startsWith("/foo/bar.") && name.endsWith(extension) =>
           """
             |<%@ val param: TTo %>
@@ -71,7 +71,7 @@ class NephriteTest extends TestCase {
             |
             |
           """.stripMargin
-      }
+      })
 
     assertEquals(
       """
@@ -151,9 +151,7 @@ class NephriteTest extends TestCase {
     assertEquals(
       leikata(
         """
-          |package foo
-          |
-          |package object bar {
+          |package foo.bar {
           |
           |    @ScalaJSDefined
           |    trait Foo extends js.Object {
@@ -174,7 +172,6 @@ class NephriteTest extends TestCase {
           |        val gloin: Double
           |
           |    }
-          |
           |}
           |
         """.stripMargin),

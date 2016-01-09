@@ -1,0 +1,19 @@
+#import(peterlavalle.scad40.Model)
+<%@ val modelGlobal: Model.Global %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+struct ${modelGlobal.name} : public scad40::object
+{
+	/// the ${modelGlobal.name} constructor
+	/// the user must implement this
+	${modelGlobal.name}(void);
+
+	/// the user's requested members
+	/// the user must implement these
+#for (member <- modelGlobal.members)
+	${nephrite("\n\t", member)}
+#end
+
+
+	/// locates the instance
+	static ${modelGlobal.name}& get(duk_context*);
+};

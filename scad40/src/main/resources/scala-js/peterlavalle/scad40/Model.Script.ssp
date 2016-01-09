@@ -1,12 +1,11 @@
 #import(peterlavalle.scad40.Model)
 <%@ val obj: Model.Script %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-<% import obj._ %>
 
     @ScalaJSDefined
-    trait ${name} extends js.Object {
-    #for (member <- members)
-        ${nephrite(member, "isOnScript" -> true)}
+    trait ${obj.name} extends js.Object {
+    #for (member <- obj.members)
+        ${nephrite(member)}
 
     #end
 

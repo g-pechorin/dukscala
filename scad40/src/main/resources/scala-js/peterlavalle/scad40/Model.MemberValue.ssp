@@ -1,6 +1,5 @@
 #import(peterlavalle.scad40.Model)
 <%@ val obj: Model.MemberValue %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-<%@ val isOnScript: Boolean %>
 
         val ${obj.name}: ${nephrite(obj.kind).trim}
