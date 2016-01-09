@@ -12,34 +12,11 @@ import scala.io.Source
 
 class EndToEndTest extends TestCase {
   val source =
-    """
-      |
-      |module peterlavalle.diskio {
-      |
-      | script ChangeListener {
-      |   def fileChanged(path: string)
-      | }
-      |
-      | native Reading {
-      |   def read(): sint8
-      |   def close()
-      |   def endOfFile(): bool
-      |
-      |   var number: single
-      |   val path: string
-      | }
-      |
-      | global Disk {
-      |   def open(path: string): Reading
-      |   var pwd: string
-      |
-      |   def subscribe(path: string, listener: ChangeListener)
-      |   def unsubscribe(path: string, listener: ChangeListener)
-      | }
-      |
-      |}
-      |
-    """.stripMargin
+    Source.fromInputStream(
+      ClassLoader.getSystemResourceAsStream(
+        "src/test/scad40/peterlavalle.diskio.scad40"
+      )
+    ).mkString.trim.replaceAll("\r?\n","\n")
 
   def prefixIs(preFolder: String, expected: String) = {
 
@@ -142,7 +119,10 @@ class EndToEndTest extends TestCase {
   def testDukAla(): Unit =
     prefixIs(
       "dukd40/",
-      Source.fromInputStream(ClassLoader.getSystemResourceAsStream(getName + ".hpp")).mkString
+      Source.fromInputStream(
+        ClassLoader
+          .getSystemResourceAsStream("peterlavalle.diskio.hpp")
+      ).mkString
     )
 }
 
