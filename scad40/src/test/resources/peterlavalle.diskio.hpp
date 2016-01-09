@@ -96,7 +96,7 @@ namespace scad40
 		{
 			// stack -> ... ; val ; [host] ;
 
-			if ('/' != key[idx + len])
+			if ('.' != key[idx + len])
 			{
 				++len;
 			}
@@ -175,7 +175,7 @@ namespace scad40
 		while (binding[idx + len])
 		{
 			// stack -> .... base .. ; [host] ;
-			if ('/' != binding[idx + len])
+			if ('.' != binding[idx + len])
 			{
 				++len;
 			}
@@ -343,12 +343,12 @@ namespace peterlavalle {
 			{
 				// stack -> .... base .. ;
 
-				scad40::lookup(ctx, "peterlavalle/diskio");
+				scad40::lookup(ctx, "peterlavalle.diskio");
 				// stack -> .... base .. ; ?? previous ?? ;
 
 				if (!duk_is_undefined(ctx, -1))
 				{
-					duk_error(ctx, 314, "Can't redefine module `peterlavalle/diskio`");
+					duk_error(ctx, 314, "Can't redefine module `peterlavalle.diskio`");
 					return;
 				}
 				// stack -> .... base .. ; <undefined> ;
@@ -371,7 +371,7 @@ namespace peterlavalle {
 				}, 0);
 				// stack -> .... base .. ; class:Reading() ;
 
-				scad40::assign(ctx, "peterlavalle/diskio/Reading");
+				scad40::assign(ctx, "peterlavalle.diskio.Reading");
 				// stack -> .... base .. ;
 
 				assert(duk_get_top(ctx) == base);
@@ -500,7 +500,7 @@ namespace peterlavalle {
 
 					// stack -> .... base .. ; [Disk] ;
 
-					scad40::assign((*reinterpret_cast<duk_context**>(ptrDisk) = ctx), "peterlavalle/diskio/Disk");
+					scad40::assign((*reinterpret_cast<duk_context**>(ptrDisk) = ctx), "peterlavalle.diskio.Disk");
 					// stack -> .... base .. ;
 
 					new (ptrDisk)Disk();
@@ -685,7 +685,7 @@ peterlavalle::diskio::Disk& peterlavalle::diskio::Disk::get(duk_context* ctx)
 {
 	// stack -> .... base .. ;
 
-	scad40::lookup(ctx, "peterlavalle/diskio/Disk");
+	scad40::lookup(ctx, "peterlavalle.diskio.Disk");
 	// stack -> .... base .. ; [Disk] ;
 
 	duk_get_prop_string(ctx, -1, "\xFF" "*Disk");
