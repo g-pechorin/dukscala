@@ -208,9 +208,10 @@ namespace scad40
 		// stack -> .... base .. ; [host] ;
 
 		duk_get_prop_string(ctx, -1, binding + idx);
-		// stack -> .... base .. ; [host] ; "key" ;
+		// stack -> .... base .. ; [host] ; val ;
 
-		assert(false && "???");
+		duk_remove(ctx, -2);
+		// stack -> .... base .. ; val ;
 	}
 };
 #endif // ... okay - that's the end of predef
