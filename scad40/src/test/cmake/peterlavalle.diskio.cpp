@@ -8,6 +8,7 @@ int main(int argc, char* argv[])
 {
 	duk_context* ctx = duk_create_heap_default();
 
+#if 0
 	duk_eval_string(ctx, "(function(o) { o.single = 3.14; return o.single; })");
 	duk_push_object(ctx);
 	duk_push_string(ctx, "single");
@@ -43,6 +44,7 @@ int main(int argc, char* argv[])
 	duk_call(ctx, 1);
 	assert(std::string("fella") == duk_to_string(ctx, 0));
 	duk_pop(ctx);
+#endif
 
 #if 0
 	size_t f = (size_t)duk_push_fixed_buffer(ctx, 4);
@@ -68,17 +70,26 @@ int main(int argc, char* argv[])
 	duk_put_prop_string(ctx, 0, "bar");
 #endif
 
-
-
 	peterlavalle::diskio::install(ctx);
 
+	auto& got = peterlavalle::diskio::Disk::get(ctx);
+	
+	got.foobar("thing");
 
-	std::cout << "Hello World" << std::endl;
+	duk_eval_string(ctx, "peterlavalle.diskio.Disk.foobar('hamster')");
+	
+	duk_destroy_heap(ctx);
+
 	return EXIT_SUCCESS;
-	}
+}
 
 peterlavalle::diskio::Disk::Disk(void) :
-_pwd(Host())
+	_pwd(Host())
 {
 
+}
+
+void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
+{
+	std::cout << text << std::endl;
 }

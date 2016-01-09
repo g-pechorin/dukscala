@@ -15,6 +15,7 @@ module peterlavalle.diskio {
  }
 
  global Disk {
+   def foobar(text: string)
    def open(path: string): Reading
    var pwd: string
 

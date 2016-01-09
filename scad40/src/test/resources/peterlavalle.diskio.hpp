@@ -67,6 +67,7 @@ namespace scad40
 	struct duk_str : public scad40::object
 	{
 		duk_str(duk_context* ctx);
+		duk_str(duk_context* ctx, duk_idx_t);
 		duk_str(duk_context* ctx, const char*);
 		duk_str(duk_context* ctx, const std::string&);
 
@@ -311,15 +312,23 @@ namespace peterlavalle {
 			Disk& operator = (const Disk&) = delete;
 
 			/// the Disk constructor
-			/// the user must implement this
+			/// ... the user must implement this
 			Disk(void);
 
 			/// the user's requested members
-			/// the user must implement these
-			scad40::duk_ref<Reading> open(const scad40::duk_str& path);
-			scad40::duk_str _pwd;
-			void subscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
-			void unsubscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
+			/// ... the user must implement these
+				void foobar(const scad40::duk_str& text);
+				scad40::duk_ref<Reading> open(const scad40::duk_str& path);
+				scad40::duk_str _pwd;
+				void subscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
+				void unsubscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
+
+			/// alternative const char* interfaces
+				void foobar(const char* text)
+				{
+					scad40::duk_str text_(Host(), text);
+					foobar(text_);
+				}
 
 			/// locates the instance
 			static Disk& get(duk_context*);
@@ -382,68 +391,112 @@ namespace peterlavalle {
 					duk_push_object(ctx);
 					// stack -> .... base .. ; [Disk] ;
 
-					Disk* ptrDisk = reinterpret_cast<Disk*>(duk_push_fixed_buffer(ctx, sizeof(Disk)));
-					// stack -> .... base .. ; [Disk] ; Disk[*] ;
+					Disk* ptrDisk = (Disk*) duk_alloc(ctx, sizeof(Disk));
+					duk_push_pointer(ctx, ptrDisk);
+					// stack -> .... base .. ; [Disk] ; *Disk ;
 
-					duk_put_prop_string(ctx, -2, ptrDisk->KeyString().data());
+					duk_put_prop_string(ctx, -2, "\xFF" "*Disk");
 					// stack -> .... base .. ; [Disk] ;
 
-					{
-						// def open(path: string): Reading
-						{
-							duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+					duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
 
-								assert(false && "???");
-								return -1;
+						// stack -> ... ;
 
-							}, 1);
-							duk_put_prop_string(ctx, -2, "open");
-						}
+						duk_push_current_function(ctx);
+						// stack -> ... ; ~Disk() ;
 
-						// var pwd: string
-						{
-							duk_push_string(ctx, "pwd");
-							duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+						duk_get_prop_string(ctx, -1, "\xFF" "*Disk");
+						// stack -> ... ; ~Disk() ; *Disk ;
 
-								// getter(key, ???, ???)
-								assert(false && "???");
-								return -1;
+						Disk* thisDisk = (Disk*)duk_to_pointer(ctx, -1);
 
-							}, 3);
-							duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+						thisDisk->~Disk();
+						duk_free(ctx, thisDisk);
 
-								// setter(new val, key, ???)
-								assert(false && "???");
-								return -1;
+						return 0;
 
-							}, 3);
-							duk_def_prop(ctx, -4, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
-						}
+					}, 0);
+					// stack -> .... base .. ; [Disk] ; ~Disk() ;
 
-						// def subscribe(path: string, listener: ChangeListener)
-						{
-							duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+					duk_push_pointer(ctx, ptrDisk);
+					// stack -> .... base .. ; [Disk] ; ~Disk() ; *Disk ;
 
-								assert(false && "???");
-								return -1;
+					duk_put_prop_string(ctx, -2, "\xFF" "*Disk");
+					// stack -> .... base .. ; [Disk] ; ~Disk() ;
 
-							}, 2);
-							duk_put_prop_string(ctx, -2, "subscribe");
-						}
+					duk_set_finalizer(ctx, -2);
+					// stack -> .... base .. ; [Disk] ;
 
-						// def unsubscribe(path: string, listener: ChangeListener)
-						{
-							duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+					
+					// def foobar(text: string): void
+						duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
 
-								assert(false && "???");
-								return -1;
+							// get this*
+							duk_push_current_function(ctx);
+							duk_get_prop_string(ctx, -1, "\xFF" "*Disk");
+							Disk* thisDisk = (Disk*) duk_to_pointer(ctx, -1);
+							duk_pop_2(ctx);
+							
+							// text: string
+							scad40::duk_str text(ctx, 0);
 
-							}, 2);
-							duk_put_prop_string(ctx, -2, "unsubscribe");
-						}
+							// make the call
+							thisDisk->foobar(text);
 
-						assert(duk_get_top(ctx) == 1 + base);
-					}
+							return 0;
+
+						}, 1);
+						duk_push_pointer(ctx, ptrDisk);
+						duk_put_prop_string(ctx, -2, "\xFF" "*Disk");
+						duk_put_prop_string(ctx, -2, "foobar");
+
+
+					// def open(path: string): Reading
+						duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+							assert(false && "???");
+							return -1;
+
+						}, 1);
+						duk_put_prop_string(ctx, -2, "open");
+
+					// var pwd: string
+						duk_push_string(ctx, "pwd");
+						duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+							// getter(key, ???, ???)
+							assert(false && "???");
+							return -1;
+
+						}, 3);
+						duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+							// setter(new val, key, ???)
+							assert(false && "???");
+							return -1;
+
+						}, 3);
+						duk_def_prop(ctx, -4, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+
+					// def subscribe(path: string, listener: ChangeListener)
+						duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+							assert(false && "???");
+							return -1;
+
+						}, 2);
+						duk_put_prop_string(ctx, -2, "subscribe");
+
+					// def unsubscribe(path: string, listener: ChangeListener)
+						duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+							assert(false && "???");
+							return -1;
+
+						}, 2);
+						duk_put_prop_string(ctx, -2, "unsubscribe");
+
+					assert(duk_get_top(ctx) == 1 + base);
 
 					// stack -> .... base .. ; [Disk] ;
 
@@ -465,6 +518,63 @@ inline scad40::duk_str::duk_str(duk_context* ctx) :
 	scad40::duk_str(ctx, nullptr)
 {
 
+}
+
+
+inline scad40::duk_str::~duk_str(void)
+{
+	assert(nullptr != _ctx);
+
+	// stack -> ... ;
+
+	duk_push_global_stash(_ctx);
+	// stack -> ... ; [global stash] ;
+
+	duk_del_prop_string(_ctx, -1, KeyString().data());
+
+	duk_pop(_ctx);
+	// stack -> ... ;
+}
+
+
+inline scad40::duk_str::operator const char *(void) const
+{
+	assert(nullptr != _ctx);
+
+	// stack -> ... ;
+
+	duk_push_global_stash(_ctx);
+	// stack -> ... ; [global stash] ;
+
+	duk_get_prop_string(_ctx, -1, KeyString().data());
+	// stack -> ... ; [global stash] ; "val" ;
+
+	auto result = duk_to_string(_ctx, -1);
+
+	duk_pop_2(_ctx);
+	// stack -> ... ;
+
+	return result;
+}
+
+inline scad40::duk_str::duk_str(duk_context* ctx, duk_idx_t idx) :
+	scad40::object(ctx)
+{
+	assert(duk_is_string(ctx, idx));
+
+	// stack -> ... ; "val" ; ... ;
+
+	duk_push_global_stash(ctx);
+	// stack -> ... ; "val" ; ... ; [global stash] ;
+
+	duk_dup(ctx, idx);
+	// stack -> ... ; "val" ; ... ; [global stash] ; "val" ;
+
+	duk_put_prop_string(ctx, -2, KeyString().data());
+	// stack -> ... ; "val" ; ... ; [global stash] ;
+
+	duk_pop(ctx);
+	// stack -> ... ; "val" ; ... ;
 }
 
 inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
@@ -520,7 +630,6 @@ inline std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2) + 1>
 
 		result[write++] = 'A' + (pair & 0x0F);
 		result[write++] = 'A' + ((pair & 0xF0) >> 4);
-
 	}
 
 	result[write] = '\0';
@@ -568,6 +677,25 @@ inline const char* scad40::object::type_string(void)
 	assert(ptr[out - 1]);
 	ptr[out] = '\0';
 	return _ptr = ptr;
+}
+
+// global get'ers
+
+peterlavalle::diskio::Disk& peterlavalle::diskio::Disk::get(duk_context* ctx)
+{
+	// stack -> .... base .. ;
+
+	scad40::lookup(ctx, "peterlavalle/diskio/Disk");
+	// stack -> .... base .. ; [Disk] ;
+
+	duk_get_prop_string(ctx, -1, "\xFF" "*Disk");
+	// stack -> .... base .. ; [Disk] ; Disk[*] ;
+
+	Disk* ptrDisk = reinterpret_cast<Disk*>(duk_to_pointer(ctx, -1));
+	duk_pop_2(ctx);
+	// stack -> .... base .. ;
+
+	return *ptrDisk;
 }
 
 #pragma endregion
