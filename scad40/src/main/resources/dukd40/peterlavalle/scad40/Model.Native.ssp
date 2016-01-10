@@ -10,7 +10,7 @@ struct ${modelNative.name} : public scad40::object
 	/// the user's requested members
 	/// the user must implement these
 #for (member <- modelNative.members)
-	${nephrite("\n\t", member)}
+		${nephrite("\n\t\t", member)}
 #end
 
 	/// the Reading destructor
@@ -31,6 +31,12 @@ struct ${modelNative.name} : public scad40::object
 		assert(false && "??? scad40 needs to provide this");
 	}
 
+	/// creates a new ${modelNative.name} object and returns a magical pointer to it
+	static scad40::duk_ref${ "<" + modelNative.name + ">"} New(duk_context* ctx)
+	{
+		assert(false && "??? scad40 needs to provide this");
+	}
+
 	/// pulls the the passed index into a ${modelNative.name} object
 	/// ... if the passed index is not a ${modelNative.name} object - behaviour is undefined
 	static scad40::duk_ref${ "<" + modelNative.name + ">"} To(duk_context* ctx, duk_idx_t idx)
@@ -42,12 +48,6 @@ struct ${modelNative.name} : public scad40::object
 			duk_error(ctx, 314, "Tried to grab `%s` as a {${modelNative.name}} (which it is not)", duk_to_string(ctx, idx);
 		}
 
-		assert(false && "??? scad40 needs to provide this");
-	}
-
-	/// creates a new ${modelNative.name} object and returns a magical pointer to it
-	static scad40::duk_ref${ "<" + modelNative.name + ">"} New(duk_context* ctx)
-	{
 		assert(false && "??? scad40 needs to provide this");
 	}
 };

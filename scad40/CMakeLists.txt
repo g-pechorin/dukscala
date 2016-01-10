@@ -14,16 +14,10 @@ add_definitions(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 include_directories(
 	../duktape
+	
+	# this test runs against the expectations
 	src/test/resources
 )
-
-##	# rebuilds the header
-##		add_custom_target(
-##			peterlavalle.diskio
-##				sbt \"runMain peterlavalle.scad40.Main src/test/scad40/peterlavalle.diskio.scad40 target/peterlavalle.diskio.hpp\"
-##		    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-##		    COMMENT "Generating ScaD40 interface ..."
-##			)
 
 # main executable
 add_executable(
@@ -33,6 +27,6 @@ add_executable(
 		../duktape/duktape.c
 		../duktape/duktape.h
 
-		src/test/cmake/peterlavalle.diskio.cpp
+		src/test/cmake/peterlavalle.diskio-test.cpp
 		src/test/resources/peterlavalle.diskio.hpp
 	)

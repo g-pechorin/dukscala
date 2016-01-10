@@ -14,7 +14,7 @@ class EndToEndTest extends TestCase {
   val source =
     Source.fromInputStream(
       ClassLoader.getSystemResourceAsStream(
-        "src/test/scad40/peterlavalle.diskio.scad40"
+        "peterlavalle.diskio.scad40"
       )
     ).mkString.trim.replaceAll("\r?\n","\n")
 
@@ -98,6 +98,9 @@ class EndToEndTest extends TestCase {
         |
         |    @js.native
         |    object Disk extends js.Object {
+        |
+        |        @js.native
+        |        def foobar(text: String): Unit = js.native
         |
         |        @js.native
         |        def open(path: String): Reading = js.native
