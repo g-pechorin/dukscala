@@ -7,6 +7,7 @@ import scala.collection.mutable.Stack
 /**
   * Copied from ScalaTest
   */
+/*
 class ExampleSpec extends FlatSpec with Matchers {
 
   "A Stack" should "pop values in last-in-first-out order" in {
@@ -24,3 +25,4 @@ class ExampleSpec extends FlatSpec with Matchers {
     }
   }
 }
+*/

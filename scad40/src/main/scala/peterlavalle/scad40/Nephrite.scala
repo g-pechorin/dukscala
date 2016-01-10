@@ -3,7 +3,7 @@ package peterlavalle.scad40
 import java.io.PrintWriter
 import java.text.{FieldPosition, NumberFormat, ParsePosition}
 
-import org.fusesource.scalate.util.{Resource, ResourceLoader}
+import org.fusesource.scalate.util.{ResourceNotFoundException, Resource, ResourceLoader}
 import org.fusesource.scalate.{RenderContext, TemplateEngine, TemplateException}
 
 import scala.io.Source
@@ -11,60 +11,51 @@ import scala.io.Source
 /**
   * Funky casing around Scalate
   */
-class Nephrite private(prefolder: String, val obj: Any, val parent: Nephrite, val engine: TemplateEngine) {
+class Nephrite private(prefolder: String, val bound: Map[String, Any], val parent: Nephrite) {
 
-  require(prefolder.matches("((\\w+\\-)*\\w+/)+"))
+  object ChainedResourceLoader extends ResourceLoader {
+    override def resource(name: String): Option[Resource] = {
 
-  def this(prefolder: String) =
-    this(prefolder, null, null, Nephrite(List())(prefolder))
+      require(!name.startsWith(prefolder))
 
-  def sub(subfolder: String): Nephrite = {
-    require(subfolder.matches("((\\w+\\-)*\\w+/)+"))
+      ClassLoader.getSystemResourceAsStream(prefolder + name) match {
+        case null if null != parent =>
+          parent.ChainedResourceLoader.resource(name)
 
-    sys.error("Defer back to us when can't find sub")
+        case null =>
 
-    new Nephrite(prefolder + subfolder, null, this, engine)
-  }
+          require(name.startsWith(prefolder))
 
-  def apply(pattern: String, replacement: String, obj: AnyRef): String =
-    this (obj).replaceAll("^[ \t]*\n", "").replaceAll(pattern, replacement)
+          val uri = name.substring(prefolder.length).replaceAll("\\.ssp$", "")
+          val packageName = uri.replaceAll("\\..*", "").replace("/", ".")
+          val className = uri.replaceAll(".*/", "")
+          val localName = className.substring(0, 1).toLowerCase + className.substring(1).replace(".", "")
 
-  def apply(replacement: String, obj: AnyRef): String =
-    this ("\r?\n", replacement, obj)
+          throw new IllegalArgumentException(
+            s"""Failed to load resource `$name`
+                |		<%-- maybe try this? --%>
+                |			#import($packageName)
+                |			<%@ val $localName: $className %>
+                |			<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+                |			?? default template $${$localName} ??
+                |
+                """.stripMargin
+          )
 
-  def apply(obj: AnyRef, extras: (String, Any)*) = {
-    val uri: String = obj.getClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.') + ".ssp"
+        case stream =>
+          require(null != stream)
 
-    val binding = {
-      val binding =
-        obj.getClass.getName.replaceAll("^.*\\.", "")
-
-      binding.substring(0, 1).toLowerCase + binding.substring(1).replace("$", "")
+          Some(
+            Resource.fromSource(name, Source.fromInputStream(stream))
+          )
+      }
     }
-
-    val bounds =
-      Map(
-        binding -> obj,
-        "obj" -> obj,
-        "nephrite" -> new Nephrite(prefolder, obj, this, engine)
-      ) ++ extras.toMap
-
-    leikata(engine.layout(prefolder + uri, bounds)).replaceAll("[ \t]\r?\n", "\n")
   }
 
-  val depth: Int =
-    if (null != parent)
-      parent.depth + 1
-    else
-      0
-}
-
-object Nephrite {
-
-  def apply(imports: List[String])(prefolder: String, lookup: (String => String) = _ => null) = {
+  val engine: TemplateEngine = {
     val engine = new TemplateEngine {
-
       override protected def createRenderContext(uri: String, out: PrintWriter): RenderContext = {
+
         val renderContext: RenderContext = super.createRenderContext(uri, out)
 
         val oldNumberFormat: NumberFormat = renderContext.numberFormat
@@ -83,50 +74,49 @@ object Nephrite {
         renderContext
       }
     }
-    engine.importStatements = engine.importStatements ++ imports
     engine.escapeMarkup = false
-    engine.resourceLoader =
-      new ResourceLoader {
-        override def resource(name: String): Option[Resource] = {
+    engine.resourceLoader = ChainedResourceLoader
 
-          lookup(name) match {
-            case text: String =>
-              Some(Resource.fromText(name, text))
-
-            case null =>
-              val stream =
-                ClassLoader.getSystemResourceAsStream(name)
-
-              require(name.startsWith(prefolder))
-
-              val uri = name.substring(prefolder.length).replaceAll("\\.ssp$", "")
-              val packageName = uri.replaceAll("\\..*", "").replace("/", ".")
-              val className = uri.replaceAll(".*/", "")
-              val localName = className.substring(0, 1).toLowerCase + className.substring(1).replace(".", "")
-
-              require(null != stream,
-                s"""Failed to load resource `$name`
-                    |		<%-- maybe try this? --%>
-                    |			#import($packageName)
-                    |			<%@ val $localName: $className %>
-                    |			<%@ val nephrite: peterlavalle.scad40.Nephrite %>
-                    |			?? default template $${$localName} ??
-                    |
-                """.stripMargin
-              )
-
-              Some(
-                Resource.fromSource(
-                  name,
-                  Source.fromInputStream(
-                    stream
-                  )
-                )
-              )
-          }
-        }
-
-      }
     engine
+  }
+
+  def this(prefolder: String) =
+    this(prefolder, null, null)
+
+  require(prefolder.matches("((\\w+\\-)*\\w+/)+"))
+
+  def sub(subfolder: String): Nephrite = {
+    require(subfolder.matches("((\\w+\\-)*\\w+/)+"))
+
+    sys.error("Defer back to us when can't find sub")
+
+    new Nephrite(prefolder + subfolder, null, this)
+  }
+
+  def apply(pattern: String, replacement: String, obj: AnyRef): String =
+    this (obj).replaceAll("^[ \t]*\n", "").replaceAll(pattern, replacement)
+
+  def apply(replacement: String, obj: AnyRef): String =
+    this ("\r?\n", replacement, obj)
+
+  def apply(obj: AnyRef) = {
+    val uri: String = obj.getClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.') + ".ssp"
+
+    val binding = {
+      val binding =
+        obj.getClass.getName.replaceAll("^.*\\.", "")
+
+      binding.substring(0, 1).toLowerCase + binding.substring(1).replace("$", "")
+    }
+
+    val bounds =
+      Map(
+        binding -> obj,
+        "obj" -> obj
+      ) ++ (if (null == bound) Map() else bound)
+
+    val layout: String = engine.layout(uri, Map("nephrite" -> new Nephrite(prefolder, bounds, this)) ++ bounds)
+
+    leikata(layout).replaceAll("[ \t]\r?\n", "\n")
   }
 }
