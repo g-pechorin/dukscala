@@ -55,7 +55,7 @@ object Model {
 
   case class MemberValue(name: String, kind: TKind) extends TMember
 
-  case class MemberFunction(name: String, arguments: Stream[Argument], result: TKind) extends TMember
+  case class MemberFunction(name: String, arguments: Stream[Argument], resultKind: TKind) extends TMember
 
   sealed trait TDeclaration {
     val name: String

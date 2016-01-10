@@ -1,0 +1,18 @@
+<%-- maybe try this? --%>
+#import(peterlavalle.scad40.Model)
+<%@ val modelMemberFunction: Model.MemberFunction %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+${nephrite(modelMemberFunction.resultKind)} ${modelMemberFunction.name} (${modelMemberFunction.arguments.foldLeft("")((l,n) => l + ", " + nephrite(n).trim).replaceAll("^, ", "").trim})
+{
+#for (argument <- modelMemberFunction.arguments.filter(_.kind == Model.KindString))
+    ${argument}
+#end
+#{
+    val params = "???"
+}#
+#if (Model.KindVoid == modelMemberFunction.resultKind)
+    ${modelMemberFunction.name}(${params});
+#else
+    return ${modelMemberFunction.name}(${params});
+#end
+}

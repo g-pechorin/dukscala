@@ -4,8 +4,11 @@
 struct ${modelNative.name} : public scad40::object
 {
 	/// the ${modelNative.name} constructor
-	/// the user must implement this
+	/// ... the user must implement this
 	${modelNative.name}(void);
+
+	${modelNative.name}(const ${modelNative.name}&);
+	${modelNative.name}& operator = (const ${modelNative.name}&);
 
 	/// the user's requested members
 	/// the user must implement these

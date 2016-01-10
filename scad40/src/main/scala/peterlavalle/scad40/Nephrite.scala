@@ -13,10 +13,18 @@ import scala.io.Source
   */
 class Nephrite private(prefolder: String, val obj: Any, val parent: Nephrite, val engine: TemplateEngine) {
 
+  require(prefolder.matches("((\\w+\\-)*\\w+/)+"))
+
   def this(prefolder: String) =
     this(prefolder, null, null, Nephrite(List())(prefolder))
 
-  require(prefolder.matches("((\\w+\\-)*\\w+/)+"))
+  def sub(subfolder: String): Nephrite = {
+    require(subfolder.matches("((\\w+\\-)*\\w+/)+"))
+
+    sys.error("Defer back to us when can't find sub")
+
+    new Nephrite(prefolder + subfolder, null, this, engine)
+  }
 
   def apply(pattern: String, replacement: String, obj: AnyRef): String =
     this (obj).replaceAll("^[ \t]*\n", "").replaceAll(pattern, replacement)

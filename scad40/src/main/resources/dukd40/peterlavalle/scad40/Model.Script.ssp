@@ -1,11 +1,16 @@
 #import(peterlavalle.scad40.Model)
 <%@ val modelScript: Model.Script %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
+// script C++ classes are really just wrappers to access the ECMAScript implementation
 struct ${modelScript.name} : public scad40::duk_object
 {
 	//
 	//misc head stuff
 	//
+
+	// doesn't need these since duk_object will provide it anyway
+	// ${modelScript.name}(const ${modelScript.name}&);
+	// ${modelScript.name}& operator = (const ${modelScript.name}&);
 
 	/// the user's requested members
 #for (member <- modelScript.members)

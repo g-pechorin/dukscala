@@ -1,4 +1,4 @@
 #import(peterlavalle.scad40.Model)
 <%@ val obj: Model.MemberFunction %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-        def ${obj.name}(${obj.arguments.foldLeft("")((lef, arg) => lef + ", " + nephrite(arg).trim).replaceAll("^, ", "")}): ${nephrite(obj.result).trim}
+        def ${obj.name}(${obj.arguments.foldLeft("")((lef, arg) => lef + ", " + nephrite(arg).trim).replaceAll("^, ", "")}): ${nephrite(obj.resultKind).trim}

@@ -233,11 +233,16 @@ namespace peterlavalle {
 namespace diskio {
 
 	/// a script class
+	// script C++ classes are really just wrappers to access the ECMAScript implementation
 	struct ChangeListener : public scad40::duk_object
 	{
 		//
 		//misc head stuff
 		//
+
+		// doesn't need these since duk_object will provide it anyway
+		// ChangeListener(const ChangeListener&);
+		// ChangeListener& operator = (const ChangeListener&);
 
 		/// the user's requested members
 			void fileChanged (const scad40::duk_str& path);
@@ -270,8 +275,11 @@ namespace diskio {
 	struct Reading : public scad40::object
 	{
 		/// the Reading constructor
-		/// the user must implement this
+		/// ... the user must implement this
 		Reading(void);
+
+		Reading(const Reading&);
+		Reading& operator = (const Reading&);
 
 		/// the user's requested members
 		/// the user must implement these
