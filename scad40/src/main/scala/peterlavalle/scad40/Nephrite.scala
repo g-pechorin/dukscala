@@ -1,6 +1,6 @@
 package peterlavalle.scad40
 
-import java.io.PrintWriter
+import java.io.{InputStream, PrintWriter}
 import java.text.{FieldPosition, NumberFormat, ParsePosition}
 
 import org.fusesource.scalate.util.{Resource, ResourceLoader}
@@ -11,122 +11,136 @@ import scala.io.Source
 /**
   * Funky casing around Scalate
   */
-class Nephrite private(prefolder: String, val obj: Any, val parent: Nephrite, val engine: TemplateEngine) {
+class Nephrite private(preFolder: String, subFolder: String, val bounds: Map[String, Any], val parent: Nephrite) {
 
-  require(prefolder.matches("((\\w+\\-)*\\w+/)+"))
+  require(preFolder.matches("((\\w+\\-)*\\w+/)+"))
+  require(subFolder.matches("(/(\\w+\\-)*\\w+)*"))
 
-  def this(prefolder: String) =
-    this(prefolder, null, null, Nephrite(List())(prefolder))
+  def this(preFolder: String) = this(preFolder, "", Map(), null)
 
-  def sub(subfolder: String): Nephrite = {
-    require(subfolder.matches("((\\w+\\-)*\\w+/)+"))
-
-    sys.error("Defer back to us when can't find sub")
-
-    new Nephrite(prefolder + subfolder, null, this, engine)
+  def sub(subFolder: String): Nephrite = {
+    require(subFolder.matches("(/(\\w+\\-)*\\w+)*"))
+    new Nephrite(
+      preFolder,
+      this.subFolder + subFolder,
+      bounds,
+      parent
+    )
   }
 
   def apply(pattern: String, replacement: String, obj: AnyRef): String =
     this (obj).replaceAll("^[ \t]*\n", "").replaceAll(pattern, replacement)
 
-  def apply(replacement: String, obj: AnyRef): String =
-    this ("\r?\n", replacement, obj)
+  def apply(replacement: String, attributeRef: AnyRef): String =
+    this ("\r?\n", replacement, attributeRef)
 
-  def apply(obj: AnyRef, extras: (String, Any)*) = {
-    val uri: String = obj.getClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.') + ".ssp"
+  def apply(attributeRef: AnyRef) = {
+    val uri: String =
+      attributeRef.getClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.')
 
-    val binding = {
+    val attributeName = {
       val binding =
-        obj.getClass.getName.replaceAll("^.*\\.", "")
+        attributeRef.getClass.getName.replaceAll("^.*\\.", "")
 
       binding.substring(0, 1).toLowerCase + binding.substring(1).replace("$", "")
     }
 
-    val bounds =
-      Map(
-        binding -> obj,
-        "obj" -> obj,
-        "nephrite" -> new Nephrite(prefolder, obj, this, engine)
-      ) ++ extras.toMap
+    val bind = {
+      val bounds =
+        Map(
+          attributeName -> attributeRef
+        ) ++ this.bounds
 
-    leikata(engine.layout(prefolder + uri, bounds)).replaceAll("[ \t]\r?\n", "\n")
+      Map("nephrite" -> new Nephrite(preFolder, subFolder, bounds, this)) ++ bounds
+    }
+
+    if ("" != subFolder) {
+      println("???")
+    }
+
+    val layout: String = {
+      var focus = this
+
+      while (!focus.uriExists(uri)) {
+        focus = focus.parent
+
+        if (null == focus) {
+
+          val packageName = uri.replaceAll("\\..*", "").replace("/", ".")
+          val className = uri.replaceAll(".*/", "")
+          val localName = className.substring(0, 1).toLowerCase + className.substring(1).replace(".", "")
+          val name = preFolder + uri + subFolder + ".ssp"
+
+          sys.error(
+            s"""Failed to load resource `$name`
+                |		<%-- maybe try this? --%>
+                |			#import($packageName)
+                |			<%@ val $localName: $className %>
+                |			<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+                |			?? default template $${$localName} ??
+                |
+            """.stripMargin
+          )
+        }
+      }
+
+      focus.uriLayout(uri, bind)
+    }
+
+    leikata(layout).replaceAll("[ \t]\r?\n", "\n")
   }
 
-  val depth: Int =
-    if (null != parent)
-      parent.depth + 1
-    else
-      0
-}
+  private def uriExists(uri: String) =
+    Loader.exists(preFolder + uri + subFolder + ".ssp")
 
-object Nephrite {
+  private def uriLayout(uri: String, bind: Map[String, Any]) =
+    Engine.layout(preFolder + uri + subFolder + ".ssp", bind)
 
-  def apply(imports: List[String])(prefolder: String, lookup: (String => String) = _ => null) = {
-    val engine = new TemplateEngine {
+  object Loader extends ResourceLoader {
+    override def resource(name: String): Option[Resource] = {
 
-      override protected def createRenderContext(uri: String, out: PrintWriter): RenderContext = {
-        val renderContext: RenderContext = super.createRenderContext(uri, out)
+      ClassLoader.getSystemResourceAsStream(name) match {
+        case null =>
 
-        val oldNumberFormat: NumberFormat = renderContext.numberFormat
-        renderContext.numberFormat =
-          new NumberFormat {
-            override def parse(source: String, parsePosition: ParsePosition): Number =
-              oldNumberFormat.parse(source, parsePosition)
+          None
 
-            override def format(number: Double, toAppendTo: StringBuffer, pos: FieldPosition): StringBuffer =
-              toAppendTo.append(number)
 
-            override def format(number: Long, toAppendTo: StringBuffer, pos: FieldPosition): StringBuffer =
-              toAppendTo.append(number)
-          }
-
-        renderContext
+        case stream: InputStream =>
+          Some(
+            Resource.fromSource(
+              name,
+              Source.fromInputStream(stream)
+            )
+          )
       }
     }
-    engine.importStatements = engine.importStatements ++ imports
-    engine.escapeMarkup = false
-    engine.resourceLoader =
-      new ResourceLoader {
-        override def resource(name: String): Option[Resource] = {
+  }
 
-          lookup(name) match {
-            case text: String =>
-              Some(Resource.fromText(name, text))
+  object Engine extends TemplateEngine {
+    override protected def createRenderContext(uri: String, out: PrintWriter): RenderContext = {
+      val renderContext: RenderContext = super.createRenderContext(uri, out)
 
-            case null =>
-              val stream =
-                ClassLoader.getSystemResourceAsStream(name)
+      val oldNumberFormat: NumberFormat = renderContext.numberFormat
+      renderContext.numberFormat =
+        new NumberFormat {
+          override def parse(source: String, parsePosition: ParsePosition): Number =
+            oldNumberFormat.parse(source, parsePosition)
 
-              require(name.startsWith(prefolder))
+          override def format(number: Double, toAppendTo: StringBuffer, pos: FieldPosition): StringBuffer =
+            toAppendTo.append(number)
 
-              val uri = name.substring(prefolder.length).replaceAll("\\.ssp$", "")
-              val packageName = uri.replaceAll("\\..*", "").replace("/", ".")
-              val className = uri.replaceAll(".*/", "")
-              val localName = className.substring(0, 1).toLowerCase + className.substring(1).replace(".", "")
-
-              require(null != stream,
-                s"""Failed to load resource `$name`
-                    |		<%-- maybe try this? --%>
-                    |			#import($packageName)
-                    |			<%@ val $localName: $className %>
-                    |			<%@ val nephrite: peterlavalle.scad40.Nephrite %>
-                    |			?? default template $${$localName} ??
-                    |
-                """.stripMargin
-              )
-
-              Some(
-                Resource.fromSource(
-                  name,
-                  Source.fromInputStream(
-                    stream
-                  )
-                )
-              )
-          }
+          override def format(number: Long, toAppendTo: StringBuffer, pos: FieldPosition): StringBuffer =
+            toAppendTo.append(number)
         }
 
-      }
-    engine
+      renderContext
+    }
+
+    escapeMarkup = false
+    resourceLoader = Loader
   }
+
+
 }
+
+

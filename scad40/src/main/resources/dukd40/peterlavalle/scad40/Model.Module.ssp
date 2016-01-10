@@ -1,5 +1,5 @@
-# import(peterlavalle.scad40.Model)
-<%@ val modelModule: peterlavalle.scad40.Model.Module %>
+#import(peterlavalle.scad40.Model)
+<%@ val modelModule: Model.Module %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
 ${ "#pragma" } once
 

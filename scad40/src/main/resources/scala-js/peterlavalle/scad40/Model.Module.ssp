@@ -1,10 +1,10 @@
-# import(peterlavalle.scad40.Model)
-< % @ val modelModule: peterlavalle.scad40.Model.Module %>
-< % @ val nephrite: peterlavalle.scad40.Nephrite %>
+#import(peterlavalle.scad40.Model)
+<%@ val modelModule: peterlavalle.scad40.Model.Module %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
 
-package $ {modelModule.name} {
+package ${modelModule.name} {
 
-# for (thing <- modelModule.contents)
-    $ {nephrite(thing)}
-# end
+#for (thing <- modelModule.contents)
+    ${nephrite(thing)}
+#end
 }

@@ -33,7 +33,7 @@ class NephriteTest extends TestCase {
       leikata(
         """
           |
-          |var foo : std::string = ???
+          |var foo: std::string = ???
           |
         """.stripMargin),
       leikata(output)
