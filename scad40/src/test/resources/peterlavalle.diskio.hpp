@@ -322,11 +322,11 @@ namespace diskio {
 
 		/// the user's requested members
 		/// ... the user must implement these
-			void foobar(const scad40::duk_str& text);
-			scad40::duk_ref<Reading> open(const scad40::duk_str& path);
+			void foobar (const scad40::duk_str& text);
+			scad40::duk_ref<Reading> open (const scad40::duk_str& path);
 			scad40::duk_str _pwd;
-			void subscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
-			void unsubscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
+			void subscribe (const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
+			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
 
 		/// alternative const char* interfaces
 			void foobar(const char* text)
