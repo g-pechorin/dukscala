@@ -1,15 +1,15 @@
-#import(peterlavalle.scad40.Model)
-<%@ val modelModule: Model.Module %>
+# import(peterlavalle.scad40.Model)
+<%@ val modelModule: peterlavalle.scad40.Model.Module %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
 ${ "#pragma" } once
 
-${ "#include" } <duktape.h>
+${ "#include <duktape.h>" }
 
-${ "#include" } <array>
-${ "#include" } <string>
+${ "#include <array>" }
+${ "#include <string>" }
 
-${ "#include" } <assert.h>
-${ "#include" } <stdint.h>
+${ "#include <assert.h>" }
+${ "#include <stdint.h>" }
 
 ///
 /// These classes are used to bridge-the-gap between Scala-JS and C++
