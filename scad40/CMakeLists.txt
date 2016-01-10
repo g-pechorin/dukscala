@@ -14,19 +14,22 @@ add_definitions(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 include_directories(
 	../duktape
-	
+
 	# this test runs against the expectations
 	src/test/resources
 )
 
 # main executable
 add_executable(
-	peterlavalle.diskio
+	peterlavalle.diskio-test
 
 		../duktape/duk_config.h
 		../duktape/duktape.c
 		../duktape/duktape.h
 
 		src/test/cmake/peterlavalle.diskio-test.cpp
+		src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
+
 		src/test/resources/peterlavalle.diskio.hpp
+
 	)
