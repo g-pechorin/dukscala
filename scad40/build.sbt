@@ -16,5 +16,4 @@ antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
 
 libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.13"
 libraryDependencies += "org.scalatra.scalate" %% "scalate-core" % "1.7.0"
-//libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 libraryDependencies += "junit" % "junit" % "4.12" % "test"
