@@ -11,7 +11,7 @@ struct ${modelGlobal.name} : public scad40::object
 	${modelGlobal.name}& operator = (const ${modelGlobal.name}&) = delete;
 
 	/// the user's requested members
-	/// the user must implement these
+	/// ... the user must implement these
 #for (member <- modelGlobal.members)
 		${nephrite("\n\t\t", member)}
 #end

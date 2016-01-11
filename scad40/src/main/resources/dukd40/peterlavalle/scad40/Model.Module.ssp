@@ -242,9 +242,29 @@ namespace ${space + " {"}
 #end
 
 	/// sets up the tables and calls to this VM
-	void install(duk_context* ctx)
+	inline void install(duk_context* ctx)
 	{
-		assert(false && "?? check for name collisions");
+		auto base = duk_get_top(ctx);
+
+		// >> check for name collisions
+		{
+			// stack -> .... base .. ;
+
+			scad40::lookup(ctx, "${modelModule.name}");
+			// stack -> .... base .. ; ?? previous ?? ;
+
+			if (!duk_is_undefined(ctx, -1))
+			{
+				duk_error(ctx, 314, "Can't redefine module `${modelModule.name}`");
+				return;
+			}
+			// stack -> .... base .. ; <undefined> ;
+
+			duk_pop(ctx);
+			// stack -> .... base .. ;
+
+			assert(duk_get_top(ctx) == base);
+		};
 
 		assert(false && "?? load up code to make script super-classes");
 
@@ -264,18 +284,18 @@ inline scad40::object::object(void)
 	assert(nullptr != _ctx);
 }
 
-inline duk_context* scad40::object::Host(void)
+inline duk_context* scad40::object::Host(void) const
 {
 	return _ctx;
 }
 
-inline std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2)> scad40::object::key_string(void) const
+inline std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2) + 1> scad40::object::KeyString(void) const
 {
 	assert(strlen(scad40_duk_ref_et_str__string) == scad40_duk_ref_et_str__strlen);
-	std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2)> result;
+	std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2) + 1> result;
 
-	strcpy(result + 0, scad40_duk_ref_et_str__string);
-	size_t write += strlen(scad40_duk_ref_et_str__string);
+	strcpy(result.data(), scad40_duk_ref_et_str__string);
+	size_t write = scad40_duk_ref_et_str__strlen;
 
 	union {
 		uint8_t _chars[(sizeof(void*) * 2)];
@@ -288,11 +308,11 @@ inline std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2)> sca
 	{
 		uint8_t pair = swang._chars[i];
 
-		char c;
-
 		result[write++] = 'A' + (pair & 0x0F);
 		result[write++] = 'A' + ((pair & 0xF0) >> 4);
 	}
+
+	result[write] = '\0';
 
 	return result;
 }
@@ -302,21 +322,21 @@ inline const char* scad40::object::type_string(void)
 {
 	/// there is an insanely small chance of a leak
 	static char* _ptr = nullptr;
-	if (nullptr != _ptr )
+	if (nullptr != _ptr)
 	{
-		return _ptr ;
+		return _ptr;
 	}
 
 	const char* str = typeid(T).name();
 	size_t len = strlen(str);
-	char* ptr = (const char*) malloc(len + 1)
+	char* ptr = (const char*)malloc(len + 1);
 
 	size_t src = 0, out = 0;
 
 	while (str[src])
 	{
 		const auto c = str[src++];
-		if (('a' <= c && c <= 'z')||('A' <= c && c <= 'Z')||('0' <= c && c <= '9')||('_' == c))
+		if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || ('_' == c))
 		{
 			ptr[out++] = c;
 			continue;

@@ -54,10 +54,6 @@ class Nephrite private(preFolder: String, subFolder: String, val bounds: Map[Str
       Map("nephrite" -> new Nephrite(preFolder, subFolder, bounds, this)) ++ bounds
     }
 
-    if ("" != subFolder) {
-      println("???")
-    }
-
     val layout: String = {
       var focus = this
 

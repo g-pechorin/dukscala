@@ -329,13 +329,33 @@ namespace diskio {
 			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
 
 		/// alternative const char* interfaces
-			void foobar(const char* text)
+			void foobar (const char* text_)
 			{
 				scad40::duk_str text_(Host(), text);
 
-				foobar(text_);
+				foobar(text);
+			}
+			scad40::duk_ref<Reading> open (const char* path_)
+			{
+				scad40::duk_str path_(Host(), path);
+
+				return open(path);
+			}
+			void subscribe (const char* path_, scad40::duk_ref<ChangeListener> listener)
+			{
+				scad40::duk_str path_(Host(), path);
+
+				subscribe(path, listener);
+			}
+			void unsubscribe (const char* path_, scad40::duk_ref<ChangeListener> listener)
+			{
+				scad40::duk_str path_(Host(), path);
+
+				unsubscribe(path, listener);
 			}
 
+		/// the Disk destructor
+		/// ... the user must implement this
 		~Disk(void);
 
 		/// locates the instance
