@@ -25,6 +25,13 @@ struct ${modelGlobal.name} : public scad40::object
 	/// ... the user must implement this
 	~${modelGlobal.name}(void);
 
+	/// magic method to load/store dynamic fields
+	template<typename T>
+	T& Stash(const pal_adler32::obj&);
+
+	/// overload. assumes typeid(T).name() is acceptable
+	template<typename T> T& Stash(void) { const static pal_adler32::obj hash = typeid(T).name(); return Stash<T>(hash); }
+
 	/// locates the instance
 	static ${modelGlobal.name}& get(duk_context*);
 };

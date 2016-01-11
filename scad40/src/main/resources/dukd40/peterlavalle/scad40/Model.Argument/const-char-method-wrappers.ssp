@@ -2,7 +2,7 @@
 <%@ val modelArgument: Model.Argument %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
 #if (Model.KindString == modelArgument.kind)
-const char* ${modelArgument.name}_
+const char* ${modelArgument.name}
 #else
 ${nephrite(modelArgument.kind)} ${modelArgument.name}
 #end

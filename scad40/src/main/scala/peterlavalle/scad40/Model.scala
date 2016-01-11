@@ -4,74 +4,108 @@ import scala.collection.immutable.Stream.Empty
 
 object Model {
 
-  sealed trait TKind {
-    val name: String
+  sealed trait T {
+    def source: String
   }
 
+  sealed trait TKind extends T
+
   case object KindVoid extends TKind {
-    val name: String = "void"
+    override def source: String = "void"
   }
 
   case object KindBool extends TKind {
-    val name: String = "bool"
+    override def source: String = "bool"
   }
 
   case object KindSInt8 extends TKind {
-    val name: String = "sint8"
+    override def source: String = "sint8"
   }
 
   case object KindSInt16 extends TKind {
-    val name: String = "sint16"
+    override def source: String = "sint16"
   }
 
   case object KindSInt32 extends TKind {
-    val name: String = "sint32"
+    override def source: String = "sint32"
   }
 
   case object KindString extends TKind {
-    val name: String = "string"
+    override def source: String = "string"
   }
 
   case object KindSingle extends TKind {
-    val name: String = "single"
+    override def source: String = "single"
   }
 
   case object KindDouble extends TKind {
-    val name: String = "double"
+    override def source: String = "double"
   }
 
   case class KindDeclaration(declaration: TDeclaration) extends TKind {
-    val name: String = "@" + declaration.name
+    override def source: String = declaration.name
+
     require(!declaration.isInstanceOf[Global])
   }
 
-  sealed trait TMember {
+  sealed trait TMember extends T {
     val name: String
   }
 
-  case class Argument(name: String, kind: TKind)
+  case class Argument(name: String, kind: TKind) extends T {
+    override def source: String = name + ": " + kind.source
+  }
 
-  case class MemberVariable(name: String, kind: TKind) extends TMember
+  case class MemberVariable(name: String, kind: TKind) extends TMember {
+    require(kind != KindVoid)
 
-  case class MemberValue(name: String, kind: TKind) extends TMember
+    override def source: String = "var %s: %s".format(name, kind.source)
+  }
 
-  case class MemberFunction(name: String, arguments: Stream[Argument], resultKind: TKind) extends TMember
+  case class MemberValue(name: String, kind: TKind) extends TMember {
+    require(kind != KindVoid)
 
-  sealed trait TDeclaration {
+    override def source: String = "val %s: %s".format(name, kind.source)
+  }
+
+  case class MemberFunction(name: String, arguments: Stream[Argument], resultKind: TKind) extends TMember {
+
+    override def source: String =
+      "def %s(%s): %s"
+        .format(
+          name,
+          arguments.map(_.source).foldLeft("")(_ + ", " + _).replaceAll("^, ", ""),
+          resultKind.source
+        )
+  }
+
+  sealed trait TDeclaration extends T {
     val name: String
     val members: Stream[TMember]
   }
 
-  case class Script(name: String, members: Stream[TMember]) extends TDeclaration
+  case class Script(name: String, members: Stream[TMember]) extends TDeclaration {
+    // require(!members.exists(_.isInstanceOf[KindNat]))
 
-  case class Native(name: String, members: Stream[TMember]) extends TDeclaration
+    override def source: String = ???
+  }
 
-  case class Global(name: String, members: Stream[TMember]) extends TDeclaration
+  case class Native(name: String, members: Stream[TMember]) extends TDeclaration {
+    override def source: String = ???
+  }
+
+  case class Global(name: String, members: Stream[TMember]) extends TDeclaration {
+    override def source: String = ???
+  }
 
   case class Select(name: String, options: Set[String]) extends TDeclaration {
     val members = Empty
+
+    override def source: String = ???
   }
 
-  case class Module(name: String, contents: Stream[TDeclaration])
+  case class Module(name: String, contents: Stream[TDeclaration]) extends T {
+    override def source: String = ???
+  }
 
 }

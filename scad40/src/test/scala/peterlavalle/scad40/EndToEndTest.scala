@@ -16,7 +16,7 @@ class EndToEndTest extends TestCase {
       ClassLoader.getSystemResourceAsStream(
         "peterlavalle.diskio.scad40"
       )
-    ).mkString.trim.replaceAll("\r?\n","\n")
+    ).mkString.trim.replaceAll("\r?\n", "\n")
 
   def prefixIs(preFolder: String, expected: String) = {
 
@@ -57,9 +57,10 @@ class EndToEndTest extends TestCase {
     parser.addErrorListener(Fail)
 
     assertEquals(
-      leikata(expected),
-      new Nephrite(preFolder)(FromAntlr4(
-        parser.module()))
+      leikata(expected).replaceAll("[ \t\r\n]*\n", "\n"),
+      new Nephrite(preFolder)
+        .apply(FromAntlr4(parser.module()))
+        .replaceAll("[ \t\r\n]*\n", "\n")
     )
   }
 

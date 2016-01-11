@@ -17,6 +17,11 @@ struct ${modelScript.name} : public scad40::duk_object
 		${nephrite("\n\t\t", member)}
 #end
 
+	/// alternative const char* interfaces
+#for (member <- modelScript.members.filter(m => m.isInstanceOf[Model.MemberFunction] && m.asInstanceOf[Model.MemberFunction].arguments.exists(_.kind == Model.KindString)))
+		${nephrite.sub("/const-char-method-wrappers")("\n\t\t", member)}
+#end
+
 	/// push this onto its stack
 	void Push(void)
 	{
@@ -32,7 +37,8 @@ struct ${modelScript.name} : public scad40::duk_object
 	/// is whatever an instance of this class
 	static bool Is(duk_context* ctx, duk_idx_t idx)
 	{
-		assert(false && "??? scad40 needs to provide this");
+		duk_error(ctx, 314, "??? scad40 needs to provide this");
+		return false;
 	}
 
 	static scad40::duk_ref<${modelScript.name}> To(duk_context* ctx, duk_idx_t idx)

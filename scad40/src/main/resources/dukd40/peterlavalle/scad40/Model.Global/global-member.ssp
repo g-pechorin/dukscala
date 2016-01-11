@@ -1,0 +1,63 @@
+#import(peterlavalle.scad40.Model)
+<%@ val modelModule: Model.Module %>
+<%@ val modelGlobal: Model.Global %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+#{val modelNameSpace = modelModule.name.replace(".", "::")}#
+
+duk_push_object(ctx);
+// stack -> .... base .. ; [${modelGlobal.name}] ;
+
+${modelNameSpace}::${modelGlobal.name}* this${modelGlobal.name} = (${modelNameSpace}::${modelGlobal.name}*) duk_alloc(ctx, sizeof(${modelNameSpace}::${modelGlobal.name}));
+duk_push_pointer(ctx, this${modelGlobal.name});
+// stack -> .... base .. ; [${modelGlobal.name}] ; *${modelGlobal.name} ;
+
+duk_put_prop_string(ctx, -2, "\xFF" "*${modelGlobal.name}");
+// stack -> .... base .. ; [${modelGlobal.name}] ;
+
+duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+    // stack -> ... ;
+
+    duk_push_current_function(ctx);
+    // stack -> ... ; ~${modelGlobal.name}() ;
+
+    duk_get_prop_string(ctx, -1, "\xFF" "*${modelGlobal.name}");
+    // stack -> ... ; ~${modelGlobal.name}() ; *${modelGlobal.name} ;
+
+    ${modelGlobal.name}* this${modelGlobal.name} = (${modelGlobal.name}*)duk_to_pointer(ctx, -1);
+
+    this${modelGlobal.name}->~${modelGlobal.name}();
+    duk_free(ctx, this${modelGlobal.name});
+
+    return 0;
+
+}, 0);
+// stack -> .... base .. ; [${modelGlobal.name}] ; ~${modelGlobal.name}() ;
+
+duk_push_pointer(ctx, this${modelGlobal.name});
+// stack -> .... base .. ; [${modelGlobal.name}] ; ~${modelGlobal.name}() ; *${modelGlobal.name} ;
+
+duk_put_prop_string(ctx, -2, "\xFF" "*${modelGlobal.name}");
+// stack -> .... base .. ; [${modelGlobal.name}] ; ~${modelGlobal.name}() ;
+
+duk_set_finalizer(ctx, -2);
+// stack -> .... base .. ; [${modelGlobal.name}] ;
+
+#for (member <- modelGlobal.members)
+
+// ${member.source}
+
+    ${nephrite("\n\t", member)}
+
+#end
+
+assert(duk_get_top(ctx) == 1 + base);
+
+// stack -> .... base .. ; [${modelGlobal.name}] ;
+
+scad40::env::assign((*reinterpret_cast${"<duk_context**>"}(this${modelGlobal.name}) = ctx), "${modelModule.name}.${modelGlobal.name}");
+// stack -> .... base .. ;
+
+new (this${modelGlobal.name}) ${modelNameSpace}::${modelGlobal.name}();
+
+assert(duk_get_top(ctx) == base);

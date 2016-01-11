@@ -1,16 +1,24 @@
-<%-- maybe try this? --%>
 #import(peterlavalle.scad40.Model)
 <%@ val modelMemberFunction: Model.MemberFunction %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-${nephrite(modelMemberFunction.resultKind)} ${modelMemberFunction.name} (${modelMemberFunction.arguments.foldLeft("")((l, n) => l + ", " + nephrite(n).trim).replaceAll("^, ", "").trim})
-{
-#for (argument <- modelMemberFunction.arguments.filter(_.kind == Model.KindString))
-    ${nephrite(argument.kind)} ${argument.name}_(Host(), ${argument.name});
-#end
-#{ val params = modelMemberFunction.arguments.foldLeft("")((l, n) => l + ", " + n.name).replaceAll("^, ", "") }#
-#if (Model.KindVoid == modelMemberFunction.resultKind)
-    ${modelMemberFunction.name}(${params});
+inline ${nephrite(modelMemberFunction.resultKind).trim} ${modelMemberFunction.name} (${modelMemberFunction.arguments.foldLeft("")((l, n) => l + ", " + nephrite(n).trim).replaceAll("^, ", "").trim})
+{ #if (Model.KindVoid == modelMemberFunction.resultKind)
+    ${modelMemberFunction.name}(
 #else
-    return ${modelMemberFunction.name}(${params});
+    return ${modelMemberFunction.name}(
 #end
+#for ((argument, index) <- modelMemberFunction.arguments.zipWithIndex)
+        ${(if (Model.KindString == argument.kind)
+            "scad40::duk_str(Host(), %s)%s"
+        else
+            "%s%s"
+        ).format(
+            argument.name,
+            if (modelMemberFunction.arguments.last == argument)
+                ""
+            else
+                ","
+        )}
+#end
+    );
 }

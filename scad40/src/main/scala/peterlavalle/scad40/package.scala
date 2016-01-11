@@ -11,9 +11,8 @@ package object scad40 {
     val changed =
       original
         .replaceAll("^([\\s^\n]*\n)", "\n")
-        .replaceAll("\r?\n", "\n")
+        .replaceAll("[ \t\r]+\n", "\n")
         .replaceAll("\\s*$", "")
-        .replaceAll("\n[ \n]+\n", "\n\n")
         .replaceAll("(^|\n)([ \t]*?)    ([ \t]*?)", "$1$2\t$3")
 
     if (changed == original)

@@ -1,0 +1,28 @@
+${ "#ifndef" } _scad40_tail
+${ "#define" } _scad40_tail
+
+#pragma region "scad40"
+
+template<typename T>
+inline void scad40::push_selfie<T>(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*))
+{
+	duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+		duk_push_current_function(ctx);
+		duk_get_prop_string(ctx, -1, "\xFF" "self");
+		duk_get_prop_string(ctx, -2, "\xFF" "code");
+		auto self = (T*)duk_to_pointer(ctx, -2);
+		auto code = (duk_ret_t(*)(duk_context*, T*))duk_to_pointer(ctx, -1);
+		duk_pop_3(ctx);
+		return code(ctx, self);
+	}, nargs);
+	duk_push_pointer(ctx, self);
+	duk_put_prop_string(ctx, -2, "\xFF" "self");
+	duk_push_pointer(ctx, code);
+	duk_put_prop_string(ctx, -2, "\xFF" "code");
+}
+
+#pragma endregion
+
+${ include("scad40-duk_str.ssp") }
+
+${ "#endif" } // ... okay - that's the end of predef

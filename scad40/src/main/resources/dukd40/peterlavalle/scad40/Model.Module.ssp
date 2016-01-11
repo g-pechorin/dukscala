@@ -1,235 +1,8 @@
 #import(peterlavalle.scad40.Model)
 <%@ val modelModule: Model.Module %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-${ "#pragma" } once
-
-${ "#include <duktape.h>" }
-
-${ "#include <array>" }
-${ "#include <string>" }
-
-${ "#include <assert.h>" }
-${ "#include <stdint.h>" }
-
-///
-/// These classes are used to bridge-the-gap between Scala-JS and C++
-/// ... they're not thread-safe but then ... neither is DukTape
-/// ... all modules (should) use the same definition of them - so don't worry about namespace collisions
-${ "#ifndef" } _scad40_duk_ref_et_str
-${ "#define" } _scad40_duk_ref_et_str
-
-${ "#define" } scad40_duk_ref_et_str__string ("\xFF" "scad40")
-${ "#define" } scad40_duk_ref_et_str__strlen (7)
-
-namespace scad40
-{
-	class object
-	{
-		/// magical pointer to the object's hosting context
-		/// ... it will/should be set before construction
-		duk_context* _ctx;
-
-		friend class duk_object;
-
-		template<typename T>
-		static const char* type_string(void);
-
-		object(duk_context*);
-	protected:
-		object(void);
-	public:
-		duk_context* Host(void) const;
-
-		std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
-	};
-
-	class duk_object : public scad40::object
-	{
-		template<typename T>
-		friend class duk_ref;
-
-		friend struct duk_str;
-
-		duk_object(duk_context*);
-	public:
-		~duk_object(void);
-
-		bool is_null(void) const;
-	};
-
-	///
-	/// holds a ref to a duktape object using magic
-	template<typename T>
-	class duk_ref : public scad40::duk_object
-	{
-		T* _ptr;
-	public:
-		duk_ref(duk_context*);
-
-		duk_ref(const duk_ref<T>&);
-		duk_ref<T>& operator= (const duk_ref<T>&);
-
-		T* operator -> (void) { return _ptr; }
-		const T* operator -> (void) const { return _ptr; }
-
-		~duk_ref(void);
-	};
-
-	///
-	/// holds a ref to a duktape string using magic
-	struct duk_str : public scad40::duk_object
-	{
-		duk_str(duk_context* ctx);
-		duk_str(duk_context* ctx, duk_idx_t);
-		duk_str(duk_context* ctx, const char*);
-		duk_str(duk_context* ctx, const std::string&);
-
-		duk_str(const duk_str&);
-		duk_str& operator = (const duk_str&);
-
-		duk_str& operator = (const char*);
-		duk_str& operator = (const std::string&);
-
-		operator const char* (void) const;
-	};
-
-	template<typename T>
-	duk_ref<T> create(duk_context* ctx);
-
-	inline void assign(duk_context* ctx, const char* key)
-	{
-		size_t idx = 0, len = 0;
-
-		const auto val = duk_get_top(ctx);
-		// stack -> ... ; val ;
-
-		duk_push_global_object(ctx);
-		// stack -> ... ; val ; [global host] ;
-
-		while (key[idx + len])
-		{
-			// stack -> ... ; val ; [host] ;
-
-			if ('.' != key[idx + len])
-			{
-				++len;
-			}
-			else
-			{
-				duk_push_lstring(ctx, key + idx, len);
-				// stack -> ... ; val ; [outer host] ; "key" ;
-
-				duk_get_prop(ctx, -2);
-				// stack -> ... ; val ; [outer host] ; ?[inner host]? ;
-
-				if (duk_is_null_or_undefined(ctx, -1))
-				{
-					// stack -> ... ; val ; [outer host] ; <undefined> ;
-
-					duk_pop(ctx);
-					// stack -> ... ; val ; [outer host] ;
-
-					duk_push_object(ctx);
-					// stack -> ... ; val ; [outer host] ; [inner host] ;
-
-					duk_push_lstring(ctx, key + idx, len);
-					// stack -> ... ; val ; [outer host] ; [inner host] ; "key" ;
-
-					duk_dup(ctx, -2);
-					// stack -> ... ; val ; [outer host] ; [inner host] ; "key" ; [inner host] ;
-
-					duk_put_prop(ctx, -4);
-					// stack -> ... ; val ; [outer host] ; [inner host] ;
-				}
-				else if (!duk_is_object(ctx, -1))
-				{
-					duk_push_lstring(ctx, key, idx + len);
-					duk_error(ctx, 314, "Collision `%s`", duk_to_string(ctx, -1));
-					return;
-				}
-
-				// stack -> ... ; val ; [outer host] ; [inner host] ;
-
-				duk_remove(ctx, -2);
-				// stack -> ... ; val ; [inner host] ;
-
-				idx = idx + len + 1;
-				len = 0;
-			}
-		}
-
-		// stack -> ... ; val ; [host] ;
-
-		duk_push_lstring(ctx, key + idx, len);
-		// stack -> ... ; val ; [host] ; "key" ;
-
-		duk_dup(ctx, -3);
-		// stack -> ... ; val ; [host] ; "key" ; val ;
-
-		duk_remove(ctx, -4);
-		// stack -> ... ; [host] ; "key" ; val ;
-
-		duk_put_prop(ctx, -3);
-		// stack -> ... ; [host] ;
-
-		duk_pop(ctx);
-		// stack -> ... ;
-
-	}
-
-	inline void lookup(duk_context* ctx, const char* binding)
-	{
-		size_t idx = 0, len = 0;
-
-		// stack -> .... base .. ;
-
-		duk_push_global_object(ctx);
-		// stack -> .... base .. ; [global host] ;
-
-		while (binding[idx + len])
-		{
-			// stack -> .... base .. ; [host] ;
-			if ('.' != binding[idx + len])
-			{
-				++len;
-			}
-			else
-			{
-				duk_push_lstring(ctx, binding + idx, len);
-				// stack -> .... base .. ; [outer host] ; "key" ;
-
-				duk_get_prop(ctx, -2);
-				// stack -> .... base .. ; [outer host] ; ?[inner host]? ;
-
-				if (duk_is_null_or_undefined(ctx, -1))
-				{
-					duk_pop_2(ctx);
-					// stack -> .... base .. ;
-
-					duk_push_undefined(ctx);
-					// stack -> .... base .. ; <undefined> ;
-
-					return;
-				}
-
-				// stack -> .... base .. ; [host] ;
-
-				idx = idx + len + 1;
-				len = 0;
-			}
-		}
-
-		assert(0 != len);
-		// stack -> .... base .. ; [host] ;
-
-		duk_get_prop_string(ctx, -1, binding + idx);
-		// stack -> .... base .. ; [host] ; val ;
-
-		duk_remove(ctx, -2);
-		// stack -> .... base .. ; val ;
-	}
-};
-${ "#endif" } // ... okay - that's the end of predef
+#{val modelNameSpace = modelModule.name.replace(".", "::")}#
+${include("scad40-head.ssp")}
 
 #for (space <- modelModule.name.split("\\\\."))
 namespace ${space + " {"}
@@ -250,7 +23,7 @@ namespace ${space + " {"}
 		{
 			// stack -> .... base .. ;
 
-			scad40::lookup(ctx, "${modelModule.name}");
+			scad40::env::lookup(ctx, "${modelModule.name}");
 			// stack -> .... base .. ; ?? previous ?? ;
 
 			if (!duk_is_undefined(ctx, -1))
@@ -266,96 +39,50 @@ namespace ${space + " {"}
 			assert(duk_get_top(ctx) == base);
 		};
 
-		assert(false && "?? load up code to make script super-classes");
 
-		assert(false && "?? bind lambdas for native class construction");
+		// >> bind lambdas for native class construction
+		#for (struct <- modelModule.contents.filter(_.isInstanceOf[Model.Native]))
 
-		assert(false && "?? allocate and store ALL global objects (including context pointers)");
-
-		assert(false && "?? in-place-new global objects in-order");
-	}
-}
-}
-
-#pragma region "Implementations"
-
-inline scad40::object::object(void)
-{
-	assert(nullptr != _ctx);
-}
-
-inline duk_context* scad40::object::Host(void) const
-{
-	return _ctx;
-}
-
-inline std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2) + 1> scad40::object::KeyString(void) const
-{
-	assert(strlen(scad40_duk_ref_et_str__string) == scad40_duk_ref_et_str__strlen);
-	std::array<char, scad40_duk_ref_et_str__strlen + (sizeof(void*) * 2) + 1> result;
-
-	strcpy(result.data(), scad40_duk_ref_et_str__string);
-	size_t write = scad40_duk_ref_et_str__strlen;
-
-	union {
-		uint8_t _chars[(sizeof(void*) * 2)];
-		void* _cast;
-	} swang;
-
-	swang._cast = const_cast<void*>(reinterpret_cast<const void*>(this));
-
-	for (size_t i = 0; i < sizeof(void*); ++i)
-	{
-		uint8_t pair = swang._chars[i];
-
-		result[write++] = 'A' + (pair & 0x0F);
-		result[write++] = 'A' + ((pair & 0xF0) >> 4);
-	}
-
-	result[write] = '\0';
-
-	return result;
-}
-
-template<typename T>
-inline const char* scad40::object::type_string(void)
-{
-	/// there is an insanely small chance of a leak
-	static char* _ptr = nullptr;
-	if (nullptr != _ptr)
-	{
-		return _ptr;
-	}
-
-	const char* str = typeid(T).name();
-	size_t len = strlen(str);
-	char* ptr = (const char*)malloc(len + 1);
-
-	size_t src = 0, out = 0;
-
-	while (str[src])
-	{
-		const auto c = str[src++];
-		if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || ('_' == c))
 		{
-			ptr[out++] = c;
-			continue;
+			<%-- should probably peel these out into templates of their own --%>
+			// stack -> .... base .. ;
+
+			duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+				duk_error(ctx, 314, "??? STUB ; scad40 needs to create an instance of ${modelModule.name}.${struct.name}");
+				return -1;
+
+			}, 0);
+			// stack -> .... base .. ; class:${struct.name}() ;
+
+			scad40::env::assign(ctx, "${modelModule.name}.${struct.name}");
+			// stack -> .... base .. ;
+
+			assert(duk_get_top(ctx) == base);
+		}
+		#end
+
+		// >> load up code to wrap scripts
+		{
+			// assert(false && "?? load up code to make script super-classes");
+			// assert(false && "... is there anything to do here? is this redundant?");
 		}
 
-		if (c == ':' && ':' == str[src])
+		// >> allocate / in-place-new and store ALL global objects (including context pointers)
 		{
-			ptr[out++] = '.';
-			++src;
-			continue;
+			// stack -> .... base .. ;
+
+			#for (struct <- modelModule.contents.filter(_.isInstanceOf[Model.Global]))
+
+			// ${modelModule.name}/${struct.name}
+			{
+				${nephrite.sub("/global-member")("\n\t\t\t\t", struct)}
+			}
+			#end
+
 		}
-
-		out = 0;
 	}
-
-	assert(out > 0);
-	assert(ptr[0]);
-	assert(ptr[out - 1]);
-	ptr[out] = '\0';
-	return _ptr = ptr;
 }
-#pragma endregion
+}
+
+${include("scad40-tail.ssp")}

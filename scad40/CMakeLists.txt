@@ -26,10 +26,11 @@ add_executable(
 		../duktape/duk_config.h
 		../duktape/duktape.c
 		../duktape/duktape.h
-
+		
 		src/test/cmake/peterlavalle.diskio-test.cpp
 		src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
 
+		src/test/resources/pal_adler32.hpp
 		src/test/resources/peterlavalle.diskio.hpp
 
 	)

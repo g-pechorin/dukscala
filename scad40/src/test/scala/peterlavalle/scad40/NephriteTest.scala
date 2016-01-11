@@ -62,14 +62,18 @@ class NephriteTest extends TestCase {
         """
           |package foo.bar {
           |
+          |
           |    @ScalaJSDefined
           |    trait Foo extends js.Object {
           |
           |        def foo(): Unit
           |
+          |
           |        def foo(bar: Byte): Float
           |
+          |
           |        def foo(bar: Short, sen: Byte): String
+          |
           |
           |    }
           |
@@ -78,7 +82,9 @@ class NephriteTest extends TestCase {
           |
           |        var thing: Int
           |
+          |
           |        val gloin: Double
+          |
           |
           |    }
           |}
