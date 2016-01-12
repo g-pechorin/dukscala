@@ -1,0 +1,74 @@
+${ "#pragma" } region "object"
+inline scad40::object::object(void)
+{
+	assert(nullptr != _ctx);
+}
+
+inline scad40::object::object(duk_context* ctx) :
+	_ctx(ctx)
+{
+	assert(nullptr != _ctx);
+}
+
+inline duk_context* scad40::object::Host(void) const
+{
+	return _ctx;
+}
+
+inline std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> scad40::object::KeyString(void) const
+{
+	assert(strlen(scad40__pre_string) == scad40__pre_strlen);
+	std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> result;
+	strcpy(result.data(), scad40__pre_string);
+	size_t write = scad40__pre_strlen;
+	union {
+		uint8_t _chars[(sizeof(void*) * 2)];
+		void* _cast;
+	} swang;
+	swang._cast = const_cast<void*>(reinterpret_cast<const void*>(this));
+	for (size_t i = 0; i < sizeof(void*); ++i)
+	{
+		uint8_t pair = swang._chars[i];
+		result[write++] = 'A' + (pair & 0x0F);
+		result[write++] = 'A' + ((pair & 0xF0) >> 4);
+	}
+	result[write] = '\0';
+	return result;
+}
+
+template<typename T>
+inline const char* scad40::object::type_string(void)
+{
+	/// there is an insanely small chance of a leak
+	static char* _ptr = nullptr;
+	if (nullptr != _ptr)
+	{
+		return _ptr;
+	}
+	const char* str = typeid(T).name();
+	size_t len = strlen(str);
+	char* ptr = (const char*)malloc(len + 1);
+	size_t src = 0, out = 0;
+	while (str[src])
+	{
+		const auto c = str[src++];
+		if (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || ('_' == c))
+		{
+			ptr[out++] = c;
+			continue;
+		}
+		if (c == ':' && ':' == str[src])
+		{
+			ptr[out++] = '.';
+			++src;
+			continue;
+		}
+		out = 0;
+	}
+	assert(out > 0);
+	assert(ptr[0]);
+	assert(ptr[out - 1]);
+	ptr[out] = '\0';
+	return _ptr = ptr;
+}
+${ "#pragma" } endregion

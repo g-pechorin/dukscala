@@ -34,13 +34,16 @@ class Nephrite private(preFolder: String, subFolder: String, val bounds: Map[Str
   def apply(replacement: String, attributeRef: AnyRef): String =
     this ("\r?\n", replacement, attributeRef)
 
-  def apply(attributeRef: AnyRef) = {
+  def apply(attributeRef: AnyRef): String =
+    this (attributeRef, attributeRef.getClass)
+
+  def apply(attributeRef: AnyRef, attributeClass: Class[_ <: AnyRef]) = {
     val uri: String =
-      attributeRef.getClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.')
+      attributeClass.getName.replaceAll("\\$$", "").replace('.', '/').replace('$', '.')
 
     val attributeName = {
       val binding =
-        attributeRef.getClass.getName.replaceAll("^.*\\.", "")
+        attributeClass.getName.replaceAll("^.*\\.", "")
 
       binding.substring(0, 1).toLowerCase + binding.substring(1).replace("$", "")
     }

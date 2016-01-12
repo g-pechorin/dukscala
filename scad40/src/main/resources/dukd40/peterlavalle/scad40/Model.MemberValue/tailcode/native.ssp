@@ -1,0 +1,30 @@
+#import(peterlavalle.scad40.Model)
+<%@ val modelMemberValue: Model.MemberValue %>
+<%@ val modelNative: Model.Native %>
+<%@ val modelModule: Model.Module %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+#{
+    val modelNameSpace = modelModule.name.replace(".", "::")
+    val declarationNameSpace = modelNameSpace  + "::" + modelNative.name
+}#
+
+// property name
+    duk_push_string(ctx, "${modelMemberValue.name}");
+
+// getter
+    scad40::push_selfie< ${declarationNameSpace} >(ctx, this${modelNative.name}, 3, [](duk_context* ctx, ${declarationNameSpace}* this${modelNative.name}) -> duk_ret_t {
+    #match (modelMemberValue.kind)
+    #case(_:Model.TKindNumerical)
+        duk_push_number(ctx, (duk_double_t)(this${modelNative.name}->_${modelMemberValue.name}));
+    #case (Model.KindString)
+        this${modelNative.name}->_${modelMemberValue.name}.Push();
+    #otherwise
+        TODO ; ${modelMemberValue.kind}
+    #end
+
+        return 1;
+    });
+
+// assign
+    duk_def_prop(ctx, -3, DUK_DEFPROP_HAVE_GETTER);
+

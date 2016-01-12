@@ -37,7 +37,7 @@ namespace scad40
 		/// ... it will/should be set before construction
 		duk_context* _ctx;
 
-		friend class duk_object;
+		friend class duk_obj;
 
 		template<typename T>
 		static const char* type_string(void);
@@ -51,24 +51,27 @@ namespace scad40
 		std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
 	};
 
-	class duk_object : public scad40::object
+	class duk_obj : public scad40::object
 	{
 		template<typename T>
 		friend class duk_ref;
 
 		friend class duk_str;
 
-		duk_object(duk_context*);
+		duk_obj(duk_context*);
 	public:
-		~duk_object(void);
+		~duk_obj(void);
 
 		bool is_null(void) const;
+
+		/// pushes (a reference to) the value onto the stack (or null if the value is null)
+		void Push(void) const;
 	};
 
 	///
 	/// holds a ref to a duktape object using magic
 	template<typename T>
-	class duk_ref : public scad40::duk_object
+	class duk_ref : public scad40::duk_obj
 	{
 		T* _ptr;
 	public:
@@ -87,7 +90,7 @@ namespace scad40
 
 	///
 	/// holds a ref to a duktape string using magic
-	class duk_str : public scad40::duk_object
+	class duk_str : public scad40::duk_obj
 	{
 		const char* _str;
 	public:
@@ -102,9 +105,6 @@ namespace scad40
 
 		duk_str(const duk_str&);
 		duk_str& operator = (const duk_str&);
-
-		/// pushes (a reference to) the value onto the stack (or null if the value is null)
-		void Push(void) const;
 
 		duk_str& operator = (const char*);
 		duk_str& operator = (const std::string&);

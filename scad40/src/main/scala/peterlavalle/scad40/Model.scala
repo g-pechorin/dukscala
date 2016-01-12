@@ -10,6 +10,8 @@ object Model {
 
   sealed trait TKind extends T
 
+  sealed trait TKindNumerical extends TKind
+
   case object KindVoid extends TKind {
     override def source: String = "void"
   }
@@ -18,15 +20,15 @@ object Model {
     override def source: String = "bool"
   }
 
-  case object KindSInt8 extends TKind {
+  case object KindSInt8 extends TKindNumerical {
     override def source: String = "sint8"
   }
 
-  case object KindSInt16 extends TKind {
+  case object KindSInt16 extends TKindNumerical {
     override def source: String = "sint16"
   }
 
-  case object KindSInt32 extends TKind {
+  case object KindSInt32 extends TKindNumerical {
     override def source: String = "sint32"
   }
 
@@ -34,11 +36,11 @@ object Model {
     override def source: String = "string"
   }
 
-  case object KindSingle extends TKind {
+  case object KindSingle extends TKindNumerical {
     override def source: String = "single"
   }
 
-  case object KindDouble extends TKind {
+  case object KindDouble extends TKindNumerical {
     override def source: String = "double"
   }
 

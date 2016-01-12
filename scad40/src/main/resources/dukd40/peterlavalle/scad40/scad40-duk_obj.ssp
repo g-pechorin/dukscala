@@ -1,0 +1,46 @@
+${ "#pragma" } region "duk_obj"
+inline scad40::duk_obj::duk_obj(duk_context* ctx) :
+	scad40::object(ctx)
+{
+	assert(is_null());
+}
+
+inline bool scad40::duk_obj::is_null(void) const
+{
+	// stack -> ... ;
+
+	duk_push_global_stash(Host());
+	// stack -> ... ; [global stash] ;
+
+	duk_get_prop_string(Host(), -1, KeyString().data());
+	// stack -> ... ; [global stash] ; ??thing?? ;
+
+	const bool result = duk_is_null_or_undefined(Host(), -1) ? true : false;
+	duk_pop_2(Host());
+	// stack -> ... ;
+
+	return result;
+}
+
+inline void scad40::duk_obj::Push(void) const
+{
+	duk_push_global_stash(Host());
+	duk_get_prop_string(Host(), -1, KeyString().data());
+	duk_remove(Host(), -2);
+}
+
+inline scad40::duk_obj::~duk_obj(void)
+{
+	assert(nullptr != Host());
+
+	// stack -> ... ;
+
+	duk_push_global_stash(Host());
+	// stack -> ... ; [global stash] ;
+
+	duk_del_prop_string(Host(), -1, KeyString().data());
+
+	duk_pop(Host());
+	// stack -> ... ;
+}
+${ "#pragma" } endregion

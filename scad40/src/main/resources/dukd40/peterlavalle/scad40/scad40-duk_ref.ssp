@@ -1,0 +1,44 @@
+${ "#pragma" } region "duk_ref"
+template<typename T>
+inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
+	scad40::duk_obj(ctx)
+{
+	assert(T::Is(ctx, idx));
+	// stack -> ... ; [T] ; ... ;
+	duk_get_prop_string(ctx, idx, "\xFF" "*");
+	// stack -> ... ; [T] ; ... ; T* ;
+	_ptr = (T*)duk_to_pointer(ctx, -1);
+	duk_pop(ctx);
+	// stack -> ... ; [T] ; ... ;
+	duk_push_global_stash(ctx);
+	// stack -> ... ; [T] ; ... ; [global stash] ;
+	duk_dup(ctx, idx);
+	// stack -> ... ; [T] ; ... ; [global stash] ; [T] ;
+	duk_put_prop_string(ctx, -2, KeyString().data());
+	// stack -> ... ; [T] ; ... ; [global stash] ;
+	duk_pop(ctx);
+	// stack -> ... ; [T] ; ... ;
+}
+
+template<typename T>
+inline scad40::duk_ref<T>::duk_ref(const scad40::duk_ref<T>& other) :
+	scad40::duk_obj(other.Host())
+{
+	// stack -> ... ;
+	duk_push_global_stash(Host());
+	// stack -> ... ; [global stash] ;
+	duk_get_prop_string(Host(), -1, other.KeyString().data());
+	// stack -> ... ; [global stash] ; other ;
+	_ptr = duk_is_null_or_undefined(Host(), -1) ? nullptr : other._ptr;
+	duk_put_prop_string(Host(), -2, KeyString().data());
+	// stack -> ... ; [global stash] ;
+	duk_pop(Host());
+	// stack -> ... ;
+}
+
+template<typename T>
+inline scad40::duk_ref<T>::~duk_ref(void)
+{
+	_ptr = reinterpret_cast<T*>(0xCACADAD);
+}
+#pragma endregion

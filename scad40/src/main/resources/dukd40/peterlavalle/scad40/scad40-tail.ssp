@@ -1,10 +1,7 @@
-${ "#ifndef" } _scad40_tail
-${ "#define" } _scad40_tail
-
 #pragma region "scad40"
 
-template<typename T>
-inline void scad40::push_selfie<T>(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*))
+template${"<typename T>"}
+inline void scad40::push_selfie${"<T>"}(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*))
 {
 	duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
 		duk_push_current_function(ctx);
@@ -22,7 +19,3 @@ inline void scad40::push_selfie<T>(duk_context* ctx, T* self, duk_idx_t nargs, d
 }
 
 #pragma endregion
-
-${ include("scad40-duk_str.ssp") }
-
-${ "#endif" } // ... okay - that's the end of predef

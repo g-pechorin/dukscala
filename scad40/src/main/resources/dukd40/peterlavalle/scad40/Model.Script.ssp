@@ -2,13 +2,13 @@
 <%@ val modelScript: Model.Script %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
 // script C++ classes are really just wrappers to access the ECMAScript implementation
-struct ${modelScript.name} : public scad40::duk_object
+struct ${modelScript.name} : public scad40::duk_obj
 {
 	//
 	//misc head stuff
 	//
 
-	// doesn't need these since duk_object will provide it anyway
+	// doesn't need these since duk_obj will provide it anyway
 	// ${modelScript.name}(const ${modelScript.name}&);
 	// ${modelScript.name}& operator = (const ${modelScript.name}&);
 
@@ -23,26 +23,14 @@ struct ${modelScript.name} : public scad40::duk_object
 #end
 
 	/// push this onto its stack
-	void Push(void)
-	{
-		assert(false && "??? scad40 needs to provide this");
-	}
+	void Push(void);
 
 	/// create an instance of a scripted class that extends this class
-	static scad40::duk_ref<ChangeListener> New(duk_context* ctx, const char* subclass)
-	{
-		assert(false && "??? scad40 needs to provide this");
-	}
+	static scad40::duk_ref<${modelScript.name}> New(duk_context* ctx, const char* subclass);
 
-	/// is whatever an instance of this class
-	static bool Is(duk_context* ctx, duk_idx_t idx)
-	{
-		duk_error(ctx, 314, "??? scad40 needs to provide this");
-		return false;
-	}
+	/// is the stack index an instance of this class
+	static bool Is(duk_context* ctx, duk_idx_t idx);
 
-	static scad40::duk_ref<${modelScript.name}> To(duk_context* ctx, duk_idx_t idx)
-	{
-		assert(false && "??? scad40 needs to provide this");
-	}
+	/// pull whatever is at the stack index into C++
+	static scad40::duk_ref<${modelScript.name}> To(duk_context* ctx, duk_idx_t idx);
 };

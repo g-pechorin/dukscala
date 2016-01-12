@@ -71,7 +71,6 @@ namespace ${space + " {"}
 		// >> allocate / in-place-new and store ALL global objects (including context pointers)
 		{
 			// stack -> .... base .. ;
-
 			#for (struct <- modelModule.contents.filter(_.isInstanceOf[Model.Global]))
 
 			// ${modelModule.name}/${struct.name}
@@ -85,4 +84,22 @@ namespace ${space + " {"}
 }
 }
 
+${ "#ifndef" } _scad40_tail
+${ "#define" } _scad40_tail
+
 ${include("scad40-tail.ssp")}
+${include("scad40-duk_str.ssp")}
+${include("scad40-duk_obj.ssp")}
+${include("scad40-duk_ref.ssp")}
+${include("scad40-object.ssp")}
+
+${ "#endif" } // ... okay - that's the end of predef
+
+
+// =====================================================================================================================
+// boilerplate usercode implementations - these things wrap/cast/adapt stuff for your "real" methods
+// ---------------------------------------------------------------------------------------------------------------------
+
+#for (struct <- modelModule.contents)
+${nephrite.sub("/tailcode")(struct)}
+#end

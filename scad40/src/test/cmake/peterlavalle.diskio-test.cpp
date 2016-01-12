@@ -4,16 +4,26 @@
 #include <duktape.h>
 #include <peterlavalle.diskio.hpp>
 
+#define HEREDOC(TEXT) (#TEXT)
+
 int main(int argc, char* argv[])
 {
 	duk_context* ctx = duk_create_heap_default();
 
 	peterlavalle::diskio::install(ctx);
 
-	peterlavalle::diskio::Disk::get(ctx)
-		.foobar("thing");
+	auto y = duk_get_top(ctx);
+	assert(0 == y);
 
-	duk_eval_string(ctx, "peterlavalle.diskio.Disk.foobar('hamster')");
+	auto& g = peterlavalle::diskio::Disk::get(ctx);
+
+	auto w = duk_get_top(ctx);
+	assert(0 == w);
+
+	g.foobar("thing");
+
+
+	duk_eval_string_noresult(ctx, "peterlavalle.diskio.Disk.foobar('hamster')");
 
 	{
 		auto ref = peterlavalle::diskio::Reading::New(ctx);
@@ -21,8 +31,27 @@ int main(int argc, char* argv[])
 		assert(nullptr != ref.operator->());
 
 		auto n = ref->_number;
+	}
 
-		std::cout << "?" << std::endl;
+	{
+		auto source = HEREDOC(new (function() {
+			this.fileChanged = function(path)
+			{
+				peterlavalle.diskio.Disk.foobar('fileChanged(path = `' + path + '`)');
+			}
+		})());
+
+		duk_eval_string(ctx, source);
+
+		std::cout << "peterlavalle::diskio::ChangeListener::Is(ctx, -1) = " << (peterlavalle::diskio::ChangeListener::Is(ctx, -1) ? "true" : "false") << std::endl;
+
+		// TODO ; something about my wangled pointer is making (someone) angry
+
+		auto changeListener = peterlavalle::diskio::ChangeListener::To(ctx, -1);
+
+		auto ck = changeListener;
+
+		changeListener->fileChanged("Somethiung");
 	}
 
 	duk_destroy_heap(ctx);
