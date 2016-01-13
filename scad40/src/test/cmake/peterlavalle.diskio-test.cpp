@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 
 		duk_eval_string(ctx, source);
 
-		std::cout << "peterlavalle::diskio::ChangeListener::Is(ctx, -1) = " << (peterlavalle::diskio::ChangeListener::Is(ctx, -1) ? "true" : "false") << std::endl;
+		std::cout << "peterlavalle::diskio::ChangeListener::As(ctx, -1) = " << (peterlavalle::diskio::ChangeListener::As(ctx, -1) ? "true" : "false") << std::endl;
 
 		// TODO ; something about my wangled pointer is making (someone) angry
 
@@ -84,11 +84,11 @@ void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
 	std::cout << text << std::endl;
 }
 
-void peterlavalle::diskio::Disk::subscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener)
+void peterlavalle::diskio::Disk::subscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)
 {
 }
 
-void peterlavalle::diskio::Disk::unsubscribe(const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener)
+void peterlavalle::diskio::Disk::unsubscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)
 {
 }
 

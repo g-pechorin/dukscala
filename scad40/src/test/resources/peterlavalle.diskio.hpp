@@ -37,17 +37,31 @@ namespace scad40
 		duk_context* _ctx;
 
 		friend class duk_obj;
-
+		
 		template<typename T>
 		static const char* type_string(void);
 
-		object(duk_context*);
 	protected:
+		object(duk_context*);
 		object(void);
+
+		// TODO ; move/merge copy operator and copy constructor from duk_str and duk_ref
+
+		// TODO ; move/merge the destructors from duk_str and duk_ref
 	public:
 		duk_context* Host(void) const;
 
 		std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
+
+		/// pushes (a reference to) the value onto the stack (or maybe null if the value is null)
+		inline void Push(void) const
+		{
+			duk_push_global_stash(Host());
+			duk_get_prop_string(Host(), -1, KeyString().data());
+			duk_remove(Host(), -2);
+		}
+
+		// TODO ; move/merge the is_null function from duk_obj - and change it to IsNull()
 	};
 
 	class duk_obj : public scad40::object
@@ -58,10 +72,44 @@ namespace scad40
 		~duk_obj(void);
 
 		bool is_null(void) const;
-
-		/// pushes (a reference to) the value onto the stack (or null if the value is null)
-		void Push(void) const;
 	};
+
+	/// less sophiticated that the ref
+	template<typename T>
+	class duk_ptr : public scad40::object
+	{
+	public:
+		duk_ptr(duk_context* ctx, duk_idx_t idx) : scad40::object(ctx)
+		{
+			idx = duk_normalize_index(ctx, idx);
+			assert(T::As(ctx, idx));
+
+			// stack -> ... ; idx ... ;
+
+			duk_push_global_stash(ctx);
+			// stack -> ... ; idx ... ; [stash] ;
+
+			duk_dup(ctx, idx);
+			// stack -> ... ; idx ... ; [stash] ; [val] ;
+
+			duk_put_prop_string(ctx, -2, KeyString().data());
+			// stack -> ... ; idx ... ; [stash] ;
+
+			duk_pop(ctx);
+			// stack -> ... ; idx ... ;
+		}
+
+		T* operator->(void)
+		{
+			return reinterpret_cast<T*>(this);
+		}
+
+		const T* operator->(void) const
+		{
+			return reinterpret_cast<T*>(this);
+		}
+	};
+
 
 	///
 	/// holds a ref to a duktape object using magic
@@ -99,7 +147,7 @@ namespace scad40
 		duk_str(duk_context* ctx, const duk_idx_t);
 
 		duk_str(const duk_str&);
-		duk_str& operator = (const duk_str&);
+		duk_str& operator= (const duk_str&);
 
 		duk_str& operator = (const char*);
 		duk_str& operator = (const std::string&);
@@ -155,16 +203,12 @@ namespace diskio {
 
 	/// a script class
 	// script C++ classes are really just wrappers to access the ECMAScript implementation
-	struct ChangeListener : public scad40::object
+	class ChangeListener
 	{
-		//
-		//misc head stuff
-		//
-
-		// doesn't need these since duk_obj will provide it anyway
-		// ChangeListener(const ChangeListener&);
-		// ChangeListener& operator = (const ChangeListener&);
-
+		/// used for const-char wrapping
+		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
+	public:
+		
 		/// the user's requested members
 			void fileChanged (const scad40::duk_str& path);
 
@@ -177,13 +221,13 @@ namespace diskio {
 			}
 			
 		/// create an instance of a scripted class that extends this class
-		static scad40::duk_ref<ChangeListener> New(duk_context* ctx, const char* subclass);
+		static scad40::duk_ptr<ChangeListener> New(duk_context* ctx, const char* subclass);
 
-		/// is the stack index an instance of this class
-		static bool Is(duk_context* ctx, duk_idx_t idx);
+		/// is the value at the stack index useable as an instance of this class
+		static bool As(duk_context* ctx, duk_idx_t idx);
 
 		/// pull whatever is at the stack index into C++
-		static scad40::duk_ref<ChangeListener> To(duk_context* ctx, duk_idx_t idx);
+		static scad40::duk_ptr<ChangeListener> To(duk_context* ctx, duk_idx_t idx);
 	};
 
 	/// a native class
@@ -242,8 +286,8 @@ namespace diskio {
 			void foobar (const scad40::duk_str& text);
 			scad40::duk_ref<Reading> open (const scad40::duk_str& path);
 			scad40::duk_str _pwd;
-			void subscribe (const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
-			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ref<ChangeListener>& listener);
+			void subscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
+			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
 
 		/// alternative const char* interfaces
 			inline void foobar (const char* text)
@@ -258,14 +302,14 @@ namespace diskio {
 					scad40::duk_str(Host(), path)
 				);
 			}
-			inline void subscribe (const char* path, scad40::duk_ref<ChangeListener> listener)
+			inline void subscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
 			{
 				subscribe(
 					scad40::duk_str(Host(), path),
 					listener
 				);
 			}
-			inline void unsubscribe (const char* path, scad40::duk_ref<ChangeListener> listener)
+			inline void unsubscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
 			{
 				unsubscribe(
 					scad40::duk_str(Host(), path),
@@ -395,7 +439,7 @@ namespace diskio {
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->subscribe(
 							scad40::duk_str(ctx, 0),
-							scad40::duk_ref<peterlavalle::diskio::ChangeListener>(ctx, 1)
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
 						);
 						return 0;
 					});
@@ -405,7 +449,7 @@ namespace diskio {
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->unsubscribe(
 							scad40::duk_str(ctx, 0),
-							scad40::duk_ref<peterlavalle::diskio::ChangeListener>(ctx, 1)
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
 						);
 						return 0;
 					});
@@ -726,13 +770,6 @@ inline bool scad40::duk_obj::is_null(void) const
 	return result;
 }
 
-inline void scad40::duk_obj::Push(void) const
-{
-	duk_push_global_stash(Host());
-	duk_get_prop_string(Host(), -1, KeyString().data());
-	duk_remove(Host(), -2);
-}
-
 inline scad40::duk_obj::~duk_obj(void)
 {
 	assert(nullptr != Host());
@@ -790,13 +827,13 @@ inline scad40::duk_ref<T>::duk_ref(const scad40::duk_ref<T>& other) :
 	duk_get_prop_string(Host(), -1, other.KeyString().data());
 	// stack -> ... ; [global stash] ; other ;
 
-	_ptr = duk_is_null_or_undefined(Host(), -1) ? nullptr : other._ptr;
-
 	duk_put_prop_string(Host(), -2, KeyString().data());
 	// stack -> ... ; [global stash] ;
 
 	duk_pop(Host());
 	// stack -> ... ;
+
+	_ptr = duk_is_null_or_undefined(Host(), -1) ? nullptr : other._ptr;
 }
 
 template<typename T>
@@ -915,13 +952,15 @@ inline const char* scad40::object::type_string(void)
 #pragma region "script ChangeListener"
 inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_str& path)
 {
-	assert(Host() == path.Host());
+	auto ptr = reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this);
+
+	assert(Host() == ptr->Host() && "SAN check failed");
 
 	const auto base = duk_get_top(Host());
 
 	// stack -> .. base .. ;
 
-	Push();
+	ptr->Push();
 	// stack -> .. base .. ; [self] ;
 
 	duk_get_prop_string(Host(), -1, "fileChanged");
@@ -930,6 +969,7 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_
 	duk_insert(Host(), -2);
 	// stack -> .. base .. ; fileChanged() ; [self] ;
 
+	assert(Host() == path.Host());
 	path.Push();
 	// stack -> .. base .. ; fileChanged() ; [self] ; "path" ;
 
@@ -940,16 +980,19 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_
 	return;
 }
 
-inline scad40::duk_ref<peterlavalle::diskio::ChangeListener> peterlavalle::diskio::ChangeListener::New(duk_context* ctx, const char* subclass)
+inline scad40::duk_ptr<peterlavalle::diskio::ChangeListener> peterlavalle::diskio::ChangeListener::New(duk_context* ctx, const char* subclass)
 {
 	assert(false && "??? scad40 needs to provide this");
 	duk_error(ctx, 314, "??? scad40 needs to provide this");
 }
 
-inline bool peterlavalle::diskio::ChangeListener::Is(duk_context* ctx, duk_idx_t idx)
+inline bool peterlavalle::diskio::ChangeListener::As(duk_context* ctx, duk_idx_t idx)
 {
 	// stack -> ... ; idx .. base .. ;
 	
+	//
+	// check each function / member ... not sure what to do about values
+
 	duk_get_prop_string(ctx, idx, "fileChanged");
 	// stack -> ... ; idx .. base .. ; ?fileChanged() ;
 
@@ -967,62 +1010,11 @@ inline bool peterlavalle::diskio::ChangeListener::Is(duk_context* ctx, duk_idx_t
 	return true;
 }
 
-inline scad40::duk_ref<peterlavalle::diskio::ChangeListener> peterlavalle::diskio::ChangeListener::To(duk_context* ctx, duk_idx_t idx)
+inline scad40::duk_ptr<peterlavalle::diskio::ChangeListener> peterlavalle::diskio::ChangeListener::To(duk_context* ctx, duk_idx_t idx)
 {
-	idx = duk_normalize_index(ctx, idx);
-
-	const auto base = duk_get_top(ctx);
-
-	// stack -> ... ; idx .. base .. ;
-
-	assert(duk_is_object(ctx, idx));
-
-	duk_get_prop_string(ctx, idx, "\xFF" "*");
-	// stack -> ... ; idx .. base .. ; ??? ;
-
-	if (!duk_is_pointer(ctx, -1))
-	{
-		// stack -> ... ; idx .. base .. ; ??? ;
-
-		// so the blob points to noting - this thingie is uninit
-
-		duk_pop(ctx);
-		// stack -> ... ; idx .. base .. ;
-
-		assert(sizeof(scad40::duk_obj) == sizeof(peterlavalle::diskio::ChangeListener));
-		assert(sizeof(duk_context*) == sizeof(peterlavalle::diskio::ChangeListener));
-
-		peterlavalle::diskio::ChangeListener* data = (peterlavalle::diskio::ChangeListener*) duk_push_fixed_buffer(ctx, sizeof(peterlavalle::diskio::ChangeListener));
-		// stack -> ... ; idx .. base .. ; [buffer] ;
-
-		duk_put_prop_string(ctx, idx, "\xFF" "[scad40/script]");
-		// stack -> ... ; idx .. base .. ;
-
-		*reinterpret_cast<duk_context**>(data) = ctx;
-
-		duk_push_pointer(ctx, data);
-		// stack -> ... ; idx .. base .. ; * ;
-
-		duk_put_prop_string(ctx, idx, "\xFF" "*");
-		// stack -> ... ; idx .. base .. ;
-
-		duk_push_pointer(ctx, data);
-		// stack -> ... ; idx .. base .. ; * ;
-
-		assert(false && "so at this point - our little proxy mc-snuglet has all the whatnots to be a shell, but is a shell to an empty value");
-		assert(false && "if we let him point to himself using the registry - he'll become a hard link");
-		assert(false && "... this is the most interesting problem I've got!");
-	}
-
-	// so the blob points to something ... I actually don't care since all scripted objects use the same memory blob shape
-
-	// stack -> ... ; idx .. base .. ; * ;
-
-	duk_pop(ctx);
-	// stack -> ... ; idx .. base .. ;
-
-	return scad40::duk_ref<peterlavalle::diskio::ChangeListener>(ctx, idx);
+	return scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, idx);
 }
+
 #pragma endregion
 
 
