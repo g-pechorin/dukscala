@@ -14,6 +14,7 @@
 
 #include <array>
 #include <string>
+#include <iostream>
 
 #include <assert.h>
 #include <stdint.h>
@@ -28,13 +29,19 @@ namespace scad40
 	template<typename T>
 	inline void push_selfie(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*,T*));
 
+	/// checks if the table at {idx} has a key named {key} and
+	/// @returns false if the value is undefined_or_null.
+	/// restores the stack
 	bool has_prop(duk_context* ctx, const duk_idx_t idx, const char* key);
 
+	/// base object for things that play wilde with pointers
+	/// don't look to closesly at the guts
 	class object
 	{
 		/// magical pointer to the object's hosting context
-		/// ... it will/should be set before construction
+		/// ... it will/should be set before construction (did I mention `magic`)
 		duk_context* _ctx;
+
 
 		friend class duk_obj;
 		
@@ -43,11 +50,28 @@ namespace scad40
 
 	protected:
 		object(duk_context*);
-		object(void);
+
+		#ifdef _DEBUG
+		object(void)/* TODO ; get rid of this!*/;
+		#endif
 
 		// TODO ; move/merge copy operator and copy constructor from duk_str and duk_ref
 
-		// TODO ; move/merge the destructors from duk_str and duk_ref
+		/// again - protected to prevent clever-clogs from hurting themselves
+		~object(void)
+		{
+			assert(nullptr != Host());
+
+			// stack -> ... ;
+
+			duk_push_global_stash(Host());
+			// stack -> ... ; [global stash] ;
+
+			duk_del_prop_string(Host(), -1, KeyString().data());
+
+			duk_pop(Host());
+			// stack -> ... ;
+		}
 	public:
 		duk_context* Host(void) const;
 
@@ -61,24 +85,31 @@ namespace scad40
 			duk_remove(Host(), -2);
 		}
 
-		// TODO ; move/merge the is_null function from duk_obj - and change it to IsNull()
+		
+		bool IsNull(void) const
+		{
+			// stack -> ... ;
+
+			duk_push_global_stash(Host());
+			// stack -> ... ; [global stash] ;
+
+			duk_get_prop_string(Host(), -1, KeyString().data());
+			// stack -> ... ; [global stash] ; ??thing?? ;
+
+			const bool result = duk_is_null_or_undefined(Host(), -1) ? true : false;
+
+			duk_pop_2(Host());
+			// stack -> ... ;
+
+			return result;
+		}
 	};
 
-	class duk_obj : public scad40::object
-	{
-	protected:
-		duk_obj(duk_context*);
-	public:
-		~duk_obj(void);
-
-		bool is_null(void) const;
-	};
-
-	/// less sophiticated that the ref
+	/// this allows manipulating a pure-script object from C++ using a predefined interface
+	/// ironically ; less sophiticated than the ref
 	template<typename T>
-	class duk_ptr : public scad40::object
+	struct duk_ptr : public scad40::object
 	{
-	public:
 		duk_ptr(duk_context* ctx, duk_idx_t idx) : scad40::object(ctx)
 		{
 			idx = duk_normalize_index(ctx, idx);
@@ -109,12 +140,11 @@ namespace scad40
 			return reinterpret_cast<T*>(this);
 		}
 	};
-
-
-	///
-	/// holds a ref to a duktape object using magic
+	
+	/// holds a ref to a C++ object built for duktape using magic
+	/// the pointer is updated on copy so that you get a bit faster access to it
 	template<typename T>
-	class duk_ref : public scad40::duk_obj
+	class duk_ref : public scad40::object
 	{
 		T* _ptr;
 	public:
@@ -126,14 +156,15 @@ namespace scad40
 		duk_ref<T>& operator= (const duk_ref<T>&);
 
 		T* operator -> (void);
-		const T* operator -> (void) const;
+		const T* operator-> (void) const;
 
 		~duk_ref(void);
 	};
 
-	///
 	/// holds a ref to a duktape string using magic
-	class duk_str : public scad40::duk_obj
+	/// as much as possible I stick strings into duktape and try not to think too hard about them
+	/// the pointer is updated on copy so that you get a bit faster access to it
+	class duk_str : public scad40::object
 	{
 		const char* _str;
 	public:
@@ -149,49 +180,38 @@ namespace scad40
 		duk_str(const duk_str&);
 		duk_str& operator= (const duk_str&);
 
-		duk_str& operator = (const char*);
-		duk_str& operator = (const std::string&);
+		duk_str& operator= (const char*);
+		duk_str& operator= (const std::string&);
 
-		duk_str& operator == (const char*) const;
-		duk_str& operator == (const std::string&) const;
-		duk_str& operator == (const duk_str&) const;
+		duk_str& operator== (const char*) const;
+		duk_str& operator== (const std::string&) const;
+		duk_str& operator== (const duk_str&) const;
 
 		operator const char* (void) const;
 
 		~duk_str(void);
 	};
 
+	/// tools to pick at DukTape's global table
 	namespace env
 	{
 		/// puts whatever is on top of the stack somewhere into the global namespace
-		/// happily splits up names with '.' in them
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
 		/// creates whatever tables it needs to along the way
 		/// throws an error if it finds a pre-existing value
 		inline void assign(duk_context* ctx, const char* key);
 
+		/// checks the global namespace for a non null_or_undefined value at path
+		inline bool exists(duk_context* ctx, const char* path);
+
 		/// reads something from the global namespace and pushes it on the stack
-		/// happily splits up names with '.' in them
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
 		/// happily pushes undefined if there's no value there
 		inline void lookup(duk_context* ctx, const char* binding);
 
-		/// checks the global namespace for a non null_or_undefined value at path
-		inline bool exists(duk_context* ctx, const char* path)
-		{
-			// stack -> .... base .. ;
-
-			scad40::env::lookup(ctx, path);
-			// stack -> .... base .. ; ??? ;
-
-			const auto result = duk_is_null_or_undefined(ctx, -1) ? false : true;
-
-			duk_pop(ctx);
-			// stack -> .... base .. ;
-
-			return result;
-		}
-
 		/// drops the value at key from the global namespace
-		/// leaves containers et-al in place
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
+		/// leaves empty containers et-al in place
 		/// throws an error iff nothing exists there
 		bool remove(duk_context* ctx, const char* path);
 	};
@@ -238,7 +258,7 @@ namespace diskio {
 		Reading(void);
 
 		Reading(const Reading&);
-		Reading& operator = (const Reading&);
+		Reading& operator= (const Reading&);
 
 		/// the user's requested members
 		/// the user must implement these
@@ -253,12 +273,6 @@ namespace diskio {
 		/// the Reading destructor
 		/// the user must implement this
 		~Reading(void);
-
-		/// pushes this object onto its hosting stack
-		void Push(void)
-		{
-			assert(false && "??? scad40 needs to provide this");
-		}
 
 		/// queries if the passed index is a Reading object
 		static bool Is(duk_context* ctx, duk_idx_t idx);
@@ -321,17 +335,9 @@ namespace diskio {
 		/// ... the user must implement this
 		~Disk(void);
 
-		/// magic method to load/store dynamic fields
-		template<typename T>
-		T& Stash(const pal_adler32::obj&);
-
-		/// overload. assumes typeid(T).name() is acceptable
-		template<typename T> T& Stash(void) { const static pal_adler32::obj hash = typeid(T).name(); return Stash<T>(hash); }
-
-		/// locates the instance
+		/// locates the singleton instance
 		static Disk& get(duk_context*);
 	};
-
 
 	/// sets up the tables and calls to this VM
 	inline void install(duk_context* ctx)
@@ -366,13 +372,6 @@ namespace diskio {
 		}
 		assert(duk_get_top(ctx) == base);
 
-		// >> load up code to wrap scripts
-		{
-			// assert(false && "?? load up code to make script super-classes");
-			// assert(false && "... is there anything to do here? is this redundant?");
-		}
-		assert(duk_get_top(ctx) == base);
-
 		// >> allocate / in-place-new and store ALL global objects (including context pointers)
 		{
 			// stack -> .... base .. ;
@@ -394,6 +393,7 @@ namespace diskio {
 
 					thisDisk->~Disk();
 					duk_free(ctx, thisDisk);
+					scad40::env::remove(ctx, "peterlavalle.diskio.Disk");
 
 					return 0;
 				});
@@ -475,8 +475,22 @@ namespace diskio {
 
 #ifndef _scad40_tail
 #define _scad40_tail
+#pragma region "scad40 and scad40::env"
+inline bool scad40::has_prop(duk_context* ctx, const duk_idx_t idx, const char* key)
+{
+	// stack -> .. idx ... ;
 
-#pragma region "scad40"
+	duk_get_prop_string(ctx, idx, key);
+	// stack -> .. idx ... ; value ;
+
+	const bool result = duk_is_null_or_undefined(ctx, -1) ? false : true;
+
+	duk_pop(ctx);
+	// stack -> .. idx ... ;
+
+	return result;
+}
+
 template<typename T>
 inline void scad40::push_selfie<T>(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*))
 {
@@ -493,21 +507,6 @@ inline void scad40::push_selfie<T>(duk_context* ctx, T* self, duk_idx_t nargs, d
 	duk_put_prop_string(ctx, -2, "\xFF" "self");
 	duk_push_pointer(ctx, code);
 	duk_put_prop_string(ctx, -2, "\xFF" "code");
-}
-
-inline bool scad40::has_prop(duk_context* ctx, const duk_idx_t idx, const char* key)
-{
-	// stack -> .. idx ... ;
-
-	duk_get_prop_string(ctx, idx, key);
-	// stack -> .. idx ... ; value ;
-
-	const bool result = duk_is_null_or_undefined(ctx, -1) ? false : true;
-
-	duk_pop(ctx);
-	// stack -> .. idx ... ;
-
-	return result;
 }
 
 inline void scad40::env::assign(duk_context* ctx, const char* key)
@@ -591,6 +590,21 @@ inline void scad40::env::assign(duk_context* ctx, const char* key)
 
 }
 
+inline bool scad40::env::exists(duk_context* ctx, const char* path)
+{
+	// stack -> .... base .. ;
+
+	scad40::env::lookup(ctx, path);
+	// stack -> .... base .. ; ??? ;
+
+	const auto result = duk_is_null_or_undefined(ctx, -1) ? false : true;
+
+	duk_pop(ctx);
+	// stack -> .... base .. ;
+
+	return result;
+}
+
 inline void scad40::env::lookup(duk_context* ctx, const char* binding)
 {
 	size_t idx = 0, len = 0;
@@ -650,211 +664,6 @@ inline void scad40::env::lookup(duk_context* ctx, const char* binding)
 }
 #pragma endregion
 
-#pragma region "duk_str"
-inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
-	scad40::duk_obj(ctx)
-{
-	duk_push_global_stash(ctx);
-	if (nullptr == str)
-	{
-		duk_push_undefined(ctx);
-	}
-	else
-	{
-		duk_push_string(ctx, str);
-	}
-	duk_put_prop_string(ctx, -2, KeyString().data());
-	duk_pop(ctx);
-}
-inline scad40::duk_str::duk_str(duk_context* ctx, duk_idx_t idx) :
-	scad40::duk_obj(ctx)
-{
-	assert(duk_is_string(ctx, idx));
-
-	idx = duk_normalize_index(ctx, idx);
-
-	// stack -> ... ; "val" ; ... ;
-
-	duk_push_global_stash(ctx);
-	// stack -> ... ; "val" ; ... ; [global stash] ;
-
-	duk_dup(ctx, idx);
-	// stack -> ... ; "val" ; ... ; [global stash] ; "val" ;
-
-	duk_put_prop_string(ctx, -2, KeyString().data());
-	// stack -> ... ; "val" ; ... ; [global stash] ;
-
-	duk_pop(ctx);
-	// stack -> ... ; "val" ; ... ;
-}
-
-inline scad40::duk_str::duk_str(const scad40::duk_str& other) :
-	scad40::duk_obj(other.Host())
-{
-	duk_push_global_stash(Host());
-	duk_get_prop_string(Host(), -1, other.KeyString().data());
-	duk_put_prop_string(Host(), -2, KeyString().data());
-	duk_pop(Host());
-	_str = other._str;
-}
-
-inline scad40::duk_str& scad40::duk_str::operator=(const scad40::duk_str& other)
-{
-	assert(Host() == other.Host());
-
-	duk_push_global_stash(Host());
-	duk_get_prop_string(Host(), -1, other.KeyString().data());
-	duk_put_prop_string(Host(), -2, KeyString().data());
-	duk_pop(Host());
-
-	_str = other._str;
-
-	return *this;
-}
-
-inline scad40::duk_str::operator const char* (void) const
-{
-	assert(nullptr != Host());
-
-	// stack -> ... ;
-
-	duk_push_global_stash(Host());
-	// stack -> ... ; [global stash] ;
-
-	duk_get_prop_string(Host(), -1, KeyString().data());
-	// stack -> ... ; [global stash] ; "val" ;
-
-	auto result = duk_to_string(Host(), -1);
-
-	duk_pop_2(Host());
-	// stack -> ... ;
-
-	return result;
-}
-
-inline scad40::duk_str::~duk_str(void)
-{
-	if (Host())
-	{
-		duk_push_global_stash(Host());
-		duk_del_prop_string(Host(), -1, KeyString().data());
-		duk_pop(Host());
-
-		_str = reinterpret_cast<char*>(0xCAFEBABA);
-	}
-}
-#pragma endregion
-
-#pragma region "duk_obj"
-inline scad40::duk_obj::duk_obj(duk_context* ctx) :
-	scad40::object(ctx)
-{
-	assert(is_null());
-}
-
-inline bool scad40::duk_obj::is_null(void) const
-{
-	// stack -> ... ;
-
-	duk_push_global_stash(Host());
-	// stack -> ... ; [global stash] ;
-
-	duk_get_prop_string(Host(), -1, KeyString().data());
-	// stack -> ... ; [global stash] ; ??thing?? ;
-
-	const bool result = duk_is_null_or_undefined(Host(), -1) ? true : false;
-
-	duk_pop_2(Host());
-	// stack -> ... ;
-
-	return result;
-}
-
-inline scad40::duk_obj::~duk_obj(void)
-{
-	assert(nullptr != Host());
-
-	// stack -> ... ;
-
-	duk_push_global_stash(Host());
-	// stack -> ... ; [global stash] ;
-
-	duk_del_prop_string(Host(), -1, KeyString().data());
-
-	duk_pop(Host());
-	// stack -> ... ;
-}
-#pragma endregion
-
-#pragma region "duk_ref"
-template<typename T>
-inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
-	scad40::duk_obj(ctx)
-{
-	assert(T::Is(ctx, idx));
-	// stack -> ... ; [T] ; ... ;
-
-	duk_get_prop_string(ctx, idx, "\xFF" "*");
-	// stack -> ... ; [T] ; ... ; T* ;
-
-	_ptr = (T*)duk_to_pointer(ctx, -1);
-
-	duk_pop(ctx);
-	// stack -> ... ; [T] ; ... ;
-
-	duk_push_global_stash(ctx);
-	// stack -> ... ; [T] ; ... ; [global stash] ;
-
-	duk_dup(ctx, idx);
-	// stack -> ... ; [T] ; ... ; [global stash] ; [T] ;
-
-	duk_put_prop_string(ctx, -2, KeyString().data());
-	// stack -> ... ; [T] ; ... ; [global stash] ;
-
-	duk_pop(ctx);
-	// stack -> ... ; [T] ; ... ;
-}
-
-template<typename T>
-inline scad40::duk_ref<T>::duk_ref(const scad40::duk_ref<T>& other) :
-	scad40::duk_obj(other.Host())
-{
-	// stack -> ... ;
-
-	duk_push_global_stash(Host());
-	// stack -> ... ; [global stash] ;
-
-	duk_get_prop_string(Host(), -1, other.KeyString().data());
-	// stack -> ... ; [global stash] ; other ;
-
-	duk_put_prop_string(Host(), -2, KeyString().data());
-	// stack -> ... ; [global stash] ;
-
-	duk_pop(Host());
-	// stack -> ... ;
-
-	_ptr = duk_is_null_or_undefined(Host(), -1) ? nullptr : other._ptr;
-}
-
-template<typename T>
-inline T* scad40::duk_ref<T>::operator -> (void)
-{
-	return _ptr;
-}
-
-template<typename T>
-inline const T* scad40::duk_ref<T>::operator -> (void) const
-{
-	return _ptr;
-}
-
-template<typename T>
-inline scad40::duk_ref<T>::~duk_ref(void)
-{
-	_ptr = reinterpret_cast<T*>(0xCACADAD);
-}
-#pragma endregion
-
 #pragma region "object"
 inline scad40::object::object(void)
 {
@@ -862,7 +671,7 @@ inline scad40::object::object(void)
 }
 
 inline scad40::object::object(duk_context* ctx) :
-	_ctx(ctx)
+_ctx(ctx)
 {
 	assert(nullptr != _ctx);
 }
@@ -941,21 +750,185 @@ inline const char* scad40::object::type_string(void)
 	ptr[out] = '\0';
 	return _ptr = ptr;
 }
+#pragma endregion
 
+#pragma region "duk_str"
+inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
+	scad40::object(ctx)
+{
+	duk_push_global_stash(ctx);
+	if (nullptr == str)
+	{
+		duk_push_undefined(ctx);
+	}
+	else
+	{
+		duk_push_string(ctx, str);
+	}
+	duk_put_prop_string(ctx, -2, KeyString().data());
+	duk_pop(ctx);
+}
+inline scad40::duk_str::duk_str(duk_context* ctx, duk_idx_t idx) :
+	scad40::object(ctx)
+{
+	assert(duk_is_string(ctx, idx));
+
+	idx = duk_normalize_index(ctx, idx);
+
+	// stack -> ... ; "val" ; ... ;
+
+	duk_push_global_stash(ctx);
+	// stack -> ... ; "val" ; ... ; [global stash] ;
+
+	duk_dup(ctx, idx);
+	// stack -> ... ; "val" ; ... ; [global stash] ; "val" ;
+
+	duk_put_prop_string(ctx, -2, KeyString().data());
+	// stack -> ... ; "val" ; ... ; [global stash] ;
+
+	duk_pop(ctx);
+	// stack -> ... ; "val" ; ... ;
+}
+
+inline scad40::duk_str::duk_str(const scad40::duk_str& other) :
+	scad40::object(other.Host())
+{
+	duk_push_global_stash(Host());
+	duk_get_prop_string(Host(), -1, other.KeyString().data());
+	duk_put_prop_string(Host(), -2, KeyString().data());
+	duk_pop(Host());
+	_str = other._str;
+}
+
+inline scad40::duk_str& scad40::duk_str::operator=(const scad40::duk_str& other)
+{
+	assert(Host() == other.Host());
+
+	duk_push_global_stash(Host());
+	duk_get_prop_string(Host(), -1, other.KeyString().data());
+	duk_put_prop_string(Host(), -2, KeyString().data());
+	duk_pop(Host());
+
+	_str = other._str;
+
+	return *this;
+}
+
+inline scad40::duk_str::operator const char* (void) const
+{
+	assert(nullptr != Host());
+
+	// stack -> ... ;
+
+	duk_push_global_stash(Host());
+	// stack -> ... ; [global stash] ;
+
+	duk_get_prop_string(Host(), -1, KeyString().data());
+	// stack -> ... ; [global stash] ; "val" ;
+
+	auto result = duk_to_string(Host(), -1);
+
+	duk_pop_2(Host());
+	// stack -> ... ;
+
+	return result;
+}
+
+inline scad40::duk_str::~duk_str(void)
+{
+	if (Host())
+	{
+		duk_push_global_stash(Host());
+		duk_del_prop_string(Host(), -1, KeyString().data());
+		duk_pop(Host());
+
+		_str = reinterpret_cast<char*>(0xCAFEBABA);
+	}
+}
+#pragma endregion
+
+#pragma region "duk_ref"
+template<typename T>
+inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
+	scad40::object(ctx)
+{
+	assert(T::Is(ctx, idx));
+	// stack -> ... ; [T] ; ... ;
+
+	duk_get_prop_string(ctx, idx, "\xFF" "*");
+	// stack -> ... ; [T] ; ... ; T* ;
+
+	_ptr = (T*)duk_to_pointer(ctx, -1);
+
+	duk_pop(ctx);
+	// stack -> ... ; [T] ; ... ;
+
+	duk_push_global_stash(ctx);
+	// stack -> ... ; [T] ; ... ; [global stash] ;
+
+	duk_dup(ctx, idx);
+	// stack -> ... ; [T] ; ... ; [global stash] ; [T] ;
+
+	duk_put_prop_string(ctx, -2, KeyString().data());
+	// stack -> ... ; [T] ; ... ; [global stash] ;
+
+	duk_pop(ctx);
+	// stack -> ... ; [T] ; ... ;
+}
+
+template<typename T>
+inline scad40::duk_ref<T>::duk_ref(const scad40::duk_ref<T>& other) :
+	scad40::object(other.Host())
+{
+	// stack -> ... ;
+
+	duk_push_global_stash(Host());
+	// stack -> ... ; [global stash] ;
+
+	duk_get_prop_string(Host(), -1, other.KeyString().data());
+	// stack -> ... ; [global stash] ; other ;
+
+	duk_put_prop_string(Host(), -2, KeyString().data());
+	// stack -> ... ; [global stash] ;
+
+	duk_pop(Host());
+	// stack -> ... ;
+
+	_ptr = duk_is_null_or_undefined(Host(), -1) ? nullptr : other._ptr;
+}
+
+template<typename T>
+inline T* scad40::duk_ref<T>::operator -> (void)
+{
+	return _ptr;
+}
+
+template<typename T>
+inline const T* scad40::duk_ref<T>::operator -> (void) const
+{
+	return _ptr;
+}
+
+template<typename T>
+inline scad40::duk_ref<T>::~duk_ref(void)
+{
+	_ptr = reinterpret_cast<T*>(0xCACADAD);
+}
 #pragma endregion
 #endif // ... okay - that's the end of predef
-
 
 // =====================================================================================================================
 // boilerplate usercode implementations - these things wrap/cast/adapt stuff for your "real" methods
 // ---------------------------------------------------------------------------------------------------------------------
+
 #pragma region "script ChangeListener"
 inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_str& path)
 {
 	auto ptr = reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this);
 
-	assert(Host() == ptr->Host() && "SAN check failed");
+	assert(Host() == ptr->Host() && "SAN failed");
 
+	assert(Host() == path.Host());
 	const auto base = duk_get_top(Host());
 
 	// stack -> .. base .. ;
@@ -963,17 +936,23 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_
 	ptr->Push();
 	// stack -> .. base .. ; [self] ;
 
-	duk_get_prop_string(Host(), -1, "fileChanged");
-	// stack -> .. base .. ; [self] ; fileChanged() ;
+	duk_push_string(Host(), "fileChanged");
+	// stack -> .. base .. ; [self] ; "fileChanged" ;
 
-	duk_insert(Host(), -2);
-	// stack -> .. base .. ; fileChanged() ; [self] ;
-
-	assert(Host() == path.Host());
 	path.Push();
-	// stack -> .. base .. ; fileChanged() ; [self] ; "path" ;
+	// stack -> .. base .. ; [self] ; "fileChanged" ; "path" ;
 
-	duk_call_method(Host(), 1);
+#ifndef _DEBUG
+	duk_call_prop(Host(), -3, 1);
+#else
+	auto result = duk_pcall_prop(Host(), -3, 1);
+	if (DUK_EXEC_SUCCESS != result)
+	{
+		const char* message = duk_safe_to_string(Host(), -1);
+		std::cerr << "Failed to call `peterlavalle.diskio/ChangeListener::fileChanged()` because\n\t" << message << std::endl;
+		duk_error(Host(), 314, "Failed to call `peterlavalle.diskio/ChangeListener::fileChanged()` because\n\t%s", message);
+	}
+#endif
 	// stack -> .. base .. ; ?result? ;
 
 	duk_pop(Host());
@@ -982,8 +961,37 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_
 
 inline scad40::duk_ptr<peterlavalle::diskio::ChangeListener> peterlavalle::diskio::ChangeListener::New(duk_context* ctx, const char* subclass)
 {
-	assert(false && "??? scad40 needs to provide this");
-	duk_error(ctx, 314, "??? scad40 needs to provide this");
+	// stack -> ... ;
+
+	scad40::env::lookup(ctx, subclass);
+	// stack -> ... ; ?class? ;
+
+	if (!duk_is_callable(ctx, -1))
+	{
+		duk_pop(ctx);
+		duk_error(ctx, 314, "Thing `%s` is not callable", subclass);
+	}
+
+	// stack -> ... ; class() ;
+
+	assert(duk_is_object(ctx, -1) && "SAN failed");
+
+	duk_new(ctx, 0);
+	// stack -> ... ; ?object? ;
+
+	if (!peterlavalle::diskio::ChangeListener::As(ctx, -1))
+	{
+		duk_pop(ctx);
+		duk_error(ctx, 314, "Thing `%s` is not usable as peterlavalle::diskio::ChangeListener", subclass);
+	}
+
+	// stack -> ... ; object ;
+
+	scad40::duk_ptr<peterlavalle::diskio::ChangeListener> object(ctx, -1);
+	duk_pop(ctx);
+	// stack -> ... ;
+
+	return object;
 }
 
 inline bool peterlavalle::diskio::ChangeListener::As(duk_context* ctx, duk_idx_t idx)
@@ -1016,7 +1024,6 @@ inline scad40::duk_ptr<peterlavalle::diskio::ChangeListener> peterlavalle::diski
 }
 
 #pragma endregion
-
 
 #pragma region "native Reading"
 inline bool peterlavalle::diskio::Reading::Is(duk_context* ctx, duk_idx_t idx)
@@ -1136,7 +1143,7 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 	// stack -> ... ; [Reading] ;
 	duk_pop(ctx);
 
-	assert(!ret.is_null());
+	assert(!ret.IsNull());
 	assert(nullptr != ret.operator ->());
 
 	return ret;
@@ -1151,8 +1158,6 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 	return scad40::duk_ref< peterlavalle::diskio::Reading >(ctx, idx);
 }
 #pragma endregion
-
-
 
 #pragma region "global Disk"
 inline peterlavalle::diskio::Disk& peterlavalle::diskio::Disk::get(duk_context* ctx)

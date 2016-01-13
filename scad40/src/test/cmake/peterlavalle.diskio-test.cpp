@@ -54,6 +54,7 @@ int main(int argc, char* argv[])
 
 	duk_destroy_heap(ctx);
 
+	std::cout << "MeatSOup!" << std::endl;
 	return EXIT_SUCCESS;
 }
 

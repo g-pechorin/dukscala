@@ -26,11 +26,32 @@ add_executable(
 		../duktape/duk_config.h
 		../duktape/duktape.c
 		../duktape/duktape.h
-		
+
 		src/test/cmake/peterlavalle.diskio-test.cpp
+		
 		src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
 
 		src/test/resources/pal_adler32.hpp
 		src/test/resources/peterlavalle.diskio.hpp
 
 	)
+
+
+	include(src/test/cmake/pal_gtest.cmake)
+	add_executable(
+		peterlavalle.diskio-gtest
+
+			../duktape/duk_config.h
+			../duktape/duktape.c
+			../duktape/duktape.h
+
+			src/test/cmake/peterlavalle.diskio-gtest.cpp
+#			src/test/cmake/peterlavalle.diskio-gtest.hpp
+
+			src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
+		
+			src/test/resources/pal_adler32.hpp
+			src/test/resources/peterlavalle.diskio.hpp
+
+		)
+		pal_gtest_wire(peterlavalle.diskio-gtest)
