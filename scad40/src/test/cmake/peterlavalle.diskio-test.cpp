@@ -45,8 +45,6 @@ int main(int argc, char* argv[])
 
 		std::cout << "peterlavalle::diskio::ChangeListener::As(ctx, -1) = " << (peterlavalle::diskio::ChangeListener::As(ctx, -1) ? "true" : "false") << std::endl;
 
-		// TODO ; something about my wangled pointer is making (someone) angry
-
 		auto changeListener = peterlavalle::diskio::ChangeListener::To(ctx, -1);
 
 		auto ck = changeListener;
