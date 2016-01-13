@@ -15,13 +15,14 @@ int main(int argc, char* argv[])
 	auto y = duk_get_top(ctx);
 	assert(0 == y);
 
-	auto& g = peterlavalle::diskio::Disk::get(ctx);
+	{
+		auto& g = peterlavalle::diskio::Disk::get(ctx);
 
-	auto w = duk_get_top(ctx);
-	assert(0 == w);
+		auto w = duk_get_top(ctx);
+		assert(0 == w);
 
-	g.foobar("thing");
-
+		g.foobar("thing");
+	}
 
 	duk_eval_string_noresult(ctx, "peterlavalle.diskio.Disk.foobar('hamster')");
 
@@ -70,12 +71,10 @@ peterlavalle::diskio::Reading::~Reading(void)
 peterlavalle::diskio::Disk::Disk(void) :
 	_pwd(Host())
 {
-//	Stash<NVGcontext*>() = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 }
 
 peterlavalle::diskio::Disk::~Disk(void)
 {
-//	nvgDeleteGL3(Stash<NVGcontext*>());
 }
 
 void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
