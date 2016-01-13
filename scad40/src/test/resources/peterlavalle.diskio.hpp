@@ -60,17 +60,22 @@ namespace scad40
 		/// again - protected to prevent clever-clogs from hurting themselves
 		~object(void)
 		{
-			assert(nullptr != Host());
+			if (nullptr == _ctx)
+			{
+				return;
+			}
 
 			// stack -> ... ;
 
-			duk_push_global_stash(Host());
+			duk_push_global_stash(_ctx);
 			// stack -> ... ; [global stash] ;
 
-			duk_del_prop_string(Host(), -1, KeyString().data());
+			duk_del_prop_string(_ctx, -1, KeyString().data());
 
-			duk_pop(Host());
+			duk_pop(_ctx);
 			// stack -> ... ;
+
+			_ctx = nullptr;
 		}
 	public:
 		duk_context* Host(void) const;
@@ -157,8 +162,6 @@ namespace scad40
 
 		T* operator -> (void);
 		const T* operator-> (void) const;
-
-		~duk_ref(void);
 	};
 
 	/// holds a ref to a duktape string using magic
@@ -188,8 +191,6 @@ namespace scad40
 		duk_str& operator== (const duk_str&) const;
 
 		operator const char* (void) const;
-
-		~duk_str(void);
 	};
 
 	/// tools to pick at DukTape's global table
@@ -393,9 +394,12 @@ namespace diskio {
 
 				scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 0, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 
+					assert(ctx == thisDisk->Host());
+
 					thisDisk->~Disk();
 					duk_free(ctx, thisDisk);
-					scad40::env::remove(ctx, "peterlavalle.diskio.Disk");
+					// scad40::env::remove(ctx, "peterlavalle.diskio.Disk");
+					// TODO ; find a way to actually DO THIS!?!?
 
 					return 0;
 				});
@@ -472,6 +476,7 @@ namespace diskio {
 		}
 		assert(duk_get_top(ctx) == base);
 	}
+}
 }
 
 #ifndef _scad40_tail
