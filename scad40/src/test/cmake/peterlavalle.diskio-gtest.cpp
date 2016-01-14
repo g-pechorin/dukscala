@@ -21,6 +21,15 @@ scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Disk::open(
 	return result;
 }
 
+void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
+{
+	std::stringstream log;
+
+	log << __FUNCTION__ << "(" << text << ")";
+
+	stupid_mock::get(Host()).soft_call(log.str().c_str());
+}
+
 TEST(duktape, onoff)
 {
 	duk_context* context = duk_create_heap_default();
@@ -69,6 +78,12 @@ TEST(scad40, newscripted)
 
 	mock.hard_call("peterlavalle::diskio::Disk::Disk");
 	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokey)");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokey)");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(from `???` to `thing`)");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokei)");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokey)");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(from `???` to `beyond`)");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(from `thing` to `cake!`)");
 	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
 
 	duk_context* context = mock.replay();
@@ -85,7 +100,7 @@ TEST(scad40, newscripted)
 					this.last = "???";
 					this.fileChanged = function(path)
 					{
-						/*peterlavalle.diskio.Disk.foobar('from `' + this.last + '` to `' + path + '`');*/
+						peterlavalle.diskio.Disk.foobar('from `' + this.last + '` to `' + path + '`');
 						this.last = path;
 					};
 				};

@@ -18,6 +18,18 @@ class stupid_mock
 	std::list<std::map<std::string, size_t>> _expectations;
 	bool _recording;
 public:
+	size_t remaining(void) const
+	{
+		size_t remaining = 0;
+		for (auto& group : _expectations)
+		{
+			for (auto& pait : group)
+			{
+				remaining += pait.second;
+			}
+		}
+		return remaining;
+	}
 
 	stupid_mock(void)
 	{
@@ -49,6 +61,8 @@ public:
 
 	~stupid_mock(void)
 	{
+		auto roy = remaining();
+		EXPECT_EQ(0, roy) << "There were " << roy << " calls that didn't happen";
 		EXPECT_FALSE(_recording) << "Mock was never switched into `replay` mode";
 		EXPECT_TRUE(empty()) << "Unspent expectations";
 	}
@@ -75,7 +89,7 @@ public:
 		}
 		else
 		{
-			EXPECT_FALSE(empty()) << "Unexpected call `" << name << "` - I'm out of expectations";
+			EXPECT_FALSE(empty()) << "\n\t>>>>Unexpected call `" << name << "` - I'm out of expectations" << std::endl;
 			
 			if (empty())
 			{
@@ -84,7 +98,7 @@ public:
 
 			std::map<std::string, size_t>& head = _expectations.front();
 
-			EXPECT_FALSE(head.end() == head.find(key));
+			EXPECT_FALSE(head.end() == head.find(key)) << "\n\t>>>>Unexpected call `" << name << "` - it doesn't match the present expectations" << std::endl;
 			if (head.end() == head.find(key))
 			{
 				return;
@@ -148,13 +162,10 @@ _pwd(Host())
 	stupid_mock::get(Host()).soft_call(__FUNCTION__);
 }
 
-void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
-{
-	stupid_mock::get(Host()).soft_call(__FUNCTION__);
-}
-
 void peterlavalle::diskio::Disk::subscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)
 {
+	std::stringstream log;
+
 	stupid_mock::get(Host()).soft_call(__FUNCTION__);
 }
 
@@ -167,72 +178,3 @@ peterlavalle::diskio::Disk::~Disk(void)
 {
 	stupid_mock::get(Host()).soft_call(__FUNCTION__);
 }
-
-
-#if 0
-class scad40mock
-{
-public:
-	static void install(duk_context* ctx);
-
-	static scad40mock& get(duk_context* ctx);
-
-	template<typename T, typename ... ARGS>
-	T replay(const char* name, T result, std::function<bool(ARGS&& ...args)> checker);
-
-	template<typename T, typename ... ARGS>
-	T verify(const char* name, ARGS&& ...args);
-};
-
-peterlavalle::diskio::Reading::Reading(void) :
-	_path(Host())
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Reading::Reading(void)");
-}
-
-peterlavalle::diskio::Reading::~Reading(void)
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Reading::~Reading(void)");
-}
-
-peterlavalle::diskio::Disk::Disk(void) :
-	_pwd(Host())
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Disk::Disk(void)");
-}
-
-void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Disk::foobar", text);
-}
-
-scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Disk::open(const scad40::duk_str& path)
-{
-	return scad40mock::get(Host()).verify<scad40::duk_ref<peterlavalle::diskio::Reading>>("peterlavalle::diskio::Disk::open", path);
-}
-
-void peterlavalle::diskio::Disk::subscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Disk::subscribe", path, listener);
-}
-
-void peterlavalle::diskio::Disk::unsubscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Disk::unsubscribe", path, listener);
-}
-
-peterlavalle::diskio::Disk::~Disk(void)
-{
-	scad40mock::get(Host()).verify<void>("peterlavalle::diskio::Disk::~Disk(void)");
-}
-
-template<typename T, typename ... ARGS>
-T scad40mock::replay(const char* name, T result, std::function<bool(ARGS&& ...args)> checker)
-{
-	struct anyblob
-
-}
-
-template<typename T, typename ... ARGS>
-T verify(const char* name, ARGS&& ...args);
-#endif
