@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "gtest/gtest.h"
 
 #include <duktape.h>
 #include <peterlavalle.diskio.hpp>
@@ -22,21 +23,14 @@ public:
 	{
 		_recording = true;
 	}
-	
-	void replay(duk_context* ctx)
-	{
-		EXPECT_TRUE(_recording) << "Mock was already switched into `replay` mode";
-		duk_push_pointer(ctx, this);
-		duk_put_global_string(ctx, "\xFF" "stupid_mock");
-		_recording = false;
-	}
 
 	duk_context* replay(void)
 	{
+		EXPECT_TRUE(_recording) << "Mock was already switched into `replay` mode";
 		auto context = duk_create_heap_default();
-
-		replay(context);
-
+		duk_push_pointer(context, this);
+		duk_put_global_string(context, "\xFF" "stupid_mock");
+		_recording = false;
 		return context;
 	}
 

@@ -32,23 +32,18 @@ TEST(duktape, onoff)
 
 TEST(scad40, onoff)
 {
-	duk_context* context = duk_create_heap_default();
+	stupid_mock mock;
 
-	{
-		stupid_mock mock;
-		
-		mock.hard_call("peterlavalle::diskio::Disk::Disk");
-		mock.hard_call("peterlavalle::diskio::Disk::~Disk");		                
+	mock.hard_call("peterlavalle::diskio::Disk::Disk");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
 
-		mock.replay(context);
+	duk_context* context = mock.replay();
 
-		peterlavalle::diskio::install(context);
+	peterlavalle::diskio::install(context);
 
-		EXPECT_NE(nullptr, context);
+	EXPECT_NE(nullptr, context);
 
-		duk_destroy_heap(context);
-	}
-
+	duk_destroy_heap(context);
 }
 
 TEST(scad40, runcall)
@@ -85,7 +80,7 @@ TEST(scad40, newscripted)
 			HEREDOC(
 				newscripted = function()
 				{
-					/*peterlavalle.diskio.Disk.foobar('pokey');*/
+					peterlavalle.diskio.Disk.foobar('pokey');
 
 					this.last = "???";
 					this.fileChanged = function(path)
@@ -108,10 +103,10 @@ TEST(scad40, newscripted)
 		auto newscripted = peterlavalle::diskio::ChangeListener::To(context, 0);
 		EXPECT_FALSE(newscripted.IsNull()) << "That should have produced an object";
 
-		
+
 
 		duk_pop(context);
-	
+
 		auto changeListener = peterlavalle::diskio::ChangeListener::New(context, "newscripted");
 
 		// looks like a problem with the copy-constructor or the copy operator
