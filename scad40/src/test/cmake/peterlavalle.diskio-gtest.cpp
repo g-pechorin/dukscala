@@ -96,8 +96,27 @@ TEST(scad40, newscripted)
 				};
 			)
 		);
+
+		EXPECT_EQ(0, duk_get_top(context)) << "Unexpected stack values";
+
+		duk_eval_string(context, "new newscripted();");
+
+		EXPECT_EQ(1, duk_get_top(context)) << "That should have yielded something";
+
+		EXPECT_TRUE(peterlavalle::diskio::ChangeListener::As(context, 0)) << "That should be the thing I expected?";
+
+		auto newscripted = peterlavalle::diskio::ChangeListener::To(context, 0);
+		EXPECT_FALSE(newscripted.IsNull()) << "That should have produced an object";
+
+		
+
+		duk_pop(context);
 	
 		auto changeListener = peterlavalle::diskio::ChangeListener::New(context, "newscripted");
+
+		// looks like a problem with the copy-constructor or the copy operator
+
+		EXPECT_FALSE(changeListener.IsNull()) << "That should have produced an object";
 
 		changeListener->fileChanged("thing");
 		// causes TypeError: 

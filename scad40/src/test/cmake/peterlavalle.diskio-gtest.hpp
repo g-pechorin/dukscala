@@ -138,7 +138,7 @@ public:
 
 
 peterlavalle::diskio::Reading::Reading(void) :
-_path(Host())
+	_path(Host())
 {
 	stupid_mock::get(Host()).soft_call(__FUNCTION__);
 }
