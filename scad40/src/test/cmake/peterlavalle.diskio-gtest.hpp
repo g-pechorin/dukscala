@@ -122,6 +122,16 @@ public:
 	}
 
 
+	void soft_call(const std::string& string)
+	{
+		soft_call(string.c_str());
+	}
+
+	void soft_call(const std::stringstream& stream)
+	{
+		soft_call(stream.str());
+	}
+
 	void add_block(void)
 	{
 		EXPECT_TRUE(_recording)<< "You can't add execution blocks in replay mode ... not sure why you'd try though";
@@ -159,14 +169,19 @@ peterlavalle::diskio::Reading::~Reading(void)
 peterlavalle::diskio::Disk::Disk(void) :
 _pwd(Host())
 {
-	stupid_mock::get(Host()).soft_call(__FUNCTION__);
+	std::stringstream log;
+	log << __FUNCTION__ << "(" << ")";
+
+	stupid_mock::get(Host()).soft_call(log);
 }
 
 void peterlavalle::diskio::Disk::subscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)
 {
 	std::stringstream log;
 
-	stupid_mock::get(Host()).soft_call(__FUNCTION__);
+	log << __FUNCTION__ << "(" << path << ", " << "ChangeListener@" << (size_t)(&listener) << ")";
+
+	stupid_mock::get(Host()).soft_call(log);
 }
 
 void peterlavalle::diskio::Disk::unsubscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)

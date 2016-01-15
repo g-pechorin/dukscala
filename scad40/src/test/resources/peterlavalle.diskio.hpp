@@ -44,7 +44,7 @@ namespace scad40
 
 		template<typename T>
 		friend struct duk_ptr;
-		
+
 		template<typename T>
 		friend class duk_ref;
 
@@ -60,7 +60,7 @@ namespace scad40
 			/// this will/should have been magically setup
 			assert(nullptr != _ctx);
 		}
-		
+
 		/// no one should directly handle instances of this class
 		~object(void);
 
@@ -72,7 +72,7 @@ namespace scad40
 
 
 		std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
-	
+
 	public:
 		duk_context* Host(void) const;
 
@@ -148,7 +148,7 @@ namespace scad40
 
 		/// grab an instance from the stack. fails violently if types are wrong
 		duk_str(duk_context* ctx, const duk_idx_t);
-		
+
 		duk_str& operator= (const char*);
 		duk_str& operator= (const std::string&);
 
@@ -197,7 +197,7 @@ namespace diskio {
 		/// used for const-char wrapping
 		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
 	public:
-		
+
 		/// the user's requested members
 			void fileChanged (const scad40::duk_str& path);
 
@@ -208,7 +208,7 @@ namespace diskio {
 					scad40::duk_str(Host(), path)
 				);
 			}
-			
+
 		/// create an instance of a scripted class that extends this class
 		static scad40::duk_ptr<ChangeListener> New(duk_context* ctx, const char* subclass);
 
@@ -317,7 +317,7 @@ namespace diskio {
 		if (scad40::env::exists(ctx, "peterlavalle.diskio"))
 		{
 			duk_error(ctx, 314, "Can't redefine module `peterlavalle.diskio`");
-			return;		
+			return;
 		}
 		assert(duk_get_top(ctx) == base);
 
@@ -901,6 +901,12 @@ inline const T* scad40::duk_ref<T>::operator->(void) const
 #pragma endregion
 #endif // ... okay - that's the end of predef
 
+inline std::ostream& operator<<(std::ostream& ostream, const scad40::duk_str& string)
+{
+	return ostream << static_cast<const char*>(string);
+}
+
+
 // =====================================================================================================================
 // boilerplate usercode implementations - these things wrap/cast/adapt stuff for your "real" methods
 // ---------------------------------------------------------------------------------------------------------------------
@@ -923,7 +929,7 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_
 #ifdef _DEBUG
 	const auto is_object = duk_is_object(Host(), -1) ? true : false;
 	const auto is_null = ptr->IsNull();
-	
+
 	duk_get_prop_string(Host(), -1, "fileChanged");
 	// stack -> .. base .. ; [self] ; fileChanged() ;
 
@@ -1020,6 +1026,9 @@ inline scad40::duk_ptr<peterlavalle::diskio::ChangeListener> peterlavalle::diski
 {
 	return scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, idx);
 }
+
+
+
 
 #pragma endregion
 

@@ -43,7 +43,7 @@ TEST(scad40, onoff)
 {
 	stupid_mock mock;
 
-	mock.hard_call("peterlavalle::diskio::Disk::Disk");
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
 	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
 
 	duk_context* context = mock.replay();
@@ -59,7 +59,7 @@ TEST(scad40, runcall)
 {
 	stupid_mock mock;
 
-	mock.hard_call("peterlavalle::diskio::Disk::Disk");
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
 	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokei)");
 	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
 
@@ -76,7 +76,7 @@ TEST(scad40, newscripted)
 {
 	stupid_mock mock;
 
-	mock.hard_call("peterlavalle::diskio::Disk::Disk");
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
 	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokey)");
 	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokey)");
 	mock.hard_call("peterlavalle::diskio::Disk::foobar(from `???` to `thing`)");
