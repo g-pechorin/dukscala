@@ -1,3 +1,4 @@
+(Thgis is a `DRAFT` and isn't very nicely written ... which is why it's not in `master`)
 
 These are proof-of-concept showing that [Scala-JS][orgScalaJS] can run inside of an embedded [Duktape][orgDuktape] instance.
 
@@ -79,12 +80,13 @@ Superfically - what I'd seen of SWIG didn't make me want to use it.
 * [SWIG][orgSWIG] generates `.java` JNI code for the JVM
  * **I'm using [Scala-JS][orgScalaJS] - not JVM** while I'm not militantly opposed to JNI - I want something suitable for consumers/games (... who all seem to be irationally afraid that Java and the JVM will make them sterile or whatever)
 
-In theory, I *could have* modified it to fit my needs ... but it didn't seem as fun.
-I therefore chose to implement a less flexible subset of [SWIG][orgSWIG] which I (expect) provides a shallower learning-curve.
+In theory, I *could have* modified [SWIG][orgSWIG] to fit my needs ... but learning-other-tool then modifying-other-tool for my needs followed by adapting-build-for-other-tool didn't seem as fun.
+
+... so I chose to implement my (less flexible) subset of what [SWIG][orgSWIG] does.
 
 # Further Work
 
-Given how good I feel about SCaD40 - I'd like to have a play at using it to embed the JVM.
+Given how good I feel about SCaD40 - I'd like to have a play at using it with JNI/JVM.
 ScaD40 should be able to spit-out JVM code.
 This would make debugging easier since JDWP is (relatively) cool.
 It would be nice if it was transparent to the "client code" and the interfaces could be reused.
