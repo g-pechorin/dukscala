@@ -13,6 +13,7 @@
   * use C++ `explicit` and wrap the thing(s) to force assignments (in C++) to be intentional
  [ ] clean up Nephrite and template resolution
  [ ] `either` classes that can be created and manipulated on either side
+ [x] rewrite inheritance to make actual sense
 
 # Warning
 

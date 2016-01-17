@@ -34,60 +34,94 @@ namespace scad40
 	/// restores the stack
 	bool has_prop(duk_context* ctx, const duk_idx_t idx, const char* key);
 
-	/// base object for things that play wilde with pointers
+	/// base object for things that play with with pointers
 	/// don't look to closesly at the guts
-	class object
+	/// used for both the "_handle" subclasses and the generated derrived types
+	class _object
 	{
 		/// magical pointer to the object's hosting context
 		/// ... it will/should be set before construction (did I mention `magic`)
 		duk_context* _ctx;
 
-		template<typename T>
-		friend struct duk_ptr;
-
-		template<typename T>
-		friend class duk_ref;
-
-		friend class duk_str;
+		friend struct _handle;
 
 		/// usercode should never actually call this (trust me)
-		object(duk_context*);
+		_object(duk_context*);
+
+
+		/// copy operators are hidden since they should only be used by _handle
+		_object(const _object& other) :
+			_object(other._ctx)
+		{
+		}
+		_object& operator=(const _object& other)
+		{
+			assert(_ctx == other._ctx);
+			return *this;
+		}
 	protected:
 
 		/// usercode will laways use this method to invoke the parent
-		object(void)
+		_object(void)
 		{
 			/// this will/should have been magically setup
 			assert(nullptr != _ctx);
 		}
 
-		/// no one should directly handle instances of this class
-		~object(void);
-
-		/// copy operators are fine
-		object(const object& other);
-
-		/// copy operators are fine
-		object& operator=(const object& other);
-
-
-		std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
-
 	public:
 		duk_context* Host(void) const;
+	};
 
+	/// this refers to a thing in script-land but is not itself a thing
+	/// it's used for the duk_(ref|str|ptr) classes
+	/// Google calls it a handle - https://developers.google.com/v8/embed?hl=en
+	struct _handle : scad40::_object
+	{
 		/// pushes (a reference to) the value onto the stack (or maybe null if the value is null)
 		inline void Push(void) const;
 
 		bool IsNull(void) const;
+
+	protected:
+
+		_handle(duk_context* ctx) : scad40::_object(ctx)
+		{
+		}
+
+
+		std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
+
+		/// partially expose these operators
+		_handle(const _handle& other);
+		_handle& operator=(const _handle& other);
+
+		~_handle(void)
+		{
+			if (nullptr == _ctx)
+			{
+				return;
+			}
+
+			// stack -> ... ;
+
+			duk_push_global_stash(_ctx);
+			// stack -> ... ; [global stash] ;
+
+			duk_del_prop_string(_ctx, -1, KeyString().data());
+
+			duk_pop(_ctx);
+			// stack -> ... ;
+
+			_ctx = nullptr;
+		}
 	};
 
 	/// this allows manipulating a pure-script object from C++ using a predefined interface
 	/// ironically ; less sophiticated than the ref
 	template<typename T>
-	struct duk_ptr : public scad40::object
+	struct duk_ptr : public scad40::_handle
 	{
-		duk_ptr(duk_context* ctx, duk_idx_t idx) : scad40::object(ctx)
+		duk_ptr(duk_context* ctx, duk_idx_t idx) : scad40::_handle(ctx)
 		{
 			idx = duk_normalize_index(ctx, idx);
 			assert(T::As(ctx, idx));
@@ -118,27 +152,41 @@ namespace scad40
 		}
 	};
 
+	/// baseclass used for _handle things with a native pointer
+	template<typename T>
+	struct _native : scad40::_handle
+	{
+
+	protected:
+		T* _pointer;
+		_native(duk_context* ctx) : scad40::_handle(ctx)
+		{
+		}
+
+	public:
+
+		operator T* (void) const { return _pointer; }
+		T* operator->(void) { return _pointer; }
+		const T* operator->(void) const { return _pointer; }
+	};
+
 	/// holds a ref to a C++ object built for duktape using magic
 	/// the pointer is updated on copy so that you get a bit faster access to it
 	template<typename T>
-	class duk_ref : public scad40::object
+	struct duk_ref : public scad40::_native<T>
 	{
-		T* _ptr;
 	public:
 
 		/// grab an instance from the stack. fails violently if types are wrong
 		duk_ref(duk_context*, const duk_idx_t);
 
-		T* operator->(void);
-		const T* operator->(void) const;
 	};
 
 	/// holds a ref to a duktape string using magic
 	/// as much as possible I stick strings into duktape and try not to think too hard about them
 	/// the pointer is updated on copy so that you get a bit faster access to it
-	class duk_str : public scad40::object
+	class duk_str : public scad40::_native<const char>
 	{
-		const char* _str;
 	public:
 		/// create an instance and set it to point to the passed string
 		duk_str(duk_context* ctx, const char* = nullptr);
@@ -155,8 +203,6 @@ namespace scad40
 		duk_str& operator== (const char*) const;
 		duk_str& operator== (const std::string&) const;
 		duk_str& operator== (const duk_str&) const;
-
-		operator const char* (void) const;
 	};
 
 	/// tools to pick at DukTape's global table
@@ -220,7 +266,7 @@ namespace diskio {
 	};
 
 	/// a native class
-	struct Reading : public scad40::object
+	struct Reading : public scad40::_object
 	{
 		/// the Reading constructor
 		/// ... the user must implement this
@@ -255,7 +301,7 @@ namespace diskio {
 	};
 
 	/// a global class
-	struct Disk : public scad40::object
+	struct Disk : public scad40::_object
 	{
 		/// the Disk constructor
 		/// ... the user must implement this
@@ -692,14 +738,14 @@ inline void scad40::env::remove(duk_context* ctx, const char* binding)
 }
 #pragma endregion
 
-#pragma region "object"
-inline scad40::object::object(duk_context* ctx) :
+#pragma region "object / handle"
+inline scad40::_object::_object(duk_context* ctx) :
 	_ctx(ctx)
 {
 	assert(nullptr != _ctx);
 }
 
-inline scad40::object::object(const scad40::object& other) : _ctx(other._ctx)
+inline scad40::_handle::_handle(const scad40::_handle& other) : scad40::_object(other)
 {
 	duk_push_global_stash(_ctx);
 	duk_get_prop_string(Host(), -1, other.KeyString().data());
@@ -707,12 +753,12 @@ inline scad40::object::object(const scad40::object& other) : _ctx(other._ctx)
 	duk_pop(_ctx);
 }
 
-inline duk_context* scad40::object::Host(void) const
+inline duk_context* scad40::_object::Host(void) const
 {
 	return _ctx;
 }
 
-inline bool scad40::object::IsNull(void) const
+inline bool scad40::_handle::IsNull(void) const
 {
 	// stack -> ... ;
 
@@ -730,7 +776,7 @@ inline bool scad40::object::IsNull(void) const
 	return result;
 }
 
-inline std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> scad40::object::KeyString(void) const
+inline std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> scad40::_handle::KeyString(void) const
 {
 	assert(strlen(scad40__pre_string) == scad40__pre_strlen);
 	std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> result;
@@ -758,14 +804,14 @@ inline std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> scad40::ob
 	return result;
 }
 
-inline void scad40::object::Push(void) const
+inline void scad40::_handle::Push(void) const
 {
 	duk_push_global_stash(Host());
 	duk_get_prop_string(Host(), -1, KeyString().data());
 	duk_remove(Host(), -2);
 }
 
-inline scad40::object& scad40::object::operator=(const scad40::object& other)
+inline scad40::_handle& scad40::_handle::operator=(const scad40::_handle& other)
 {
 	assert(Host() == other.Host());
 
@@ -776,31 +822,11 @@ inline scad40::object& scad40::object::operator=(const scad40::object& other)
 
 	return *this;
 }
-
-inline scad40::object::~object(void)
-{
-	if (nullptr == _ctx)
-	{
-		return;
-	}
-
-	// stack -> ... ;
-
-	duk_push_global_stash(_ctx);
-	// stack -> ... ; [global stash] ;
-
-	duk_del_prop_string(_ctx, -1, KeyString().data());
-
-	duk_pop(_ctx);
-	// stack -> ... ;
-
-	_ctx = nullptr;
-}
 #pragma endregion
 
 #pragma region "duk_str"
 inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
-	scad40::object(ctx)
+	scad40::_native<const char>(ctx)
 {
 	duk_push_global_stash(ctx);
 	if (nullptr == str)
@@ -816,7 +842,7 @@ inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
 }
 
 inline scad40::duk_str::duk_str(duk_context* ctx, duk_idx_t idx) :
-	scad40::object(ctx)
+	scad40::_native<const char>(ctx)
 {
 	assert(duk_is_string(ctx, idx));
 
@@ -836,32 +862,12 @@ inline scad40::duk_str::duk_str(duk_context* ctx, duk_idx_t idx) :
 	duk_pop(ctx);
 	// stack -> ... ; "val" ; ... ;
 }
-
-inline scad40::duk_str::operator const char* (void) const
-{
-	assert(nullptr != Host());
-
-	// stack -> ... ;
-
-	duk_push_global_stash(Host());
-	// stack -> ... ; [global stash] ;
-
-	duk_get_prop_string(Host(), -1, KeyString().data());
-	// stack -> ... ; [global stash] ; "val" ;
-
-	auto result = duk_to_string(Host(), -1);
-
-	duk_pop_2(Host());
-	// stack -> ... ;
-
-	return result;
-}
 #pragma endregion
 
 #pragma region "duk_ref"
 template<typename T>
 inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
-	scad40::object(ctx)
+	scad40::_native<T>(ctx)
 {
 	assert(T::Is(ctx, idx));
 	// stack -> ... ; [T] ; ... ;
@@ -869,7 +875,7 @@ inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
 	duk_get_prop_string(ctx, idx, "\xFF" "*");
 	// stack -> ... ; [T] ; ... ; T* ;
 
-	_ptr = (T*)duk_to_pointer(ctx, -1);
+	_pointer = (T*)duk_to_pointer(ctx, -1);
 
 	duk_pop(ctx);
 	// stack -> ... ; [T] ; ... ;
@@ -885,18 +891,6 @@ inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
 
 	duk_pop(ctx);
 	// stack -> ... ; [T] ; ... ;
-}
-
-template<typename T>
-inline T* scad40::duk_ref<T>::operator->(void)
-{
-	return _ptr;
-}
-
-template<typename T>
-inline const T* scad40::duk_ref<T>::operator->(void) const
-{
-	return _ptr;
 }
 #pragma endregion
 #endif // ... okay - that's the end of predef
