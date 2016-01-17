@@ -484,9 +484,6 @@ namespace diskio {
 				new (thisDisk) peterlavalle::diskio::Disk();
 
 				assert(duk_get_top(ctx) == idxBase);
-
-				duk_eval_string_noresult(ctx, "peterlavalle.diskio.Disk.foobar('git');");
-
 			}
 
 		}
@@ -860,6 +857,8 @@ inline scad40::duk_str::duk_str(duk_context* ctx, duk_idx_t idx) :
 
 	duk_dup(ctx, idx);
 	// stack -> ... ; "val" ; ... ; [global stash] ; "val" ;
+
+	_pointer = duk_is_null_or_undefined(ctx, -1) ? nullptr : duk_to_string(ctx, -1);
 
 	duk_put_prop_string(ctx, -2, KeyString().data());
 	// stack -> ... ; "val" ; ... ; [global stash] ;
