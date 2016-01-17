@@ -9,8 +9,9 @@
 int main(int argc, char* argv[])
 {
 	duk_context* ctx = duk_create_heap_default();
-
 	peterlavalle::diskio::install(ctx);
+
+
 
 	auto y = duk_get_top(ctx);
 	assert(0 == y);

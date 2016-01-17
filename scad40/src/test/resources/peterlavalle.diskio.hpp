@@ -832,10 +832,11 @@ inline scad40::duk_str::duk_str(duk_context* ctx, const char* str) :
 	if (nullptr == str)
 	{
 		duk_push_undefined(ctx);
+		_pointer = nullptr;
 	}
 	else
 	{
-		duk_push_string(ctx, str);
+		_pointer = duk_push_string(ctx, str);
 	}
 	duk_put_prop_string(ctx, -2, KeyString().data());
 	duk_pop(ctx);
@@ -1163,6 +1164,7 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 #pragma region "global Disk"
 inline peterlavalle::diskio::Disk& peterlavalle::diskio::Disk::get(duk_context* ctx)
 {
+	peterlavalle::diskio::Disk* ptrDisk = nullptr;
 	auto base = duk_get_top(ctx);
 
 	// stack -> .... base .. ;
@@ -1173,7 +1175,7 @@ inline peterlavalle::diskio::Disk& peterlavalle::diskio::Disk::get(duk_context* 
 	duk_get_prop_string(ctx, -1, "\xFF" "*Disk"); assert((2 + base) == duk_get_top(ctx));
 	// stack -> .... base .. ; [Disk] ; Disk[*] ;
 
-	auto ptrDisk = reinterpret_cast<peterlavalle::diskio::Disk*>(duk_to_pointer(ctx, -1));
+	ptrDisk = reinterpret_cast<peterlavalle::diskio::Disk*>(duk_to_pointer(ctx, -1));
 	duk_pop_2(ctx);
 	// stack -> .... base .. ;
 
