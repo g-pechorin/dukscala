@@ -6,6 +6,15 @@
 
 #define HEREDOC(TEXT) (#TEXT)
 
+
+
+void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
+{
+	assert(text.Host() == Host());
+	std::cout << text << std::endl;
+	std::cout << "^ the above line will crash" << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
 	duk_context* ctx = duk_create_heap_default();
@@ -76,11 +85,6 @@ peterlavalle::diskio::Disk::Disk(void) :
 
 peterlavalle::diskio::Disk::~Disk(void)
 {
-}
-
-void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
-{
-	std::cout << text << std::endl;
 }
 
 void peterlavalle::diskio::Disk::subscribe(const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener)

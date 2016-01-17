@@ -357,7 +357,7 @@ namespace diskio {
 	/// sets up the tables and calls to this VM
 	inline void install(duk_context* ctx)
 	{
-		auto base = duk_get_top(ctx);
+		const auto idxBase = duk_get_top(ctx);
 
 		// >> check for name collisions
 		if (scad40::env::exists(ctx, "peterlavalle.diskio"))
@@ -365,7 +365,7 @@ namespace diskio {
 			duk_error(ctx, 314, "Can't redefine module `peterlavalle.diskio`");
 			return;
 		}
-		assert(duk_get_top(ctx) == base);
+		assert(duk_get_top(ctx) == idxBase);
 
 		// >> bind lambdas for native class construction
 		{
@@ -383,9 +383,9 @@ namespace diskio {
 			scad40::env::assign(ctx, "peterlavalle.diskio.Reading");
 			// stack -> .... base .. ;
 
-			assert(duk_get_top(ctx) == base);
+			assert(duk_get_top(ctx) == idxBase);
 		}
-		assert(duk_get_top(ctx) == base);
+		assert(duk_get_top(ctx) == idxBase);
 
 		// >> allocate / in-place-new and store ALL global objects (including context pointers)
 		{
@@ -401,7 +401,7 @@ namespace diskio {
 				duk_push_pointer(ctx, thisDisk);
 				// stack -> .... base .. ; [Disk] ; *Disk ;
 
-				duk_put_prop_string(ctx, -2, "\xFF" "*Disk");
+				duk_put_prop_string(ctx, idxBase, "\xFF" "*Disk");
 				// stack -> .... base .. ; [Disk] ;
 
 				scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 0, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
@@ -417,7 +417,7 @@ namespace diskio {
 				});
 				// stack -> .... base .. ; [Disk] ; ~Disk() ;
 
-				duk_set_finalizer(ctx, -2);
+				duk_set_finalizer(ctx, idxBase);
 				// stack -> .... base .. ; [Disk] ;
 
 
@@ -428,7 +428,7 @@ namespace diskio {
 						);
 						return 0;
 					});
-					duk_put_prop_string(ctx, -2, "foobar");
+					duk_put_prop_string(ctx, idxBase, "foobar");
 
 
 				// def open(path: string): Reading
@@ -439,7 +439,7 @@ namespace diskio {
 						result.Push();
 						return 1;
 					});
-					duk_put_prop_string(ctx, -2, "open");
+					duk_put_prop_string(ctx, idxBase, "open");
 
 				// var pwd: string
 					duk_push_string(ctx, "pwd");
@@ -451,7 +451,7 @@ namespace diskio {
 						thisDisk->_pwd = scad40::duk_str(ctx, 0);
 						return 0;
 					});
-					duk_def_prop(ctx, -4, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+					duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
 
 				// def subscribe(path: string, listener: ChangeListener): void
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
@@ -461,7 +461,7 @@ namespace diskio {
 						);
 						return 0;
 					});
-					duk_put_prop_string(ctx, -2, "subscribe");
+					duk_put_prop_string(ctx, idxBase, "subscribe");
 
 				// def unsubscribe(path: string, listener: ChangeListener): void
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
@@ -471,22 +471,26 @@ namespace diskio {
 						);
 						return 0;
 					});
-					duk_put_prop_string(ctx, -2, "unsubscribe");
+					duk_put_prop_string(ctx, idxBase, "unsubscribe");
 
-				assert(duk_get_top(ctx) == 1 + base);
+				assert(duk_get_top(ctx) == 1 + idxBase);
 
 				// stack -> .... base .. ; [Disk] ;
 
-				scad40::env::assign((*reinterpret_cast<duk_context**>(thisDisk) = ctx), "peterlavalle.diskio.Disk");
+				scad40::env::assign(ctx, "peterlavalle.diskio.Disk");
 				// stack -> .... base .. ;
 
+				*reinterpret_cast<duk_context**>(thisDisk) = ctx;
 				new (thisDisk) peterlavalle::diskio::Disk();
 
-				assert(duk_get_top(ctx) == base);
+				assert(duk_get_top(ctx) == idxBase);
+
+				duk_eval_string_noresult(ctx, "peterlavalle.diskio.Disk.foobar('git');");
+
 			}
 
 		}
-		assert(duk_get_top(ctx) == base);
+		assert(duk_get_top(ctx) == idxBase);
 	}
 }
 }
