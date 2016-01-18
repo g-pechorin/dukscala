@@ -12,12 +12,14 @@ module peterlavalle.diskio {
 
    var number: single
    val path: string
+   raw thing: `void*`
  }
 
  global Disk {
    def foobar(text: string)
    def open(path: string): Reading
    var pwd: string
+   raw bar: `void*`
 
    def subscribe(path: string, listener: ChangeListener)
    def unsubscribe(path: string, listener: ChangeListener)

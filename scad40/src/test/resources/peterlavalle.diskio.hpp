@@ -289,6 +289,7 @@ namespace diskio {
 			bool endOfFile ();
 			float _number;
 			scad40::duk_str _path;
+			void* _thing;
 
 		/// alternative const char* interfaces
 
@@ -324,6 +325,7 @@ namespace diskio {
 			scad40::duk_str _pwd;
 			void subscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
 			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
+			void* _bar;
 
 		/// alternative const char* interfaces
 			inline void foobar (const char* text)
