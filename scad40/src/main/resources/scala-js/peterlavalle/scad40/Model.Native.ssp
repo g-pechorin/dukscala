@@ -4,7 +4,7 @@
 
     @js.native
     class ${modelNative.name} extends js.Object {
-    #for (member <- modelNative.members)
+    #for (member <- modelNative.members.filterNot(_.isInstanceOf[Model.MemberRaw]))
 
         @js.native
         ${nephrite(member).trim} = js.native

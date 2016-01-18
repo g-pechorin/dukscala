@@ -5,8 +5,11 @@ RESERVED : 'function' | 'String';
 VOID : 'void';
 ATOMIC : 'bool' | 'double' | 'single' | ('sint'('8'|'16'|'32')) | 'string';
 
+TIKTEXT : '`' ~('`')* '`';
+
 WS  : [ \t\r\n]+ -> skip ;
 LINE_COMMENT : '//' ~('\n')* ('\n'|EOF) -> skip ;
+
 
 fragment
 ULetter : [A-Z];
@@ -36,10 +39,27 @@ module :
 ;
 
 declaration
-    : 'global' UNAME definition? #declGlo
-    | 'native' UNAME definition? #declNat
+    : clazz=('native'|'global') UNAME dufinition? #declNat
     | 'script' UNAME definition? #declScr
     | 'select' UNAME '{' UNAME (',' UNAME)+ '}' #declSel
+    ;
+
+
+definition :
+    '{'
+        member*
+    '}'
+;
+
+dufinition :
+    '{'
+        mumber*
+    '}'
+;
+
+mumber
+    : 'raw' LNAME ':' TIKTEXT #rm
+    | member #mm
     ;
 
 value: LNAME ':' typeId;
@@ -50,8 +70,4 @@ member
     | 'var' value #accessor
     ;
 
-definition :
-    '{'
-        member*
-    '}'
-;
+

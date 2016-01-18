@@ -58,6 +58,10 @@ object Model {
     override def source: String = name + ": " + kind.source
   }
 
+  case class MemberRaw(name: String, text: String) extends TMember {
+    override def source: String = "raw %s: %s".format(name, text)
+  }
+
   case class MemberVariable(name: String, kind: TKind) extends TMember {
     require(kind != KindVoid)
 
@@ -87,7 +91,7 @@ object Model {
   }
 
   case class Script(name: String, members: Stream[TMember]) extends TDeclaration {
-    // require(!members.exists(_.isInstanceOf[KindNat]))
+    require(!members.exists(_.isInstanceOf[MemberRaw]))
 
     override def source: String = ???
   }

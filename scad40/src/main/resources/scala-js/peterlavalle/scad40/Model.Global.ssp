@@ -3,7 +3,7 @@
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
     @js.native
     object ${modelGlobal.name} extends js.Object {
-    #for (member <- modelGlobal.members)
+    #for (member <- modelGlobal.members.filterNot(_.isInstanceOf[Model.MemberRaw]))
 
         @js.native
         ${nephrite(member).trim} = js.native
