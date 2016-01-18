@@ -2,15 +2,11 @@
 <%@ val modelScript: Model.Script %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
 // script C++ classes are really just wrappers to access the ECMAScript implementation
-struct ${modelScript.name} : public scad40::duk_obj
+class ${modelScript.name}
 {
-	//
-	//misc head stuff
-	//
-
-	// doesn't need these since duk_obj will provide it anyway
-	// ${modelScript.name}(const ${modelScript.name}&);
-	// ${modelScript.name}& operator = (const ${modelScript.name}&);
+	/// used for const-char wrapping
+	duk_context* Host(void) { return reinterpret_cast${"<"}scad40::duk_ptr<${modelScript.name}>*>(this)->Host(); }
+public:
 
 	/// the user's requested members
 #for (member <- modelScript.members)
@@ -22,15 +18,12 @@ struct ${modelScript.name} : public scad40::duk_obj
 		${nephrite.sub("/const-char-method-wrappers")("\n\t\t", member)}
 #end
 
-	/// push this onto its stack
-	void Push(void);
-
 	/// create an instance of a scripted class that extends this class
-	static scad40::duk_ref<${modelScript.name}> New(duk_context* ctx, const char* subclass);
+	static scad40::duk_ptr<${modelScript.name}> New(duk_context* ctx, const char* subclass);
 
-	/// is the stack index an instance of this class
-	static bool Is(duk_context* ctx, duk_idx_t idx);
+	/// is the value at the stack index useable as an instance of this class
+	static bool As(duk_context* ctx, duk_idx_t idx);
 
 	/// pull whatever is at the stack index into C++
-	static scad40::duk_ref<${modelScript.name}> To(duk_context* ctx, duk_idx_t idx);
+	static scad40::duk_ptr<${modelScript.name}> To(duk_context* ctx, duk_idx_t idx);
 };

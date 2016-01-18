@@ -13,11 +13,18 @@
                 case Model.KindString =>
                     "scad40::duk_str(ctx, %d)"
                     .format(idx)
-                case Model.KindDeclaration(declaration) =>
+
+                case Model.KindDeclaration(Model.Script(name, _)) =>
+                "scad40::duk_ptr<%s::%s>(ctx, %d)"
+                    .format(modelModule.name.replace(".", "::"), name, idx)
+
+                case Model.KindDeclaration(Model.Native(name, _)) =>
                 "scad40::duk_ref<%s::%s>(ctx, %d)"
-                    .format(modelModule.name.replace(".", "::"), declaration.name, idx)
+                    .format(modelModule.name.replace(".", "::"), name, idx)
+
                 case Model.KindVoid =>
                     sys.error("No! How you get `void` args!?")
+
                 case wat =>
                     wat.toString
                 })
@@ -40,4 +47,4 @@ scad40::push_selfie<${className}>(ctx, this${modelGlobal.name}, ${modelMemberFun
     return ???; ${modelMemberFunction.resultKind}
 #end
 });
-duk_put_prop_string(ctx, -2, "${modelMemberFunction.name}");
+duk_put_prop_string(ctx, idxBase, "${modelMemberFunction.name}");

@@ -19,4 +19,4 @@ scad40::push_selfie<${modelNameSpace}::${modelGlobal.name}>(ctx, this${modelGlob
 #end
     return 0;
 });
-duk_def_prop(ctx, -4, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);

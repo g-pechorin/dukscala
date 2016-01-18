@@ -1,4 +1,9 @@
 #import(peterlavalle.scad40.Model)
 <%@ val modelKindDeclaration: Model.KindDeclaration %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-scad40::duk_ref${"<" + modelKindDeclaration.declaration.name + ">"}
+#match (modelKindDeclaration.declaration)
+#case (Model.Script(name, _))
+    scad40::duk_ptr<${name}>
+#case (Model.Native(name, _))
+    scad40::duk_ref<${name}>
+#end

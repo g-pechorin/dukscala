@@ -11,36 +11,23 @@ ${modelNameSpace}::${modelGlobal.name}* this${modelGlobal.name} = (${modelNameSp
 duk_push_pointer(ctx, this${modelGlobal.name});
 // stack -> .... base .. ; [${modelGlobal.name}] ; *${modelGlobal.name} ;
 
-duk_put_prop_string(ctx, -2, "\xFF" "*${modelGlobal.name}");
+duk_put_prop_string(ctx, idxBase, "\xFF" "*${modelGlobal.name}");
 // stack -> .... base .. ; [${modelGlobal.name}] ;
 
-duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
-
-    // stack -> ... ;
-
-    duk_push_current_function(ctx);
-    // stack -> ... ; ~${modelGlobal.name}() ;
-
-    duk_get_prop_string(ctx, -1, "\xFF" "*${modelGlobal.name}");
-    // stack -> ... ; ~${modelGlobal.name}() ; *${modelGlobal.name} ;
-
-    ${modelGlobal.name}* this${modelGlobal.name} = (${modelGlobal.name}*)duk_to_pointer(ctx, -1);
+scad40::push_selfie<${modelNameSpace}::${modelGlobal.name}>(ctx, this${modelGlobal.name}, 0, [](duk_context* ctx, ${modelNameSpace}::${modelGlobal.name}* this${modelGlobal.name}) -> duk_ret_t {
+    assert(ctx == this${modelGlobal.name}->Host());
 
     this${modelGlobal.name}->~${modelGlobal.name}();
+
     duk_free(ctx, this${modelGlobal.name});
+    // scad40::env::remove(ctx, "${modelModule.name}.${modelGlobal.name}");
+    // TODO ; find a way to actually DO THIS!?!?
 
     return 0;
-
-}, 0);
+});
 // stack -> .... base .. ; [${modelGlobal.name}] ; ~${modelGlobal.name}() ;
 
-duk_push_pointer(ctx, this${modelGlobal.name});
-// stack -> .... base .. ; [${modelGlobal.name}] ; ~${modelGlobal.name}() ; *${modelGlobal.name} ;
-
-duk_put_prop_string(ctx, -2, "\xFF" "*${modelGlobal.name}");
-// stack -> .... base .. ; [${modelGlobal.name}] ; ~${modelGlobal.name}() ;
-
-duk_set_finalizer(ctx, -2);
+duk_set_finalizer(ctx, idxBase);
 // stack -> .... base .. ; [${modelGlobal.name}] ;
 
 #for (member <- modelGlobal.members)
@@ -51,13 +38,13 @@ duk_set_finalizer(ctx, -2);
 
 #end
 
-assert(duk_get_top(ctx) == 1 + base);
-
+assert(duk_get_top(ctx) == 1 + idxBase);
 // stack -> .... base .. ; [${modelGlobal.name}] ;
 
-scad40::env::assign((*reinterpret_cast${"<duk_context**>"}(this${modelGlobal.name}) = ctx), "${modelModule.name}.${modelGlobal.name}");
+scad40::env::assign(ctx, "${modelModule.name}.${modelGlobal.name}");
 // stack -> .... base .. ;
 
+*reinterpret_cast<${"duk_context**"}>(this${modelGlobal.name}) = ctx;
 new (this${modelGlobal.name}) ${modelNameSpace}::${modelGlobal.name}();
 
-assert(duk_get_top(ctx) == base);
+assert(duk_get_top(ctx) == idxBase);

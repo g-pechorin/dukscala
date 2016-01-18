@@ -27,7 +27,7 @@ namespace scad40
 	/// goofy wrapper to push member-like functions (so methods and accessors)
 	/// ... should I call it "push_method?" or "push_member?"
 	template<typename T>
-	inline void push_selfie(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*));
+	void push_selfie(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*));
 
 	/// checks if the table at {idx} has a key named {key} and
 	/// @returns false if the value is undefined_or_null.
@@ -114,6 +114,13 @@ namespace scad40
 
 			_ctx = nullptr;
 		}
+	};
+
+	class _script
+	{
+	public:
+		template<typename R, typename ... ARGS>
+		R Method(const char*, ARGS&&...);
 	};
 
 	/// this allows manipulating a pure-script object from C++ using a predefined interface
@@ -365,7 +372,6 @@ namespace diskio {
 			duk_error(ctx, 314, "Can't redefine module `peterlavalle.diskio`");
 			return;
 		}
-		assert(duk_get_top(ctx) == idxBase);
 
 		// >> bind lambdas for native class construction
 		{
@@ -385,7 +391,6 @@ namespace diskio {
 
 			assert(duk_get_top(ctx) == idxBase);
 		}
-		assert(duk_get_top(ctx) == idxBase);
 
 		// >> allocate / in-place-new and store ALL global objects (including context pointers)
 		{
@@ -897,12 +902,12 @@ inline scad40::duk_ref<T>::duk_ref(duk_context* ctx, const duk_idx_t idx) :
 	// stack -> ... ; [T] ; ... ;
 }
 #pragma endregion
-#endif // ... okay - that's the end of predef
 
 inline std::ostream& operator<<(std::ostream& ostream, const scad40::duk_str& string)
 {
 	return ostream << static_cast<const char*>(string);
 }
+#endif // ... okay - that's the end of predef
 
 
 // =====================================================================================================================

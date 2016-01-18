@@ -17,6 +17,7 @@ ${ "#include \"pal_adler32.hpp\"" }
 
 ${ "#include <array>" }
 ${ "#include <string>" }
+${ "#include <iostream>" }
 
 ${ "#include <assert.h>" }
 ${ "#include <stdint.h>" }
@@ -29,70 +30,154 @@ namespace scad40
 	/// goofy wrapper to push member-like functions (so methods and accessors)
 	/// ... should I call it "push_method?" or "push_member?"
 	template<typename T>
-	inline void push_selfie(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*,T*));
+	void push_selfie(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*));
 
-	class object
+
+	/// checks if the table at {idx} has a key named {key} and
+	/// @returns false if the value is undefined_or_null.
+	/// restores the stack
+	bool has_prop(duk_context* ctx, const duk_idx_t idx, const char* key);
+
+
+	/// base object for things that play with with pointers
+	/// don't look to closesly at the guts
+	/// used for both the "_handle" subclasses and the generated derrived types
+	class _object
 	{
 		/// magical pointer to the object's hosting context
-		/// ... it will/should be set before construction
+		/// ... it will/should be set before construction (did I mention `magic`)
 		duk_context* _ctx;
 
-		friend class duk_obj;
+		friend struct _handle;
 
-		template<typename T>
-		static const char* type_string(void);
+		/// usercode should never actually call this (trust me)
+		_object(duk_context*);
 
-		object(duk_context*);
+		/// copy operators are hidden since they should only be used by _handle
+		_object(const _object& other) :
+			_object(other._ctx)
+		{
+		}
+
+		_object& operator=(const _object& other)
+		{
+			assert(_ctx == other._ctx);
+			return *this;
+		}
 	protected:
-		object(void);
+		/// usercode will laways use this method to invoke the parent
+		_object(void)
+		{
+			/// this will/should have been magically setup
+			assert(nullptr != _ctx);
+		}
 	public:
 		duk_context* Host(void) const;
+	};
 
+	/// this refers to a thing in script-land but is not itself a thing
+	/// it's used for the duk_(ref|str|ptr) classes
+	/// Google calls it a handle - https://developers.google.com/v8/embed?hl=en
+	struct _handle : scad40::_object
+	{
+		/// pushes (a reference to) the value onto the stack (or maybe null if the value is null)
+		inline void Push(void) const;
+		bool IsNull(void) const;
+	protected:
+		_handle(duk_context* ctx) : scad40::_object(ctx)
+		{
+		}
 		std::array<char, scad40__pre_strlen + (sizeof(void*) * 2) + 1> KeyString(void) const;
+		/// partially expose these operators
+		_handle(const _handle& other);
+		_handle& operator=(const _handle& other);
+		~_handle(void)
+		{
+			if (nullptr == _ctx)
+			{
+				return;
+			}
+			// stack -> ... ;
+			duk_push_global_stash(_ctx);
+			// stack -> ... ; [global stash] ;
+			duk_del_prop_string(_ctx, -1, KeyString().data());
+			duk_pop(_ctx);
+			// stack -> ... ;
+			_ctx = nullptr;
+		}
 	};
 
-	class duk_obj : public scad40::object
-	{
-		template<typename T>
-		friend class duk_ref;
-
-		friend class duk_str;
-
-		duk_obj(duk_context*);
-	public:
-		~duk_obj(void);
-
-		bool is_null(void) const;
-
-		/// pushes (a reference to) the value onto the stack (or null if the value is null)
-		void Push(void) const;
-	};
-
-	///
-	/// holds a ref to a duktape object using magic
+	/// this allows manipulating a pure-script object from C++ using a predefined interface
+	/// ironically ; less sophiticated than the ref
 	template<typename T>
-	class duk_ref : public scad40::duk_obj
+	struct duk_ptr : public scad40::_handle
 	{
-		T* _ptr;
+		duk_ptr(duk_context* ctx, duk_idx_t idx) : scad40::_handle(ctx)
+		{
+			idx = duk_normalize_index(ctx, idx);
+			assert(T::As(ctx, idx));
+
+			// stack -> ... ; idx ... ;
+
+			duk_push_global_stash(ctx);
+			// stack -> ... ; idx ... ; [stash] ;
+
+			duk_dup(ctx, idx);
+			// stack -> ... ; idx ... ; [stash] ; [val] ;
+
+			duk_put_prop_string(ctx, -2, KeyString().data());
+			// stack -> ... ; idx ... ; [stash] ;
+
+			duk_pop(ctx);
+			// stack -> ... ; idx ... ;
+		}
+
+		T* operator->(void)
+		{
+			return reinterpret_cast<T*>(this);
+		}
+
+		const T* operator->(void) const
+		{
+			return reinterpret_cast<T*>(this);
+		}
+	};
+
+	/// baseclass used for _handle things with a native pointer
+	template<typename T>
+	struct _native : scad40::_handle
+	{
+
+	protected:
+		T* _pointer;
+		_native(duk_context* ctx) : scad40::_handle(ctx)
+		{
+		}
+
+	public:
+
+		operator T* (void) const { return _pointer; }
+		T* operator->(void) { return _pointer; }
+		const T* operator->(void) const { return _pointer; }
+	};
+
+	/// holds a ref to a C++ object built for duktape using magic
+	/// the pointer is updated on copy so that you get a bit faster access to it
+	template<typename T>
+	struct duk_ref : public scad40::_native<T>
+	{
 	public:
 
 		/// grab an instance from the stack. fails violently if types are wrong
 		duk_ref(duk_context*, const duk_idx_t);
 
-		duk_ref(const duk_ref<T>&);
-		duk_ref<T>& operator= (const duk_ref<T>&);
-
-		T* operator -> (void) { return _ptr; }
-		const T* operator -> (void) const { return _ptr; }
-
-		~duk_ref(void);
 	};
 
-	///
 	/// holds a ref to a duktape string using magic
-	class duk_str : public scad40::duk_obj
+	/// as much as possible I stick strings into duktape and try not to think too hard about them
+	/// the pointer is updated on copy so that you get a bit faster access to it
+	class duk_str : public scad40::_native<const char>
 	{
-		const char* _str;
 	public:
 		/// create an instance and set it to point to the passed string
 		duk_str(duk_context* ctx, const char* = nullptr);
@@ -103,170 +188,38 @@ namespace scad40
 		/// grab an instance from the stack. fails violently if types are wrong
 		duk_str(duk_context* ctx, const duk_idx_t);
 
-		duk_str(const duk_str&);
-		duk_str& operator = (const duk_str&);
+		duk_str& operator= (const char*);
+		duk_str& operator= (const std::string&);
 
-		duk_str& operator = (const char*);
-		duk_str& operator = (const std::string&);
-
-		duk_str& operator == (const char*) const;
-		duk_str& operator == (const std::string&) const;
-		duk_str& operator == (const duk_str&) const;
-
-		operator const char* (void) const;
-
-		~duk_str(void);
+		duk_str& operator== (const char*) const;
+		duk_str& operator== (const std::string&) const;
+		duk_str& operator== (const duk_str&) const;
 	};
 
+	/// tools to pick at DukTape's global table
 	namespace env
 	{
 		/// puts whatever is on top of the stack somewhere into the global namespace
-		/// happily splits up names with '.' in them
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
 		/// creates whatever tables it needs to along the way
 		/// throws an error if it finds a pre-existing value
-		inline void assign(duk_context* ctx, const char* key)
-		{
-			size_t idx = 0, len = 0;
-
-			const auto val = duk_get_top(ctx);
-			// stack -> ... ; val ;
-
-			duk_push_global_object(ctx);
-			// stack -> ... ; val ; [global host] ;
-
-			while (key[idx + len])
-			{
-				// stack -> ... ; val ; [host] ;
-
-				if ('.' != key[idx + len])
-				{
-					++len;
-				}
-				else
-				{
-					duk_push_lstring(ctx, key + idx, len);
-					// stack -> ... ; val ; [outer host] ; "key" ;
-
-					duk_get_prop(ctx, -2);
-					// stack -> ... ; val ; [outer host] ; ?[inner host]? ;
-
-					if (duk_is_null_or_undefined(ctx, -1))
-					{
-						// stack -> ... ; val ; [outer host] ; <undefined> ;
-
-						duk_pop(ctx);
-						// stack -> ... ; val ; [outer host] ;
-
-						duk_push_object(ctx);
-						// stack -> ... ; val ; [outer host] ; [inner host] ;
-
-						duk_push_lstring(ctx, key + idx, len);
-						// stack -> ... ; val ; [outer host] ; [inner host] ; "key" ;
-
-						duk_dup(ctx, -2);
-						// stack -> ... ; val ; [outer host] ; [inner host] ; "key" ; [inner host] ;
-
-						duk_put_prop(ctx, -4);
-						// stack -> ... ; val ; [outer host] ; [inner host] ;
-					}
-					else if (!duk_is_object(ctx, -1))
-					{
-						duk_push_lstring(ctx, key, idx + len);
-						duk_error(ctx, 314, "Collision `%s`", duk_to_string(ctx, -1));
-						return;
-					}
-
-					// stack -> ... ; val ; [outer host] ; [inner host] ;
-
-					duk_remove(ctx, -2);
-					// stack -> ... ; val ; [inner host] ;
-
-					idx = idx + len + 1;
-					len = 0;
-				}
-			}
-
-			// stack -> ... ; val ; [host] ;
-
-			duk_push_lstring(ctx, key + idx, len);
-			// stack -> ... ; val ; [host] ; "key" ;
-
-			duk_dup(ctx, -3);
-			// stack -> ... ; val ; [host] ; "key" ; val ;
-
-			duk_remove(ctx, -4);
-			// stack -> ... ; [host] ; "key" ; val ;
-
-			duk_put_prop(ctx, -3);
-			// stack -> ... ; [host] ;
-
-			duk_pop(ctx);
-			// stack -> ... ;
-
-		}
-
-		/// reads something from the global namespace and pushes it on the stack
-		/// happily splits up names with '.' in them
-		/// happily pushes undefined if there's no value there
-		inline void lookup(duk_context* ctx, const char* binding)
-		{
-			size_t idx = 0, len = 0;
-
-			// stack -> .... base .. ;
-
-			duk_push_global_object(ctx);
-			// stack -> .... base .. ; [global host] ;
-
-			while (binding[idx + len])
-			{
-				// stack -> .... base .. ; [host] ;
-				if ('.' != binding[idx + len])
-				{
-					++len;
-				}
-				else
-				{
-					duk_push_lstring(ctx, binding + idx, len);
-					// stack -> .... base .. ; [outer host] ; "key" ;
-
-					duk_get_prop(ctx, -2);
-					// stack -> .... base .. ; [outer host] ; ?[inner host]? ;
-
-					if (duk_is_null_or_undefined(ctx, -1))
-					{
-						duk_pop_2(ctx);
-						// stack -> .... base .. ;
-
-						duk_push_undefined(ctx);
-						// stack -> .... base .. ; <undefined> ;
-
-						return;
-					}
-
-					// stack -> .... base .. ; [host] ;
-
-					idx = idx + len + 1;
-					len = 0;
-				}
-			}
-
-			assert(0 != len);
-			// stack -> .... base .. ; [host] ;
-
-			duk_get_prop_string(ctx, -1, binding + idx);
-			// stack -> .... base .. ; [host] ; val ;
-
-			duk_remove(ctx, -2);
-			// stack -> .... base .. ; val ;
-		}
+		void assign(duk_context* ctx, const char* key);
 
 		/// checks the global namespace for a non null_or_undefined value at path
 		bool exists(duk_context* ctx, const char* path);
 
+		/// reads something from the global namespace and pushes it on the stack
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
+		/// happily pushes undefined if there's no value there
+		void lookup(duk_context* ctx, const char* binding);
+
 		/// drops the value at key from the global namespace
-		/// leaves containers et-al in place
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
+		/// leaves empty containers et-al in place
+		/// bails if there's no key
+		/// really-really calls the delete function (instead of assigning null/undef to it)
 		/// throws an error iff nothing exists there
-		bool remove(duk_context* ctx, const char* path);
+		void remove(duk_context* ctx, const char* path);
 	};
 };
 ${ "#endif" } // ... okay - that's the end of predef

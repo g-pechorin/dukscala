@@ -17,28 +17,14 @@ namespace ${space + " {"}
 	/// sets up the tables and calls to this VM
 	inline void install(duk_context* ctx)
 	{
-		auto base = duk_get_top(ctx);
+		const auto idxBase = duk_get_top(ctx);
 
 		// >> check for name collisions
+		if (scad40::env::exists(ctx, "${modelModule.name}"))
 		{
-			// stack -> .... base .. ;
-
-			scad40::env::lookup(ctx, "${modelModule.name}");
-			// stack -> .... base .. ; ?? previous ?? ;
-
-			if (!duk_is_undefined(ctx, -1))
-			{
-				duk_error(ctx, 314, "Can't redefine module `${modelModule.name}`");
-				return;
-			}
-			// stack -> .... base .. ; <undefined> ;
-
-			duk_pop(ctx);
-			// stack -> .... base .. ;
-
-			assert(duk_get_top(ctx) == base);
-		};
-
+			duk_error(ctx, 314, "Can't redefine module `${modelModule.name}`");
+			return;
+		}
 
 		// >> bind lambdas for native class construction
 		#for (struct <- modelModule.contents.filter(_.isInstanceOf[Model.Native]))
@@ -58,15 +44,9 @@ namespace ${space + " {"}
 			scad40::env::assign(ctx, "${modelModule.name}.${struct.name}");
 			// stack -> .... base .. ;
 
-			assert(duk_get_top(ctx) == base);
+			assert(duk_get_top(ctx) == idxBase);
 		}
 		#end
-
-		// >> load up code to wrap scripts
-		{
-			// assert(false && "?? load up code to make script super-classes");
-			// assert(false && "... is there anything to do here? is this redundant?");
-		}
 
 		// >> allocate / in-place-new and store ALL global objects (including context pointers)
 		{
@@ -88,10 +68,6 @@ ${ "#ifndef" } _scad40_tail
 ${ "#define" } _scad40_tail
 
 ${include("scad40-tail.ssp")}
-${include("scad40-duk_str.ssp")}
-${include("scad40-duk_obj.ssp")}
-${include("scad40-duk_ref.ssp")}
-${include("scad40-object.ssp")}
 
 ${ "#endif" } // ... okay - that's the end of predef
 
