@@ -116,13 +116,6 @@ namespace scad40
 		}
 	};
 
-	class _script
-	{
-	public:
-		template<typename R, typename ... ARGS>
-		R Method(const char*, ARGS&&...);
-	};
-
 	/// this allows manipulating a pure-script object from C++ using a predefined interface
 	/// ironically ; less sophiticated than the ref
 	template<typename T>
@@ -323,10 +316,10 @@ namespace diskio {
 			void foobar (const scad40::duk_str& text);
 			scad40::duk_ref<Reading> open (const scad40::duk_str& path);
 			scad40::duk_str _pwd;
+			void* _bar;
 			void subscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
 			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
-			void* _bar;
-
+			
 		/// alternative const char* interfaces
 			inline void foobar (const char* text)
 			{

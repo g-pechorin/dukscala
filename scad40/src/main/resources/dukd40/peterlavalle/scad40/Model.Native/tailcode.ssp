@@ -63,7 +63,7 @@ inline scad40::duk_ref<${declarationNameSpace}> ${declarationNameSpace}::New(duk
 	}
 	// stack -> ... ; [${modelNative.name}] ;
 
-	*reinterpret_cast<duk_context**>(this${modelNative.name}) = ctx;
+	*reinterpret_cast${"<duk_context**>"}(this${modelNative.name}) = ctx;
 	auto t = duk_get_top(ctx);
 	new (this${modelNative.name})${modelNative.name}();
 	assert(t == duk_get_top(ctx));

@@ -30,7 +30,7 @@ scad40::push_selfie<${modelNameSpace}::${modelGlobal.name}>(ctx, this${modelGlob
 duk_set_finalizer(ctx, idxBase);
 // stack -> .... base .. ; [${modelGlobal.name}] ;
 
-#for (member <- modelGlobal.members)
+#for (member <- modelGlobal.members.filterNot(_.isInstanceOf[Model.MemberRaw]))
 
 // ${member.source}
 

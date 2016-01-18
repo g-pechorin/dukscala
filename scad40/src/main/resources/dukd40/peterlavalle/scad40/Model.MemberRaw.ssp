@@ -1,4 +1,4 @@
 #import(peterlavalle.scad40.Model)
 <%@ val modelMemberRaw: Model.MemberRaw %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
-${modelMemberRaw.text} ${modelMemberRaw.name};
+${modelMemberRaw.text} _${modelMemberRaw.name};

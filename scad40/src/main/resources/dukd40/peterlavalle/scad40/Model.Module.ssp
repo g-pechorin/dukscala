@@ -60,6 +60,7 @@ namespace ${space + " {"}
 			#end
 
 		}
+		assert(duk_get_top(ctx) == idxBase);
 	}
 }
 }
