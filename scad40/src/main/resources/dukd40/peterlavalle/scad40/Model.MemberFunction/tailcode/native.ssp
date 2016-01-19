@@ -11,4 +11,4 @@ scad40::push_selfie< ${declarationNameSpace} >(ctx, this${modelNative.name}, ${m
     assert(false && "??? scad40 needs to provide this");
     return -1;
 });
-duk_put_prop_string( ctx, -2, "${modelMemberFunction.name}" );
+duk_put_prop_string(ctx, idxBase, "${modelMemberFunction.name}");

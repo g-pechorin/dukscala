@@ -10,12 +10,14 @@
 #pragma region "global ${modelGlobal.name}"
 inline ${declarationNameSpace}& ${declarationNameSpace}::get(duk_context* ctx)
 {
+	auto base = duk_get_top(ctx);
+
 	// stack -> .... base .. ;
 
 	scad40::env::lookup(ctx, "${modelModule.name}.${modelGlobal.name}");
 	// stack -> .... base .. ; [${modelGlobal.name}] ;
 
-	duk_get_prop_string(ctx, -1, "\xFF" "*${modelGlobal.name}");
+	duk_get_prop_string(ctx, base, "\xFF" "*${modelGlobal.name}");
 	// stack -> .... base .. ; [Disk] ; Disk[*] ;
 
     auto ptrDisk = reinterpret_cast<${declarationNameSpace}*>(duk_to_pointer(ctx, -1));

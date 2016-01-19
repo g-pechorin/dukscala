@@ -6,7 +6,7 @@
 
 
 #for (member <- modelScript.members)
-${nephrite.sub("/script-member")(member)}
+${nephrite.sub("/script")(member)}
 #end
 
 inline scad40::duk_ptr<${modelModule.name.replace(".", "::")}::${modelScript.name}> ${modelModule.name.replace(".", "::")}::${modelScript.name}::New(duk_context* ctx, const char* subclass)

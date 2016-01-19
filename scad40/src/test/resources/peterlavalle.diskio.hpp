@@ -319,7 +319,7 @@ namespace diskio {
 			void* _bar;
 			void subscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
 			void unsubscribe (const scad40::duk_str& path, const scad40::duk_ptr<ChangeListener>& listener);
-			
+
 		/// alternative const char* interfaces
 			inline void foobar (const char* text)
 			{
@@ -941,12 +941,11 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(const scad40::duk_
 	// stack -> .. base .. ; [self] ; "fileChanged" ;
 
 	path.Push();
-	// stack -> .. base .. ; [self] ; "fileChanged" ; "path" ;
 
 #ifndef _DEBUG
-	duk_call_prop(Host(), -3, 1);
+	duk_call_prop(Host(), base, 1);
 #else
-	auto result = duk_pcall_prop(Host(), -3, 1);
+	auto result = duk_pcall_prop(Host(), base, 1);
 	if (DUK_EXEC_SUCCESS != result)
 	{
 		const char* message = duk_safe_to_string(Host(), -1);
@@ -1054,6 +1053,7 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 {
 	Reading* thisReading = (Reading*)duk_alloc(ctx, sizeof(Reading));
 
+	const auto idxBase = duk_get_top(ctx);
 	// stack -> ... ;
 
 	duk_push_object(ctx);
@@ -1066,75 +1066,75 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 	});
 	// stack -> ... ; [Reading] ; ~Reading() ;
 
-	duk_set_finalizer(ctx, -2);
+	duk_set_finalizer(ctx, idxBase);
 	// stack -> ... ; [Reading] ;
 
 	duk_push_string(ctx, typeid(peterlavalle::diskio::Reading).name());
-	// stack -> ... ; [Reading] ; typeid( peterlavalle::diskio::Reading ).name() ;
+	// stack -> ... ; [Reading] ; typeid(peterlavalle::diskio::Reading).name() ;
 
-	duk_put_prop_string(ctx, -2, "\xFF" "typeid().name()");
+	duk_put_prop_string(ctx, idxBase, "\xFF" "typeid().name()");
 	// stack -> ... ; [Reading] ;
 
 	duk_push_pointer(ctx, thisReading);
 	// stack -> ... ; [Reading] ; *Reading ;
 
-	duk_put_prop_string(ctx, -2, "\xFF" "*");
+	duk_put_prop_string(ctx, idxBase, "\xFF" "*");
 	// stack -> ... ; [Reading] ;
 
 	{
 		// def read(): sint8
-		scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
 
-			assert(false && "??? scad40 needs to provide this");
-			return -1;
+				assert(false && "??? scad40 needs to provide this");
+				return -1;
 
-		});
-		duk_put_prop_string(ctx, -2, "read");
+			});
+			duk_put_prop_string(ctx, idxBase, "read");
 
 		// def close(): void
-		scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
 
-			assert(false && "??? scad40 needs to provide this");
-			return -1;
+				assert(false && "??? scad40 needs to provide this");
+				return -1;
 
-		});
-		duk_put_prop_string(ctx, -2, "close");
+			});
+			duk_put_prop_string(ctx, idxBase, "close");
 
 		// def endOfFile(): bool
-		scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
 
-			assert(false && "??? scad40 needs to provide this");
-			return -1;
+				assert(false && "??? scad40 needs to provide this");
+				return -1;
 
-		});
-		duk_put_prop_string(ctx, -2, "endOfFile");
+			});
+			duk_put_prop_string(ctx, idxBase, "endOfFile");
 
 		// var number: single
-		// property name
-		duk_push_string(ctx, "number");
-		// getter
-		scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-			duk_push_number(ctx, (duk_double_t)(thisReading->_number));
-			return 1;
-		});
-		// setter
-		scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-			thisReading->_number = (float)duk_to_number(ctx, 0);
-			return 0;
-		});
-		// assign
-		duk_def_prop(ctx, -4, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+			// property name
+				duk_push_string(ctx, "number");
+			// getter
+				scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+					duk_push_number(ctx, (duk_double_t)(thisReading->_number));
+					return 1;
+				});
+			// setter
+				scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+					thisReading->_number = (float)duk_to_number(ctx, 0);
+					return 0;
+				});
+			// assign
+				duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
 
 		// val path: string
-		// property name
-		duk_push_string(ctx, "path");
-		// getter
-		scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-			thisReading->_path.Push();
-			return 1;
-		});
-		// assign
-		duk_def_prop(ctx, -3, DUK_DEFPROP_HAVE_GETTER);
+			// property name
+				duk_push_string(ctx, "path");
+			// getter
+				scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+					thisReading->_path.Push();
+					return 1;
+				});
+			// assign
+				duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER);
 	}
 
 
@@ -1167,22 +1167,19 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 #pragma region "global Disk"
 inline peterlavalle::diskio::Disk& peterlavalle::diskio::Disk::get(duk_context* ctx)
 {
-	peterlavalle::diskio::Disk* ptrDisk = nullptr;
 	auto base = duk_get_top(ctx);
 
 	// stack -> .... base .. ;
 
-	scad40::env::lookup(ctx, "peterlavalle.diskio.Disk"); assert((1 + base) == duk_get_top(ctx));
+	scad40::env::lookup(ctx, "peterlavalle.diskio.Disk");
 	// stack -> .... base .. ; [Disk] ;
 
-	duk_get_prop_string(ctx, -1, "\xFF" "*Disk"); assert((2 + base) == duk_get_top(ctx));
+	duk_get_prop_string(ctx, base, "\xFF" "*Disk");
 	// stack -> .... base .. ; [Disk] ; Disk[*] ;
 
-	ptrDisk = reinterpret_cast<peterlavalle::diskio::Disk*>(duk_to_pointer(ctx, -1));
+	auto ptrDisk = reinterpret_cast<peterlavalle::diskio::Disk*>(duk_to_pointer(ctx, -1));
 	duk_pop_2(ctx);
 	// stack -> .... base .. ;
-
-	assert(base == duk_get_top(ctx));
 
 	return *ptrDisk;
 }

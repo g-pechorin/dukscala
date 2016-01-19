@@ -3,8 +3,8 @@
 <%@ val modelNative: Model.Native %>
 <%@ val nephrite: peterlavalle.scad40.Nephrite %>
 #{
-    val modelNameSpace = modelModule.name.replace(".", "::")
-    val declarationNameSpace = modelNameSpace  + "::" + modelNative.name
+		val modelNameSpace = modelModule.name.replace(".", "::")
+		val declarationNameSpace = modelNameSpace  + "::" + modelNative.name
 }#
 
 
@@ -26,6 +26,8 @@ inline bool ${declarationNameSpace}::Is(duk_context* ctx, duk_idx_t idx)
 inline scad40::duk_ref<${declarationNameSpace}> ${declarationNameSpace}::New(duk_context* ctx)
 {
 	${modelNative.name}* this${modelNative.name} = (${modelNative.name}*)duk_alloc(ctx, sizeof(${modelNative.name}));
+
+	const auto idxBase = duk_get_top(ctx);
 	// stack -> ... ;
 
 	duk_push_object(ctx);
@@ -38,28 +40,27 @@ inline scad40::duk_ref<${declarationNameSpace}> ${declarationNameSpace}::New(duk
 	});
 	// stack -> ... ; [${modelNative.name}] ; ~${modelNative.name}() ;
 
-	duk_set_finalizer(ctx, -2);
+	duk_set_finalizer(ctx, idxBase);
 	// stack -> ... ; [${modelNative.name}] ;
 
-	duk_push_string(ctx, typeid( ${declarationNameSpace} ).name());
-	// stack -> ... ; [${modelNative.name}] ; typeid( ${declarationNameSpace} ).name() ;
+	duk_push_string(ctx, typeid(${declarationNameSpace}).name());
+	// stack -> ... ; [${modelNative.name}] ; typeid(${declarationNameSpace}).name() ;
 
-	duk_put_prop_string(ctx, -2, "\xFF" "typeid().name()");
+	duk_put_prop_string(ctx, idxBase, "\xFF" "typeid().name()");
 	// stack -> ... ; [${modelNative.name}] ;
 
 	duk_push_pointer(ctx, this${modelNative.name});
 	// stack -> ... ; [${modelNative.name}] ; *${modelNative.name} ;
 
-	duk_put_prop_string(ctx, -2, "\xFF" "*");
+	duk_put_prop_string(ctx, idxBase, "\xFF" "*");
 	// stack -> ... ; [${modelNative.name}] ;
 
 	{
-    #for (member <- modelNative.members)
+#for (member <- modelNative.members.filterNot(_.isInstanceOf[Model.MemberRaw]))
+		// ${member.source}
+			${nephrite.sub("/native")("\n\t\t\t", member)}
 
-        // ${member.source}
-            ${nephrite.sub("/native")("\n\t\t\t", member)}
-    #end
-
+#end
 	}
 	// stack -> ... ; [${modelNative.name}] ;
 
@@ -72,7 +73,7 @@ inline scad40::duk_ref<${declarationNameSpace}> ${declarationNameSpace}::New(duk
 	// stack -> ... ; [${modelNative.name}] ;
 
 	duk_pop(ctx);
-	assert(!ret.is_null());
+	assert(!ret.IsNull());
 	assert(nullptr != ret.operator ->());
 	return ret;
 }

@@ -26,5 +26,4 @@
     });
 
 // assign
-    duk_def_prop(ctx, -3, DUK_DEFPROP_HAVE_GETTER);
-
+    duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER);

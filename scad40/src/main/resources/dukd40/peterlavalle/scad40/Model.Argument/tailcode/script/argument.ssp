@@ -1,0 +1,10 @@
+#import(peterlavalle.scad40.Model)
+<%@ val modelArgument: Model.Argument %>
+<%@ val modelMemberFunction: Model.MemberFunction %>
+<%@ val modelScript: Model.Script %>
+<%@ val modelModule: Model.Module %>
+<%@ val nephrite: peterlavalle.scad40.Nephrite %>
+#match (modelArgument.kind)
+#case (Model.KindString)
+${modelArgument.name}.Push();
+#end

@@ -18,15 +18,19 @@ class Nephrite private(preFolder: String, subFolder: String, val bounds: Map[Str
 
   def this(preFolder: String) = this(preFolder, "", Map(), null)
 
-  def sub(subFolder: String): Nephrite = {
-    require(subFolder.matches("(/(\\w+\\-)*\\w+)*"))
+  def sub(subFolder: String): Nephrite =
     new Nephrite(
       preFolder,
-      this.subFolder + subFolder,
+      subFolder match {
+        case "/" =>
+          ""
+        case _ =>
+          require(subFolder.matches("(/(\\w+\\-)*\\w+)*"))
+          this.subFolder + subFolder
+      },
       bounds,
       parent
     )
-  }
 
   def apply(pattern: String, replacement: String, obj: AnyRef): String =
     this (obj).replaceAll("^[ \t]*\n", "").replaceAll(pattern, replacement)
@@ -51,7 +55,8 @@ class Nephrite private(preFolder: String, subFolder: String, val bounds: Map[Str
     val bind = {
       val bounds =
         Map(
-          attributeName -> attributeRef
+          attributeName -> attributeRef,
+          "attributeName" -> attributeName
         ) ++ this.bounds
 
       Map("nephrite" -> new Nephrite(preFolder, subFolder, bounds, this)) ++ bounds
