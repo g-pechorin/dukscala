@@ -142,3 +142,48 @@ TEST(scad40, newscripted)
 
 	duk_destroy_heap(context);
 }
+
+TEST(scad40, create_native_in_script)
+{
+		stupid_mock mock;
+
+		mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+		mock.hard_call("peterlavalle::diskio::Reading::Reading");
+		mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+		mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+		duk_context* context = mock.replay();
+		peterlavalle::diskio::install(context);
+
+		EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading();")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+		EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+		EXPECT_TRUE(
+			peterlavalle::diskio::Reading::Is(context, 0)
+		) << "Did not return a Reading instance, it was `" << duk_safe_to_string(context, 0) << "`";
+		duk_destroy_heap(context);
+}
+
+TEST(scad40, Reading_read__from_script)
+{
+	FAIL() << "Unimplemented test";
+}
+
+TEST(scad40, Reading_close__from_script)
+{
+	FAIL() << "Unimplemented test";
+}
+
+TEST(scad40, read_var_from_script)
+{
+	FAIL() << "Unimplemented test";
+}
+
+TEST(scad40, write_var_from_script)
+{
+	FAIL() << "Unimplemented test";
+}
+
+TEST(scad40, read_val_from_script)
+{
+	FAIL() << "Unimplemented test";
+}
