@@ -1,9 +1,10 @@
 
 lazy val root = (project in file(".")).
   settings(
-    name := "scape",
-    version := "1.0",
-    scalaVersion := "2.11.7"
+    name := "scad40",
+    version := "0.0-SNAPSHOT",
+    scalaVersion := "2.11.7",
+    organization := "com.peterlavalle"
   )
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
@@ -21,4 +22,11 @@ libraryDependencies ++= Seq(
   "junit" % "junit" % "4.12" % Test,
   "com.novocode" % "junit-interface" % "0.11" % Test
     exclude("junit", "junit-dep")
+)
+
+publishTo := Some(
+  Resolver.file(
+    "file",
+    new File(Path.userHome.absolutePath + "/Dropbox/Public/maven/repository")
+  )
 )
