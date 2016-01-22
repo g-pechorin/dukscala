@@ -375,8 +375,11 @@ namespace diskio {
 
 			duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
 
-				duk_error(ctx, 314, "??? STUB ; scad40 needs to create an instance of peterlavalle.diskio.Reading");
-				return -1;
+				peterlavalle::diskio::Reading::New(ctx).Push();
+
+				assert(peterlavalle::diskio::Reading::Is(ctx, -1) && "SAN failed");
+
+				return 1;
 
 			}, 0);
 			// stack -> .... base .. ; class:Reading() ;
@@ -1041,7 +1044,10 @@ inline bool peterlavalle::diskio::Reading::Is(duk_context* ctx, duk_idx_t idx)
 	duk_get_prop_string(ctx, idx, "\xFF" "typeid().name()");
 	// stack -> ... ; ?[T]? ; ?"Reading"? ;
 
-	const bool matches = strcmp(typeid(peterlavalle::diskio::Reading).name(), duk_to_string(ctx, -1)) ? false : true;
+	const char* that = duk_to_string(ctx, -1);
+	static const char* name = typeid(peterlavalle::diskio::Reading).name();
+
+	const bool matches = strcmp(name, that) ? false : true;
 
 	duk_pop(ctx);
 	// stack -> ... ; ?[T]? ;
@@ -1085,26 +1091,30 @@ inline scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Read
 		// def read(): sint8
 			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
 
-				assert(false && "??? scad40 needs to provide this");
-				return -1;
+				auto result = thisReading->read();
+
+				duk_push_uint(ctx, result);
+				return 1;
 
 			});
 			duk_put_prop_string(ctx, idxBase, "read");
 
 		// def close(): void
 			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-
-				assert(false && "??? scad40 needs to provide this");
-				return -1;
-
+				
+				thisReading->close();
+				
+				return 0;
 			});
 			duk_put_prop_string(ctx, idxBase, "close");
 
 		// def endOfFile(): bool
 			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
+				
+				auto result = thisReading->endOfFile();
 
-				assert(false && "??? scad40 needs to provide this");
-				return -1;
+				duk_push_boolean(ctx, result ? 1 : 0);
+				return 1;
 
 			});
 			duk_put_prop_string(ctx, idxBase, "endOfFile");
