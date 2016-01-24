@@ -10,6 +10,8 @@ From ...
 # TODO
 
  * [ ] fill in the last stubs
+  * native "constructor thunks" 
+  * native "method thunks" 
  * [ ] achieve parity with the hand-written header
  * [ ] package as a `main()` and publish/run from SBT
   * need to get `src/main/resources/` into the build
