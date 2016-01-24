@@ -12,13 +12,13 @@ From ...
  * [ ] fill in the last stubs
  * [ ] achieve parity with the hand-written header
  * [ ] package as a `main()` and publish/run from SBT
- *  * need to get `src/main/resources/` into the build
+   * need to get `src/main/resources/` into the build
  * [ ] pre-compile ssp for speed (and ease) https://github.com/backchatio/xsbt-scalate-generate
- *  * might prevent runtime templates
+   * might prevent runtime templates
  * [ ] `nat` variable on not-scripts to create "whatever" C++ members/methods that ES can't see
  * [ ] `extern` native classes that can't be constructed
  * [ ] `range` thing to declare values as being restricted to a range of numbers or regular expressions
- *  * use C++ `explicit` and wrap the thing(s) to force assignments (in C++) to be intentional
+   * use C++ `explicit` and wrap the thing(s) to force assignments (in C++) to be intentional
  * [ ] clean up Nephrite and template resolution
  * [ ] `either` classes that can be created and manipulated on either side
  * [x] rewrite inheritance to make actual sense
