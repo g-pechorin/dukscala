@@ -12,8 +12,26 @@
 #include <assert.h>
 #include <functional>
 
-bool scan(const char* root, std::function<void(const char*)> lambda)
+bool scan(const char* root_, std::function<void(const char*)> lambda)
 {
+	char* root;
+
+	if (nullptr == root_)
+	{
+		char* r = _getcwd(nullptr, 0);
+		root = (char*) alloca(strlen(r) + strlen("\\*.*") + 1);
+		strcpy(root, r);
+		free(r);
+		strcat(root, "\\*.*");
+	}
+	else
+	{
+		root = (char*)alloca(strlen(root_) + strlen("\\*.*") + 1);
+		strcpy(root, root_);
+		strcat(root, "\\*.*");
+	}
+	
+
 	assert(nullptr != root);
 
 	WIN32_FIND_DATA FindFileData;
@@ -34,7 +52,10 @@ bool scan(const char* root, std::function<void(const char*)> lambda)
 
 	do
 	{
-		lambda(FindFileData.cFileName);
+		if (strcmp(".", FindFileData.cFileName) && strcmp("..", FindFileData.cFileName))
+		{
+			lambda(FindFileData.cFileName);
+		}
 	} while (FindNextFile(hFind, &FindFileData));
 
 
@@ -51,11 +72,10 @@ bool scan(const char* root, std::function<void(const char*)> lambda)
 
 bool scan(std::function<void(const char*)> lambda)
 {
-	char buffer[_MAX_PATH];
-
-	return scan(strcat(_getcwd(buffer, _MAX_PATH), "\\.."), lambda);
+	return scan(nullptr, lambda);
 }
-
+// TODO ; Fix it - stop including things that aren't things
+// TODO ; accept vardric templates
 
 
 
@@ -66,9 +86,9 @@ int main(int argc, char* argv[])
 	{
 		text = text + ">" + name + "\n";
 
-		scan( [](const char* name)
+		scan([&](const char* sub)
 		{
-			std::cout << name << std::endl;
+			text = text + ">> " + name + "/" + sub + "\n";
 		});
 	});
 	std::cout << text.c_str() << std::endl;

@@ -1,34 +1,11 @@
 
-#include "gtest/gtest.h"
 #define PAL_ADLER32_TEST
+#include "gtest/gtest.h"
 
 #include "peterlavalle.diskio-gtest.hpp"
-
-#include <duktape.h>
-#include <peterlavalle.diskio.hpp>
+#include "peterlavalle.diskio-stupid_mock.hpp"
 
 #define HEREDOC(TEXT) (#TEXT)
-
-/// this need some extra fiddlin so it's done here
-scad40::duk_ref<peterlavalle::diskio::Reading> peterlavalle::diskio::Disk::open(const scad40::duk_str& path)
-{
-	stupid_mock::get(Host()).soft_call((std::string(__FUNCTION__ "(") + (const char*)path + ")").c_str());
-
-	auto result = peterlavalle::diskio::Reading::New(Host());
-
-	result->_path = path;
-
-	return result;
-}
-
-void peterlavalle::diskio::Disk::foobar(const scad40::duk_str& text)
-{
-	std::stringstream log;
-
-	log << __FUNCTION__ << "(" << text << ")";
-
-	stupid_mock::get(Host()).soft_call(log.str().c_str());
-}
 
 TEST(duktape, onoff)
 {
@@ -71,6 +48,36 @@ TEST(scad40, runcall)
 	duk_destroy_heap(context);
 }
 
+TEST(scad40, thing_in_script)
+{
+	stupid_mock mock;
+
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Disk::foobar(pokey)");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
+
+	duk_eval_string_noresult(
+		context,
+		HEREDOC(
+			newscripted = function()
+			{
+				peterlavalle.diskio.Disk.foobar('pokey');
+			};
+		)
+	);
+
+	EXPECT_EQ(0, duk_get_top(context)) << "Unexpected stack values";
+
+	duk_eval_string(context, "new newscripted();");
+
+	EXPECT_EQ(1, duk_get_top(context)) << "That should have yielded something";
+	EXPECT_FALSE(peterlavalle::diskio::ChangeListener::As(context, 0)) << "That should NOT be suitable";
+
+	duk_destroy_heap(context);
+}
 
 TEST(scad40, newscripted)
 {
@@ -129,7 +136,7 @@ TEST(scad40, newscripted)
 		EXPECT_FALSE(changeListener.IsNull()) << "That should have produced an object";
 
 		changeListener->fileChanged("thing");
-		// causes TypeError: 
+		// causes TypeError:
 
 		peterlavalle::diskio::Disk::get(context).foobar("pokei");
 
@@ -143,47 +150,139 @@ TEST(scad40, newscripted)
 	duk_destroy_heap(context);
 }
 
+TEST(scad40, check__duk_ptr)
+{
+	duk_context* ctx = duk_create_heap_default();
+
+	void* thing = duk_alloc(ctx, 128);
+
+	duk_push_pointer(ctx, thing);
+
+	struct junk : scad40::_handle
+	{
+
+	};
+
+
+
+	duk_destroy_heap(ctx);
+}
+
 TEST(scad40, create_native_in_script)
 {
-		stupid_mock mock;
+	stupid_mock mock;
 
-		mock.hard_call("peterlavalle::diskio::Disk::Disk()");
-		mock.hard_call("peterlavalle::diskio::Reading::Reading");
-		mock.soft_call("peterlavalle::diskio::Reading::~Reading");
-		mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Reading::Reading");
+	mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
 
-		duk_context* context = mock.replay();
-		peterlavalle::diskio::install(context);
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
 
-		EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading();")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
-		EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
-		EXPECT_TRUE(
-			peterlavalle::diskio::Reading::Is(context, 0)
-		) << "Did not return a Reading instance, it was `" << duk_safe_to_string(context, 0) << "`";
-		duk_destroy_heap(context);
+	EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading();")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+	EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+	EXPECT_TRUE(
+		peterlavalle::diskio::Reading::Is(context, 0)
+	) << "Did not return a Reading instance, it was `" << duk_safe_to_string(context, 0) << "`";
+	duk_destroy_heap(context);
 }
 
 TEST(scad40, Reading_read__from_script)
 {
-	FAIL() << "Unimplemented test";
+	stupid_mock mock;
+
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Reading::Reading");
+	mock.hard_call("peterlavalle::diskio::Reading::read()");
+	mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
+
+	EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading().read();")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+	EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+	EXPECT_EQ(14, duk_to_int32(context, 0));
+	duk_destroy_heap(context);
 }
 
 TEST(scad40, Reading_close__from_script)
 {
-	FAIL() << "Unimplemented test";
+	stupid_mock mock;
+
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Reading::Reading");
+	mock.hard_call("peterlavalle::diskio::Reading::close()");
+	mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
+
+	EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading().close();")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+	EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+	EXPECT_TRUE(duk_is_null_or_undefined(context, 0));
+	duk_destroy_heap(context);
 }
 
 TEST(scad40, read_var_from_script)
 {
-	FAIL() << "Unimplemented test";
+	stupid_mock mock;
+
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Reading::Reading");
+	mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
+
+	EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading().number;")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+	EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+	EXPECT_EQ(1983.3f, duk_to_number(context, 0));
+	duk_destroy_heap(context);
 }
 
 TEST(scad40, write_var_from_script)
 {
-	FAIL() << "Unimplemented test";
+	stupid_mock mock;
+
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Reading::Reading");
+	mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
+
+	EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "var r = new peterlavalle.diskio.Reading(); r.number = 3.14; r")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+	EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+	EXPECT_TRUE(peterlavalle::diskio::Reading::Is(context, 0));
+
+	if (peterlavalle::diskio::Reading::Is(context, 0))
+	{
+		auto reading = peterlavalle::diskio::Reading::To(context, 0);
+		EXPECT_EQ(3.14f, reading->_number);
+	}
+
+	duk_destroy_heap(context);
 }
 
 TEST(scad40, read_val_from_script)
 {
-	FAIL() << "Unimplemented test";
+	stupid_mock mock;
+
+	mock.hard_call("peterlavalle::diskio::Disk::Disk()");
+	mock.hard_call("peterlavalle::diskio::Reading::Reading");
+	mock.soft_call("peterlavalle::diskio::Reading::~Reading");
+	mock.hard_call("peterlavalle::diskio::Disk::~Disk");
+
+	duk_context* context = mock.replay();
+	peterlavalle::diskio::install(context);
+
+	EXPECT_EQ(DUK_EXEC_SUCCESS, duk_peval_string(context, "new peterlavalle.diskio.Reading().path;")) << "Script failed `" << duk_safe_to_string(context, -1) << "`";
+	EXPECT_EQ(1, duk_get_top(context)) << "Stack was the wrong size";
+	EXPECT_STRCASEEQ("my/path.spot", duk_to_string(context, 0));
+	duk_destroy_heap(context);
 }

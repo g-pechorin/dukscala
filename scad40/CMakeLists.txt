@@ -46,7 +46,8 @@ add_executable(
 			../duktape/duktape.h
 
 			src/test/cmake/peterlavalle.diskio-gtest.cpp
-#			src/test/cmake/peterlavalle.diskio-gtest.hpp
+			src/test/cmake/peterlavalle.diskio-gtest.hpp
+			src/test/cmake/peterlavalle.diskio-stupid_mock.hpp
 
 			src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
 		
