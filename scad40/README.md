@@ -1,4 +1,9 @@
-
+From ...
+  [this](https://github.com/g-pechorin/dukscala/blob/scad40/scad40/src/test/resources/peterlavalle.diskio.scad40) definition
+... you can get ...
+  [that](https://github.com/g-pechorin/dukscala/blob/scad40/scad40/src/test/resources/peterlavalle.diskio.hpp) `.hpp` file
+... and ...
+  [that](https://github.com/g-pechorin/dukscala/blob/scad40/scad40/src/test/scala/peterlavalle/scad40/EndToEndTest.scala#L71) `.scala`
 
 # TODO
 
