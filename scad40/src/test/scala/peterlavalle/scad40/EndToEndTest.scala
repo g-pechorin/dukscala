@@ -7,6 +7,7 @@ import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.antlr.v4.runtime.dfa.DFA
 import org.junit.Assert._
 import junit.framework.TestCase
+import com.peterlavalle.DukScaCC
 
 import scala.io.Source
 
@@ -58,9 +59,10 @@ class EndToEndTest extends TestCase {
 
     assertEquals(
       leikata(expected).replaceAll("[ \t\r\n]*\n", "\n"),
-      new Nephrite(preFolder)
-        .apply(FromAntlr4(parser.module()))
-        .replaceAll("[ \t\r\n]*\n", "\n")
+      (preFolder match {
+        case "dukd40/" =>
+          DukScaCC(FromAntlr4(parser.module()))
+      }).trim.replaceAll("[ \t\r\n]*\n", "\n")
     )
   }
 

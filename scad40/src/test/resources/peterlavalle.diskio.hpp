@@ -51,7 +51,7 @@ namespace scad40
 		{
 			assert(nullptr != _ctx);
 		}
-		
+
 	protected:
 		/// copy operators are hidden since they should only be used by _handle
 		_object(const _object& other) :
@@ -154,7 +154,7 @@ namespace scad40
 		{
 			assert(_ctx == that._ctx);
 
-			// stack -> ... ; 
+			// stack -> ... ;
 
 			duk_push_global_stash(_ctx);
 			// stack -> ... ; [stash] ;
@@ -418,275 +418,7 @@ namespace scad40
 		void remove(duk_context* ctx, const char* path);
 	};
 };
-#endif // ... okay - that's the end of predef
 
-namespace peterlavalle {
-namespace diskio {
-
-	/// a script class
-	// script C++ classes are really just wrappers to access the ECMAScript implementation
-	class ChangeListener
-	{
-		/// used for const-char wrapping
-		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
-	public:
-
-		/// the user's requested members
-			void fileChanged (const scad40::duk_string& path);
-
-		/// alternative const char* interfaces
-			inline void fileChanged (const char* path)
-			{
-				fileChanged(
-					scad40::duk_string(Host(), path)
-				);
-			}
-
-		/// create an instance of a scripted class that extends this class
-		static scad40::duk_ptr<ChangeListener> New(duk_context* ctx, const char* subclass);
-
-		/// is the value at the stack index useable as an instance of this class
-		static bool As(duk_context* ctx, duk_idx_t idx);
-
-		/// pull whatever is at the stack index into C++
-		static scad40::duk_ptr<ChangeListener> To(duk_context* ctx, duk_idx_t idx);
-	};
-
-	/// a native class
-	struct Reading : public scad40::_object
-	{
-		/// the Reading constructor
-		/// ... the user must implement this
-		Reading(void);
-
-		Reading(const Reading&) = delete;
-		Reading& operator= (const Reading&) = delete;
-
-		/// the user's requested members
-		/// the user must implement these
-			int8_t read ();
-			void close ();
-			bool endOfFile ();
-			float _number;
-			scad40::duk_string _path;
-			void* _thing;
-
-		/// alternative const char* interfaces
-
-		/// the Reading destructor
-		/// the user must implement this
-		~Reading(void);
-
-		/// queries if the passed index is a Reading object
-		static bool Is(duk_context* ctx, duk_idx_t idx);
-
-		/// creates a new Reading object and returns a magical pointer to it
-		static scad40::duk_native<Reading> New(duk_context* ctx);
-
-		/// pulls the the passed index into a Reading object
-		/// ... if the passed index is not a Reading object - behaviour is undefined
-		static scad40::duk_native<Reading> To(duk_context* ctx, duk_idx_t idx);
-	};
-
-	/// a global class
-	struct Disk : public scad40::_object
-	{
-		/// the Disk constructor
-		/// ... the user must implement this
-		Disk(void);
-
-		Disk(const Disk&) = delete;
-		Disk& operator = (const Disk&) = delete;
-
-		/// the user's requested members
-		/// ... the user must implement these
-			void foobar (const scad40::duk_string& text);
-			scad40::duk_native<Reading> open (const scad40::duk_string& path);
-			scad40::duk_string _pwd;
-			void* _bar;
-			void subscribe (const scad40::duk_string& path, const scad40::duk_ptr<ChangeListener>& listener);
-			void unsubscribe (const scad40::duk_string& path, const scad40::duk_ptr<ChangeListener>& listener);
-
-		/// alternative const char* interfaces
-			inline void foobar (const char* text)
-			{
-				foobar(
-					scad40::duk_string(Host(), text)
-				);
-			}
-			inline scad40::duk_native<Reading> open (const char* path)
-			{
-				return open(
-					scad40::duk_string(Host(), path)
-				);
-			}
-			inline void subscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
-			{
-				subscribe(
-					scad40::duk_string(Host(), path),
-					listener
-				);
-			}
-			inline void unsubscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
-			{
-				unsubscribe(
-					scad40::duk_string(Host(), path),
-					listener
-				);
-			}
-
-		/// the Disk destructor
-		/// ... the user must implement this
-		~Disk(void);
-
-		/// locates the singleton instance
-		static Disk& get(duk_context*);
-	};
-
-	/// sets up the tables and calls to this VM
-	inline void install(duk_context* ctx)
-	{
-		const auto idxBase = duk_get_top(ctx);
-
-		// >> check for name collisions
-		if (scad40::env::exists(ctx, "peterlavalle.diskio"))
-		{
-			duk_error(ctx, 314, "Can't redefine module `peterlavalle.diskio`");
-			return;
-		}
-
-		// >> bind lambdas for native class construction
-		{
-
-			// stack -> .... base .. ;
-
-			duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
-
-				auto ptr = peterlavalle::diskio::Reading::New(ctx);
-				
-				ptr.Push();
-
-				assert(peterlavalle::diskio::Reading::Is(ctx, -1) && "SAN failed");
-
-				return 1;
-
-			}, 0);
-			// stack -> .... base .. ; class:Reading() ;
-
-			scad40::env::assign(ctx, "peterlavalle.diskio.Reading");
-			// stack -> .... base .. ;
-
-			assert(duk_get_top(ctx) == idxBase);
-		}
-
-		// >> allocate / in-place-new and store ALL global objects (including context pointers)
-		{
-			// stack -> .... base .. ;
-
-
-			// peterlavalle.diskio/Disk
-			{
-				duk_push_object(ctx);
-				// stack -> .... base .. ; [Disk] ;
-
-				peterlavalle::diskio::Disk* thisDisk = (peterlavalle::diskio::Disk*) duk_alloc(ctx, sizeof(peterlavalle::diskio::Disk));
-				duk_push_pointer(ctx, thisDisk);
-				// stack -> .... base .. ; [Disk] ; *Disk ;
-
-				duk_put_prop_string(ctx, idxBase, "\xFF" "*Disk");
-				// stack -> .... base .. ; [Disk] ;
-
-				scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 0, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-
-					assert(ctx == thisDisk->Host());
-
-					thisDisk->~Disk();
-					duk_free(ctx, thisDisk);
-					// scad40::env::remove(ctx, "peterlavalle.diskio.Disk");
-					// TODO ; find a way to actually DO THIS!?!?
-
-					return 0;
-				});
-				// stack -> .... base .. ; [Disk] ; ~Disk() ;
-
-				duk_set_finalizer(ctx, idxBase);
-				// stack -> .... base .. ; [Disk] ;
-
-
-				// def foobar(text: string): void
-					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-						thisDisk->foobar(
-							scad40::duk_string(ctx, 0)
-						);
-						return 0;
-					});
-					duk_put_prop_string(ctx, idxBase, "foobar");
-
-
-				// def open(path: string): Reading
-					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-						auto result = thisDisk->open(
-							scad40::duk_string(ctx, 0)
-						);
-						result.Push();
-						return 1;
-					});
-					duk_put_prop_string(ctx, idxBase, "open");
-
-				// var pwd: string
-					duk_push_string(ctx, "pwd");
-					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 3, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-						thisDisk->_pwd.Push();
-						return 1;
-					});
-					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 3, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-						thisDisk->_pwd = scad40::duk_string(ctx, 0);
-						return 0;
-					});
-					duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
-
-				// def subscribe(path: string, listener: ChangeListener): void
-					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-						thisDisk->subscribe(
-							scad40::duk_string(ctx, 0),
-							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
-						);
-						return 0;
-					});
-					duk_put_prop_string(ctx, idxBase, "subscribe");
-
-				// def unsubscribe(path: string, listener: ChangeListener): void
-					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
-						thisDisk->unsubscribe(
-							scad40::duk_string(ctx, 0),
-							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
-						);
-						return 0;
-					});
-					duk_put_prop_string(ctx, idxBase, "unsubscribe");
-
-				assert(duk_get_top(ctx) == 1 + idxBase);
-
-				// stack -> .... base .. ; [Disk] ;
-
-				scad40::env::assign(ctx, "peterlavalle.diskio.Disk");
-				// stack -> .... base .. ;
-
-				*reinterpret_cast<duk_context**>(thisDisk) = ctx;
-				new (thisDisk) peterlavalle::diskio::Disk();
-
-				assert(duk_get_top(ctx) == idxBase);
-			}
-
-		}
-		assert(duk_get_top(ctx) == idxBase);
-	}
-}
-}
-
-#ifndef _scad40_tail
-#define _scad40_tail
-#pragma region "scad40 and scad40::env"
 inline bool scad40::has_prop(duk_context* ctx, const duk_idx_t idx, const char* key)
 {
 	// stack -> .. idx ... ;
@@ -935,8 +667,275 @@ inline std::ostream& operator<<(std::ostream& ostream, const scad40::duk_string&
 {
 	return ostream << static_cast<const char*>(string);
 }
+
 #endif // ... okay - that's the end of predef
 
+namespace peterlavalle {
+namespace diskio {
+
+	/// a script class
+	// script C++ classes are really just wrappers to access the ECMAScript implementation
+	class ChangeListener
+	{
+		/// used for const-char wrapping
+		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
+	public:
+
+		/// the user's requested members
+			void fileChanged (const scad40::duk_string& path);
+
+		/// alternative const char* interfaces
+			inline void fileChanged (const char* path)
+			{
+				fileChanged(
+					scad40::duk_string(Host(), path)
+				);
+			}
+
+		/// create an instance of a scripted class that extends this class
+		static scad40::duk_ptr<ChangeListener> New(duk_context* ctx, const char* subclass);
+
+		/// is the value at the stack index useable as an instance of this class
+		static bool As(duk_context* ctx, duk_idx_t idx);
+
+		/// pull whatever is at the stack index into C++
+		static scad40::duk_ptr<ChangeListener> To(duk_context* ctx, duk_idx_t idx);
+	};
+
+	/// a native class
+	struct Reading : public scad40::_object
+	{
+		/// the Reading constructor
+		/// ... the user must implement this
+		Reading(void);
+
+		Reading(const Reading&) = delete;
+		Reading& operator= (const Reading&) = delete;
+
+		/// the user's requested members
+		/// the user must implement these
+			int8_t read ();
+			void close ();
+			bool endOfFile ();
+			float _number;
+			scad40::duk_string _path;
+			void* _thing;
+
+		/// alternative const char* interfaces
+
+		/// the Reading destructor
+		/// the user must implement this
+		~Reading(void);
+
+		/// queries if the passed index is a Reading object
+		static bool Is(duk_context* ctx, duk_idx_t idx);
+
+		/// creates a new Reading object and returns a magical pointer to it
+		static scad40::duk_native<Reading> New(duk_context* ctx);
+
+		/// pulls the the passed index into a Reading object
+		/// ... if the passed index is not a Reading object - behaviour is undefined
+		static scad40::duk_native<Reading> To(duk_context* ctx, duk_idx_t idx);
+	};
+
+	/// a global class
+	struct Disk : public scad40::_object
+	{
+		/// the Disk constructor
+		/// ... the user must implement this
+		Disk(void);
+
+		Disk(const Disk&) = delete;
+		Disk& operator = (const Disk&) = delete;
+
+		/// the user's requested members
+		/// ... the user must implement these
+			void foobar (const scad40::duk_string& text);
+			scad40::duk_native<Reading> open (const scad40::duk_string& path);
+			scad40::duk_string _pwd;
+			void* _bar;
+			void subscribe (const scad40::duk_string& path, const scad40::duk_ptr<ChangeListener>& listener);
+			void unsubscribe (const scad40::duk_string& path, const scad40::duk_ptr<ChangeListener>& listener);
+
+		/// alternative const char* interfaces
+			inline void foobar (const char* text)
+			{
+				foobar(
+					scad40::duk_string(Host(), text)
+				);
+			}
+			inline scad40::duk_native<Reading> open (const char* path)
+			{
+				return open(
+					scad40::duk_string(Host(), path)
+				);
+			}
+			inline void subscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
+			{
+				subscribe(
+					scad40::duk_string(Host(), path),
+					listener
+				);
+			}
+			inline void unsubscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
+			{
+				unsubscribe(
+					scad40::duk_string(Host(), path),
+					listener
+				);
+			}
+
+		/// the Disk destructor
+		/// ... the user must implement this
+		~Disk(void);
+
+		/// locates the singleton instance
+		static Disk& get(duk_context*);
+	};
+
+	/// sets up the tables and calls to this VM
+	inline void install(duk_context* ctx)
+	{
+		const auto idxBase = duk_get_top(ctx);
+
+		// >> check for name collisions
+		if (scad40::env::exists(ctx, "peterlavalle.diskio"))
+		{
+			duk_error(ctx, 314, "Can't redefine module `peterlavalle.diskio`");
+			return;
+		}
+
+		// >> bind lambdas for native class construction
+		{
+
+			// stack -> .... base .. ;
+
+			duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+				auto ptr = peterlavalle::diskio::Reading::New(ctx);
+
+				ptr.Push();
+
+				assert(peterlavalle::diskio::Reading::Is(ctx, -1) && "SAN failed");
+
+				return 1;
+
+			}, 0);
+			// stack -> .... base .. ; class:Reading() ;
+
+			scad40::env::assign(ctx, "peterlavalle.diskio.Reading");
+			// stack -> .... base .. ;
+
+			assert(duk_get_top(ctx) == idxBase);
+		}
+
+		// >> allocate / in-place-new and store ALL global objects (including context pointers)
+		{
+			// stack -> .... base .. ;
+
+
+			// peterlavalle.diskio/Disk
+			{
+				duk_push_object(ctx);
+				// stack -> .... base .. ; [Disk] ;
+
+				peterlavalle::diskio::Disk* thisDisk = (peterlavalle::diskio::Disk*) duk_alloc(ctx, sizeof(peterlavalle::diskio::Disk));
+				duk_push_pointer(ctx, thisDisk);
+				// stack -> .... base .. ; [Disk] ; *Disk ;
+
+				duk_put_prop_string(ctx, idxBase, "\xFF" "*Disk");
+				// stack -> .... base .. ; [Disk] ;
+
+				scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 0, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+
+					assert(ctx == thisDisk->Host());
+
+					thisDisk->~Disk();
+					duk_free(ctx, thisDisk);
+					// scad40::env::remove(ctx, "peterlavalle.diskio.Disk");
+					// TODO ; find a way to actually DO THIS!?!?
+
+					return 0;
+				});
+				// stack -> .... base .. ; [Disk] ; ~Disk() ;
+
+				duk_set_finalizer(ctx, idxBase);
+				// stack -> .... base .. ; [Disk] ;
+
+
+				// def foobar(text: string): void
+					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+						thisDisk->foobar(
+							scad40::duk_string(ctx, 0)
+						);
+
+						return 0;
+					});
+					duk_put_prop_string(ctx, idxBase, "foobar");
+
+
+				// def open(path: string): Reading
+					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+						auto result = thisDisk->open(
+							scad40::duk_string(ctx, 0)
+						);
+						result.Push();
+						return 1;
+					});
+					duk_put_prop_string(ctx, idxBase, "open");
+
+				// var pwd: string
+					duk_push_string(ctx, "pwd");
+					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 3, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+						thisDisk->_pwd.Push();
+						return 1;
+					});
+					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 3, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+						thisDisk->_pwd = scad40::duk_string(ctx, 0);
+						return 0;
+					});
+					duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+
+				// def subscribe(path: string, listener: ChangeListener): void
+					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+						thisDisk->subscribe(
+							scad40::duk_string(ctx, 0),
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
+						);
+
+						return 0;
+					});
+					duk_put_prop_string(ctx, idxBase, "subscribe");
+
+				// def unsubscribe(path: string, listener: ChangeListener): void
+					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
+						thisDisk->unsubscribe(
+							scad40::duk_string(ctx, 0),
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
+						);
+						
+						return 0;
+					});
+					duk_put_prop_string(ctx, idxBase, "unsubscribe");
+
+				assert(duk_get_top(ctx) == 1 + idxBase);
+
+				// stack -> .... base .. ; [Disk] ;
+
+				scad40::env::assign(ctx, "peterlavalle.diskio.Disk");
+				// stack -> .... base .. ;
+
+				*reinterpret_cast<duk_context**>(thisDisk) = ctx;
+				new (thisDisk) peterlavalle::diskio::Disk();
+
+				assert(duk_get_top(ctx) == idxBase);
+			}
+
+		}
+		assert(duk_get_top(ctx) == idxBase);
+	}
+}
+}
 
 // =====================================================================================================================
 // boilerplate usercode implementations - these things wrap/cast/adapt stuff for your "real" methods
@@ -1129,16 +1128,16 @@ inline scad40::duk_native<peterlavalle::diskio::Reading> peterlavalle::diskio::R
 
 		// def close(): void
 			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-				
+
 				thisReading->close();
-				
+
 				return 0;
 			});
 			duk_put_prop_string(ctx, idxBase, "close");
 
 		// def endOfFile(): bool
 			scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 0, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-				
+
 				auto result = thisReading->endOfFile();
 
 				duk_push_boolean(ctx, result ? 1 : 0);

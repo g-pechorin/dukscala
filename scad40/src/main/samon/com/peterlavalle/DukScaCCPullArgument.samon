@@ -1,0 +1,7 @@
+$import peterlavalle.scad40.Model._
+
+$def(argument: Argument)
+$match argument.KindVoid
+$case KindString
+scad40::duk_string
+$end

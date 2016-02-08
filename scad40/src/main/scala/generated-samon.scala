@@ -1,4 +1,28 @@
-package peterlavalle {
+package com.peterlavalle {
+
+
+	import peterlavalle.scad40.Model._
+	class DukScaCCPushResult {
+		def apply(writer: java.io.Writer, kind: TKind): Unit = {
+			(kind) match {
+				case KindVoid =>
+					writer.append("\n")
+				case KindDeclaration(_: TDeclaration) =>
+					writer.append("result.Push();").append("\n")
+			}
+		}
+	}
+
+	object DukScaCCPushResult extends DukScaCCPushResult {
+		def apply(kind: TKind): String = {
+			val writer = new java.io.StringWriter()
+			this (writer, kind)
+			writer.toString
+		}
+	}
+}
+
+package com.peterlavalle {
 
 
 	import peterlavalle.scad40.Model._
@@ -425,23 +449,7 @@ package peterlavalle {
 			writer.append("\t\tvoid remove(duk_context* ctx, const char* path);").append("\n")
 			writer.append("\t};").append("\n")
 			writer.append("};").append("\n")
-			writer.append("#endif // ... okay - that's the end of predef").append("\n")
 			writer.append("\n")
-			(module.name.split("\\.")).foreach {
-				case namespace =>
-					writer.append("namespace ").append(namespace).append(" {").append("\n")
-			}
-			writer.append("\n")
-			writer.append("meat goes here").append("\n")
-			writer.append("\n")
-			(module.name.split("\\.")).foreach {
-				case namespace =>
-					writer.append("}").append("\n")
-			}
-			writer.append("\n")
-			writer.append("#ifndef _scad40_tail").append("\n")
-			writer.append("#define _scad40_tail").append("\n")
-			writer.append("#pragma region \"scad40 and scad40::env\"").append("\n")
 			writer.append("inline bool scad40::has_prop(duk_context* ctx, const duk_idx_t idx, const char* key)").append("\n")
 			writer.append("{").append("\n")
 			writer.append("\t// stack -> .. idx ... ;").append("\n")
@@ -690,36 +698,249 @@ package peterlavalle {
 			writer.append("{").append("\n")
 			writer.append("\treturn ostream << static_cast<const char*>(string);").append("\n")
 			writer.append("}").append("\n")
+			writer.append("\n")
 			writer.append("#endif // ... okay - that's the end of predef").append("\n")
+			writer.append("\n")
+			(module.name.split("\\.")).foreach {
+				case namespace =>
+					writer.append("namespace ").append(namespace).append(" {").append("\n")
+			}
+			writer.append("\n")
+			(module.contents).foreach {
+				case Script(name: String, members: Stream[TMember]) =>
+					writer.append("\t/// a script class").append("\n")
+					writer.append("\t// script C++ classes are really just wrappers to access the ECMAScript implementation").append("\n")
+					writer.append("\tclass ").append(name).append("\n")
+					writer.append("\t{").append("\n")
+					writer.append("\t\t/// used for const-char wrapping").append("\n")
+					writer.append("\t\tduk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }").append("\n")
+					writer.append("\tpublic:").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// the user's requested members").append("\n")
+					writer.append("\t\t\tmeat goes here").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// alternative const char* interfaces").append("\n")
+					writer.append("\t\t\tmeat goes here").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// create an instance of a scripted class that extends this class").append("\n")
+					writer.append("\t\tstatic scad40::duk_ptr<").append(name).append("> New(duk_context* ctx, const char* subclass);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// is the value at the stack index useable as an instance of this class").append("\n")
+					writer.append("\t\tstatic bool As(duk_context* ctx, duk_idx_t idx);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// pull whatever is at the stack index into C++").append("\n")
+					writer.append("\t\tstatic scad40::duk_ptr<").append(name).append("> To(duk_context* ctx, duk_idx_t idx);").append("\n")
+					writer.append("\t};").append("\n")
+					writer.append("\n")
+				case native: Native =>
+					writer.append("\t/// a native class").append("\n")
+					writer.append("\tstruct ").append(native.name).append(" : public scad40::_object").append("\n")
+					writer.append("\t{").append("\n")
+					writer.append("\t\t/// the ").append(native.name).append(" constructor").append("\n")
+					writer.append("\t\t/// ... the user must implement this").append("\n")
+					writer.append("\t\t").append(native.name).append("(void);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t").append(native.name).append("(const ").append(native.name).append("&) = delete;").append("\n")
+					writer.append("\t\t").append(native.name).append("& operator= (const ").append(native.name).append("&) = delete;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// the user's requested members").append("\n")
+					writer.append("\t\t/// the user must implement these").append("\n")
+					writer.append("\t\t\tmeat goes here").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// alternative const char* interfaces").append("\n")
+					writer.append("\t\t\tmeat goes here").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// the ").append(native.name).append(" destructor").append("\n")
+					writer.append("\t\t/// the user must implement this").append("\n")
+					writer.append("\t\t~").append(native.name).append("(void);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// queries if the passed index is a ").append(native.name).append(" object").append("\n")
+					writer.append("\t\tstatic bool Is(duk_context* ctx, duk_idx_t idx);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// creates a new ").append(native.name).append(" object and returns a magical pointer to it").append("\n")
+					writer.append("\t\tstatic scad40::duk_native<").append(native.name).append("> New(duk_context* ctx);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// pulls the the passed index into a ").append(native.name).append(" object").append("\n")
+					writer.append("\t\t/// ... if the passed index is not a ").append(native.name).append(" object - behaviour is undefined").append("\n")
+					writer.append("\t\tstatic scad40::duk_native<").append(native.name).append("> To(duk_context* ctx, duk_idx_t idx);").append("\n")
+					writer.append("\t};").append("\n")
+					writer.append("\n")
+				case global: Global =>
+					writer.append("\t/// a global class").append("\n")
+					writer.append("\tstruct ").append(global.name).append(" : public scad40::_object").append("\n")
+					writer.append("\t{").append("\n")
+					writer.append("\t\t/// the ").append(global.name).append(" constructor").append("\n")
+					writer.append("\t\t/// ... the user must implement this").append("\n")
+					writer.append("\t\t").append(global.name).append("(void);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t").append(global.name).append("(const ").append(global.name).append("&) = delete;").append("\n")
+					writer.append("\t\t").append(global.name).append("& operator = (const ").append(global.name).append("&) = delete;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// the user's requested members").append("\n")
+					writer.append("\t\t/// ... the user must implement these").append("\n")
+					writer.append("\t\t\tmeat goes here").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// alternative const char* interfaces").append("\n")
+					writer.append("\t\t\tmeat goes here").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// the ").append(global.name).append(" destructor").append("\n")
+					writer.append("\t\t/// ... the user must implement this").append("\n")
+					writer.append("\t\t~").append(global.name).append("(void);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t/// locates the singleton instance").append("\n")
+					writer.append("\t\tstatic ").append(global.name).append("& get(duk_context*);").append("\n")
+					writer.append("\t};").append("\n")
+					writer.append("\n")
+			}
+			writer.append("\n")
+			writer.append("\t/// sets up the tables and calls to this VM").append("\n")
+			writer.append("\tinline void install(duk_context* ctx)").append("\n")
+			writer.append("\t{").append("\n")
+			writer.append("\t\tconst auto idxBase = duk_get_top(ctx);").append("\n")
+			writer.append("\n")
+			writer.append("\t\t// >> check for name collisions").append("\n")
+			writer.append("\t\tif (scad40::env::exists(ctx, \"").append(module.name).append("\"))").append("\n")
+			writer.append("\t\t{").append("\n")
+			writer.append("\t\t\tduk_error(ctx, 314, \"Can't redefine module `").append(module.name).append("`\");").append("\n")
+			writer.append("\t\t\treturn;").append("\n")
+			writer.append("\t\t}").append("\n")
+			writer.append("\n")
+			writer.append("\t\t// >> bind lambdas for native class construction").append("\n")
+			(module.contents.filter(_.isInstanceOf[Native])).foreach {
+				case native: Native =>
+					writer.append("\t\t{").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t// stack -> .... base .. ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\tduk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tauto ptr = ").append(namespace).append("::").append(native.name).append("::New(ctx);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tptr.Push();").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tassert(").append(namespace).append("::").append(native.name).append("::Is(ctx, -1) && \"SAN failed\");").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\treturn 1;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t}, 0);").append("\n")
+					writer.append("\t\t\t// stack -> .... base .. ; class:").append(native.name).append("() ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\tscad40::env::assign(ctx, \"").append(module.name).append(".").append(native.name).append("\");").append("\n")
+					writer.append("\t\t\t// stack -> .... base .. ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\tassert(duk_get_top(ctx) == idxBase);").append("\n")
+					writer.append("\t\t}").append("\n")
+			}
+			writer.append("\n")
+			writer.append("\t\t// >> allocate / in-place-new and store ALL global objects (including context pointers)").append("\n")
+			writer.append("\t\t{").append("\n")
+			writer.append("\t\t\t// stack -> .... base .. ;").append("\n")
+			(module.contents.filter(_.isInstanceOf[Global])).foreach {
+				case Global(globalName: String, members: Stream[TMember]) =>
+					writer.append("\t\t\t// ").append(module.name).append("/").append(globalName).append("\n")
+					writer.append("\t\t\t{").append("\n")
+					writer.append("\t\t\t\tduk_push_object(ctx);").append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ; [").append(globalName).append("] ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\t").append(namespace).append("::").append(globalName).append("* this").append(globalName).append(" = (").append(namespace).append("::").append(globalName).append("*) duk_alloc(ctx, sizeof(").append(namespace).append("::").append(globalName).append("));").append("\n")
+					writer.append("\t\t\t\tduk_push_pointer(ctx, this").append(globalName).append(");").append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ; [").append(globalName).append("] ; *").append(globalName).append(" ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tduk_put_prop_string(ctx, idxBase, \"\\xFF\" \"*").append(globalName).append("\");").append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ; [").append(globalName).append("] ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tscad40::push_selfie<").append(namespace).append("::").append(globalName).append(">(ctx, this").append(globalName).append(", 0, [](duk_context* ctx, ").append(namespace).append("::").append(globalName).append("* this").append(globalName).append(") -> duk_ret_t {").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\t\tassert(ctx == this").append(globalName).append("->Host());").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\t\tthis").append(globalName).append("->~").append(globalName).append("();").append("\n")
+					writer.append("\t\t\t\t\tduk_free(ctx, this").append(globalName).append(");").append("\n")
+					writer.append("\t\t\t\t\t// scad40::env::remove(ctx, \"").append(module.name).append(".").append(globalName).append("\");").append("\n")
+					writer.append("\t\t\t\t\t// TODO ; find a way to actually DO THIS!?!?").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\t\treturn 0;").append("\n")
+					writer.append("\t\t\t\t});").append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ; [").append(globalName).append("] ; ~").append(globalName).append("() ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tduk_set_finalizer(ctx, idxBase);").append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ; [").append(globalName).append("] ;").append("\n")
+					writer.append("\n")
+					(members.filterNot(_.isInstanceOf[MemberRaw])).foreach {
+						case member: MemberFunction =>
+							writer.append("\t\t\t\t// ").append(member.source).append("\n")
+							writer.append("\t\t\t\t\tscad40::push_selfie<").append(namespace).append("::").append(globalName).append(">(ctx, this").append(globalName).append(", ").append(member.arguments.length.toString).append(", [](duk_context* ctx, ").append(namespace).append("::").append(globalName).append("* this").append(globalName).append(") -> duk_ret_t {").append("\n")
+							writer.append("\t\t\t\t\t\t").append(if (member.resultKind != KindVoid) "auto result = " else "").append("this").append(globalName).append("->").append(member.name).append("(").append("\n")
+							writer.append("\t\t\t\t\t\t\t???").append("\n")
+							writer.append("\t\t\t\t\t\t\t\tscad40::duk_string(ctx, 0)").append("\n")
+							writer.append("\t\t\t\t\t\t\t\t\t???").append("\n")
+							writer.append("\t\t\t\t\t\t);").append("\n")
+							writer.append("\t\t\t\t\t\t").append(DukScaCCPushResult(member.resultKind).trim).append("\n")
+							writer.append("\t\t\t\t\t\treturn ").append(if (member.resultKind != KindVoid) "1" else "0").append(";").append("\n")
+							writer.append("\t\t\t\t\t});").append("\n")
+							writer.append("\t\t\t\t\tduk_put_prop_string(ctx, idxBase, \"").append(member.name).append("\");").append("\n")
+							writer.append("\n")
+						case member: TMember =>
+							writer.append("\t\t\t\t").append(member.source).append("\n")
+							writer.append("\t\t\t\t\tneed moar guts").append("\n")
+					}
+					writer.append("\t\t\t\tassert(duk_get_top(ctx) == 1 + idxBase);").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ; [").append(globalName).append("] ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tscad40::env::assign(ctx, \"").append(module.name).append(".").append(globalName).append("\");").append("\n")
+					writer.append("\t\t\t\t// stack -> .... base .. ;").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\t*reinterpret_cast<duk_context**>(this").append(globalName).append(") = ctx;").append("\n")
+					writer.append("\t\t\t\tnew (this").append(globalName).append(") ").append(namespace).append("::").append(globalName).append("();").append("\n")
+					writer.append("\n")
+					writer.append("\t\t\t\tassert(duk_get_top(ctx) == idxBase);").append("\n")
+					writer.append("\t\t\t}").append("\n")
+			}
+			writer.append("\t\t}").append("\n")
+			writer.append("\t\tassert(duk_get_top(ctx) == idxBase);").append("\n")
+			writer.append("\t}").append("\n")
+			(module.name.split("\\.")).foreach {
+				case namespace =>
+					writer.append("}").append("\n")
+			}
+			writer.append("\n")
+			writer.append("// =====================================================================================================================").append("\n")
+			writer.append("// boilerplate usercode implementations - these things wrap/cast/adapt stuff for your \"real\" methods").append("\n")
+			writer.append("// ---------------------------------------------------------------------------------------------------------------------").append("\n")
 			writer.append("\n")
 			(module.contents).foreach {
 				case script: Script =>
+					writer.append("#pragma region \"script ").append(script.name).append("\"").append("\n")
 					writer.append("???").append("\n")
+					writer.append("#pragma endregion").append("\n")
 					writer.append("\n")
 				case native: Native =>
+					writer.append("#pragma region \"native ").append(native.name).append("\"").append("\n")
 					writer.append("???").append("\n")
+					writer.append("#pragma endregion").append("\n")
 					writer.append("\n")
-				case Global(name, _) =>
-					writer.append("#pragma region \"global ").append(name).append("\"").append("\n")
-					writer.append("inline ").append(namespace).append("::").append(name).append("& ").append(namespace).append("::").append(name).append("::get(duk_context* ctx)").append("\n")
+				case global: Global =>
+					writer.append("#pragma region \"global ").append(global.name).append("\"").append("\n")
+					writer.append("inline ").append(namespace).append("::").append(global.name).append("& ").append(namespace).append("::").append(global.name).append("::get(duk_context* ctx)").append("\n")
 					writer.append("{").append("\n")
 					writer.append("\tauto base = duk_get_top(ctx);").append("\n")
 					writer.append("\n")
 					writer.append("\t// stack -> .... base .. ;").append("\n")
 					writer.append("\n")
-					writer.append("\tscad40::env::lookup(ctx, \"peterlavalle.diskio.").append(name).append("\");").append("\n")
-					writer.append("\t// stack -> .... base .. ; [").append(name).append("] ;").append("\n")
+					writer.append("\tscad40::env::lookup(ctx, \"").append(module.name).append(".").append(global.name).append("\");").append("\n")
+					writer.append("\t// stack -> .... base .. ; [").append(global.name).append("] ;").append("\n")
 					writer.append("\n")
-					writer.append("\tduk_get_prop_string(ctx, base, \"\\xFF\" \"*").append(name).append("\");").append("\n")
-					writer.append("\t// stack -> .... base .. ; [").append(name).append("] ; ").append(name).append("[*] ;").append("\n")
+					writer.append("\tduk_get_prop_string(ctx, base, \"\\xFF\" \"*").append(global.name).append("\");").append("\n")
+					writer.append("\t// stack -> .... base .. ; [").append(global.name).append("] ; ").append(global.name).append("[*] ;").append("\n")
 					writer.append("\n")
-					writer.append("\tauto ptr").append(name).append(" = reinterpret_cast<").append(namespace).append("::").append(name).append("*>(duk_to_pointer(ctx, -1));").append("\n")
+					writer.append("\tauto ptr").append(global.name).append(" = reinterpret_cast<").append(namespace).append("::").append(global.name).append("*>(duk_to_pointer(ctx, -1));").append("\n")
 					writer.append("\tduk_pop_2(ctx);").append("\n")
 					writer.append("\t// stack -> .... base .. ;").append("\n")
 					writer.append("\n")
-					writer.append("\treturn *ptr").append(name).append(";").append("\n")
+					writer.append("\treturn *ptr").append(global.name).append(";").append("\n")
 					writer.append("}").append("\n")
 					writer.append("#pragma endregion").append("\n")
+					writer.append("\n")
 			}
 		}
 	}

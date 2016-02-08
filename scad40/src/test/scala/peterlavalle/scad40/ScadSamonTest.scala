@@ -4,7 +4,7 @@ import java.io.StringWriter
 
 import junit.framework.TestCase
 import org.antlr.v4.runtime.{ANTLRInputStream, CommonTokenStream}
-import peterlavalle.DukScaCC
+import com.peterlavalle.DukScaCC
 
 import scala.io.Source
 import org.junit.Assert._
