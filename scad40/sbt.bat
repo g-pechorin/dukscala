@@ -1,1 +1,1 @@
-@java -jar sbt-launch.jar %2 %*
+@java -jar %~dp0sbt-launch.jar %2 %*

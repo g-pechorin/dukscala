@@ -6,6 +6,9 @@ lazy val root = (project in file(".")).
     scalaVersion := "2.11.7",
     organization := "com.peterlavalle"
   )
+  .enablePlugins(SamonPlugin)
+
+
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
