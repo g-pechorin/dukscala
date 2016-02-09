@@ -3,6 +3,14 @@ $import peterlavalle.scad40.Model._
 $def(module: Module)
 $val namespace = module.name.replace(".", "::")
 
+$def pull(argument: Argument)
+$match argument.kind
+$case KindDeclaration(Script(name: String, _))
+scad40::duk_ptr<ChangeListener>(???, ???)
+$case KindString
+scad40::duk_string(???, ???)
+$end
+
 #pragma once
 
 ///
@@ -845,7 +853,8 @@ $end
 						${if (member.resultKind != KindVoid) "auto result = " else ""}this$(globalName)->$(member.name)(
 						$each member.arguments
 						$case argument
-							${DukScaCCPullArgument(argument)}
+							$sub pull(argument)
+						$end
 						);
 						${DukScaCCPushResult(member.resultKind).trim}
 						return ${if (member.resultKind != KindVoid) "1" else "0"};

@@ -26,6 +26,28 @@ package com.peterlavalle {
 
 
 	import peterlavalle.scad40.Model._
+	class DukScaCCPullArgument {
+		def apply(writer: java.io.Writer, argument: Argument): Unit = {
+			(argument.kind) match {
+				case KindString =>
+					writer.append("scad40::duk_string").append("\n")
+			}
+		}
+	}
+
+	object DukScaCCPullArgument extends DukScaCCPullArgument {
+		def apply(argument: Argument): String = {
+			val writer = new java.io.StringWriter()
+			this (writer, argument)
+			writer.toString
+		}
+	}
+}
+
+package com.peterlavalle {
+
+
+	import peterlavalle.scad40.Model._
 	class DukScaCC {
 		def apply(writer: java.io.Writer, module: Module): Unit = {
 			val namespace= module.name.replace(".", "::")
@@ -870,9 +892,10 @@ package com.peterlavalle {
 							writer.append("\t\t\t\t// ").append(member.source).append("\n")
 							writer.append("\t\t\t\t\tscad40::push_selfie<").append(namespace).append("::").append(globalName).append(">(ctx, this").append(globalName).append(", ").append(member.arguments.length.toString).append(", [](duk_context* ctx, ").append(namespace).append("::").append(globalName).append("* this").append(globalName).append(") -> duk_ret_t {").append("\n")
 							writer.append("\t\t\t\t\t\t").append(if (member.resultKind != KindVoid) "auto result = " else "").append("this").append(globalName).append("->").append(member.name).append("(").append("\n")
-							writer.append("\t\t\t\t\t\t\t???").append("\n")
-							writer.append("\t\t\t\t\t\t\t\tscad40::duk_string(ctx, 0)").append("\n")
-							writer.append("\t\t\t\t\t\t\t\t\t???").append("\n")
+							(member.arguments).foreach {
+								case argument =>
+									writer.append("\t\t\t\t\t\t\t").append(DukScaCCPullArgument(argument)).append("\n")
+							}
 							writer.append("\t\t\t\t\t\t);").append("\n")
 							writer.append("\t\t\t\t\t\t").append(DukScaCCPushResult(member.resultKind).trim).append("\n")
 							writer.append("\t\t\t\t\t\treturn ").append(if (member.resultKind != KindVoid) "1" else "0").append(";").append("\n")
