@@ -27,8 +27,8 @@ class ScadSamonTest extends TestCase {
 
     val actual: String = DukScaCC(module)
     assertEquals(
-      expected.replaceAll("[\t\r ]*\n", "\n"),
-      actual.replaceAll("[\t\r ]*\n", "\n")
+      expected.trim.replaceAll("[\t\r ]*\n", "\n"),
+      actual.trim.replaceAll("[\t\r ]*\n", "\n")
     )
   }
 

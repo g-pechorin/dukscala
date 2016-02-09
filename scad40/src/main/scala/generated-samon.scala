@@ -2,55 +2,20 @@ package com.peterlavalle {
 
 
 	import peterlavalle.scad40.Model._
-	class DukScaCCPushResult {
-		def apply(writer: java.io.Writer, kind: TKind): Unit = {
-			(kind) match {
-				case KindVoid =>
-					writer.append("\n")
-				case KindDeclaration(_: TDeclaration) =>
-					writer.append("result.Push();").append("\n")
-			}
-		}
-	}
-
-	object DukScaCCPushResult extends DukScaCCPushResult {
-		def apply(kind: TKind): String = {
-			val writer = new java.io.StringWriter()
-			this (writer, kind)
-			writer.toString
-		}
-	}
-}
-
-package com.peterlavalle {
-
-
-	import peterlavalle.scad40.Model._
-	class DukScaCCPullArgument {
-		def apply(writer: java.io.Writer, argument: Argument): Unit = {
-			(argument.kind) match {
-				case KindString =>
-					writer.append("scad40::duk_string").append("\n")
-			}
-		}
-	}
-
-	object DukScaCCPullArgument extends DukScaCCPullArgument {
-		def apply(argument: Argument): String = {
-			val writer = new java.io.StringWriter()
-			this (writer, argument)
-			writer.toString
-		}
-	}
-}
-
-package com.peterlavalle {
-
-
-	import peterlavalle.scad40.Model._
 	class DukScaCC {
 		def apply(writer: java.io.Writer, module: Module): Unit = {
 			val namespace= module.name.replace(".", "::")
+			writer.append("\n")
+			// sub pull(:KindClass(Argument))
+			writer.append("\n")
+			// sub push(:KindClass(TKind))
+			writer.append("\n")
+			// sub duktype(:KindClass(TKind))
+			writer.append("\n")
+			writer.append("\n")
+			// sub memberPrototype(:KindClass(TMember))
+			writer.append("\n")
+			// sub constCharWrapper(:KindClass(MemberFunction))
 			writer.append("\n")
 			writer.append("#pragma once").append("\n")
 			writer.append("\n")
@@ -739,10 +704,16 @@ package com.peterlavalle {
 					writer.append("\tpublic:").append("\n")
 					writer.append("\n")
 					writer.append("\t\t/// the user's requested members").append("\n")
-					writer.append("\t\t\tmeat goes here").append("\n")
+					(members).foreach {
+						case member =>
+							memberPrototype(writer, module, (member))
+					}
 					writer.append("\n")
 					writer.append("\t\t/// alternative const char* interfaces").append("\n")
-					writer.append("\t\t\tmeat goes here").append("\n")
+					(members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))).foreach {
+						case memberFunction: MemberFunction =>
+							constCharWrapper(writer, module, (memberFunction))
+					}
 					writer.append("\n")
 					writer.append("\t\t/// create an instance of a scripted class that extends this class").append("\n")
 					writer.append("\t\tstatic scad40::duk_ptr<").append(name).append("> New(duk_context* ctx, const char* subclass);").append("\n")
@@ -770,7 +741,10 @@ package com.peterlavalle {
 					writer.append("\t\t\tmeat goes here").append("\n")
 					writer.append("\n")
 					writer.append("\t\t/// alternative const char* interfaces").append("\n")
-					writer.append("\t\t\tmeat goes here").append("\n")
+					(native.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))).foreach {
+						case memberFunction: MemberFunction =>
+							constCharWrapper(writer, module, (memberFunction))
+					}
 					writer.append("\n")
 					writer.append("\t\t/// the ").append(native.name).append(" destructor").append("\n")
 					writer.append("\t\t/// the user must implement this").append("\n")
@@ -803,7 +777,10 @@ package com.peterlavalle {
 					writer.append("\t\t\tmeat goes here").append("\n")
 					writer.append("\n")
 					writer.append("\t\t/// alternative const char* interfaces").append("\n")
-					writer.append("\t\t\tmeat goes here").append("\n")
+					(global.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))).foreach {
+						case memberFunction: MemberFunction =>
+							constCharWrapper(writer, module, (memberFunction))
+					}
 					writer.append("\n")
 					writer.append("\t\t/// the ").append(global.name).append(" destructor").append("\n")
 					writer.append("\t\t/// ... the user must implement this").append("\n")
@@ -892,13 +869,12 @@ package com.peterlavalle {
 							writer.append("\t\t\t\t// ").append(member.source).append("\n")
 							writer.append("\t\t\t\t\tscad40::push_selfie<").append(namespace).append("::").append(globalName).append(">(ctx, this").append(globalName).append(", ").append(member.arguments.length.toString).append(", [](duk_context* ctx, ").append(namespace).append("::").append(globalName).append("* this").append(globalName).append(") -> duk_ret_t {").append("\n")
 							writer.append("\t\t\t\t\t\t").append(if (member.resultKind != KindVoid) "auto result = " else "").append("this").append(globalName).append("->").append(member.name).append("(").append("\n")
-							(member.arguments).foreach {
-								case argument =>
-									writer.append("\t\t\t\t\t\t\t").append(DukScaCCPullArgument(argument)).append("\n")
+							(member.arguments.zipWithIndex).foreach {
+								case (Argument(_, kind), index) =>
+									pull(writer, module, (Argument(index.toString, kind)))
 							}
 							writer.append("\t\t\t\t\t\t);").append("\n")
-							writer.append("\t\t\t\t\t\t").append(DukScaCCPushResult(member.resultKind).trim).append("\n")
-							writer.append("\t\t\t\t\t\treturn ").append(if (member.resultKind != KindVoid) "1" else "0").append(";").append("\n")
+							push(writer, module, (member.resultKind))
 							writer.append("\t\t\t\t\t});").append("\n")
 							writer.append("\t\t\t\t\tduk_put_prop_string(ctx, idxBase, \"").append(member.name).append("\");").append("\n")
 							writer.append("\n")
@@ -965,6 +941,52 @@ package com.peterlavalle {
 					writer.append("#pragma endregion").append("\n")
 					writer.append("\n")
 			}
+		}
+		def pull(writer: java.io.Writer, module: Module, argument: Argument): Unit = {
+			val namespace= module.name.replace(".", "::")
+			(argument.kind) match {
+				case KindDeclaration(Script(name: String, _)) =>
+					writer.append("\t\t\t\t\t\t\tscad40::duk_ptr<").append(namespace).append("::").append(name).append(">(ctx, ").append(argument.name).append("),").append("\n")
+				case KindString =>
+					writer.append("\t\t\t\t\t\t\tscad40::duk_string(ctx, ").append(argument.name).append("),").append("\n")
+			}
+		}
+		def push(writer: java.io.Writer, module: Module, kind: TKind): Unit = {
+			(kind) match {
+				case KindVoid =>
+					writer.append("\t\t\t\t\t\treturn 0;").append("\n")
+				case KindDeclaration(_: TDeclaration) =>
+					writer.append("\t\t\t\t\t\tresult.Push();").append("\n")
+					writer.append("\t\t\t\t\t\treturn 1;").append("\n")
+			}
+		}
+		def duktype(writer: java.io.Writer, module: Module, kind: TKind): Unit = {
+			(kind) match {
+				case KindVoid =>
+					writer.append("            void").append("\n")
+			}
+		}
+		def memberPrototype(writer: java.io.Writer, module: Module, member: TMember): Unit = {
+			(member) match {
+				case memberFunction: MemberFunction =>
+					writer.append("            ").append(duktype(memberFunction.resultKind)).append(" ").append(memberFunction.name).append(" (").append(memberFunction.arguments.toString).append(")").append("\n")
+			}
+		}
+		def constCharWrapper(writer: java.io.Writer, module: Module, memberFunction: MemberFunction): Unit = {
+			val parameters= memberFunction.arguments.foldLeft("")((l, a) => l + ", " + a).replaceAll("^, ", "")
+			(memberFunction.resultKind) match {
+				case KindVoid =>
+					writer.append("\t\t\tinline void ").append(memberFunction.name).append(" (").append(parameters).append(")").append("\n")
+					writer.append("\t\t\t{").append("\n")
+					writer.append("\t\t\t\t").append(memberFunction.name).append("(").append("\n")
+				case KindDeclaration(Native(name: String, _)) =>
+					writer.append("\t\t\tinline scad40::duk_native<").append(name).append("> ").append(memberFunction.name).append(" (").append(parameters).append(")").append("\n")
+					writer.append("\t\t\t{").append("\n")
+					writer.append("\t\t\t\treturn ").append(memberFunction.name).append("(").append("\n")
+			}
+			writer.append("\t\t\t\t??? ").append(memberFunction.source).append("\n")
+			writer.append("\t\t\t\t);").append("\n")
+			writer.append("\t\t\t}").append("\n")
 		}
 	}
 
