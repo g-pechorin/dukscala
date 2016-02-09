@@ -30,6 +30,6 @@ libraryDependencies ++= Seq(
 publishTo := Some(
   Resolver.file(
     "file",
-    new File(Path.userHome.absolutePath + "/Dropbox/Public/maven/repository")
+    new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
   )
 )
