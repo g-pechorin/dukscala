@@ -1,66 +1,6 @@
 $import peterlavalle.scad40.Model._
 
 $def(module: Module)
-$val namespace = module.name.replace(".", "::")
-
-$def pull(argument: Argument)
-	$val namespace = module.name.replace(".", "::")
-	$match argument.kind
-		$case KindDeclaration(Script(name: String, _))
-							scad40::duk_ptr<${namespace}::${name}>(ctx, ${argument.name}),
-		$case KindString
-							scad40::duk_string(ctx, ${argument.name}),
-	$end
-$end
-
-$def push(kind: TKind)
-	$match kind
-		$case KindVoid
-						return 0;
-		$case KindDeclaration(_: TDeclaration)
-						result.Push();
-						return 1;
-	$end
-$end
-
-$def duktype(kind: TKind)
-    $match kind
-        $case KindVoid
-            void
-    $end
-$end
-
-$def dukarg(kind: TKind)
-    $match kind
-        $case KindVoid
-            void
-    $end
-$end
-
-
-$def memberPrototype(member: TMember)
-    $match member
-        $case memberFunction: MemberFunction
-            $trim:duktype{module, memberFunction.resultKind} $(memberFunction.name) (${memberFunction.arguments.toString})
-    $end
-$end
-
-$def constCharWrapper(memberFunction: MemberFunction)
-	$val parameters = memberFunction.arguments.foldLeft("")((l, a) => l + ", " + a).replaceAll("^, ", "")
-	$match memberFunction.resultKind
-		$case KindVoid
-			inline void $(memberFunction.name) (${parameters})
-			{
-				$(memberFunction.name)(
-		$case KindDeclaration(Native(name: String, _))
-			inline scad40::duk_native<$(name)> $(memberFunction.name) (${parameters})
-			{
-				return $(memberFunction.name)(
-	$end
-				??? ${memberFunction.source}
-				);
-			}
-$end
 
 #pragma once
 
@@ -733,6 +673,78 @@ inline std::ostream& operator<<(std::ostream& ostream, const scad40::duk_string&
 
 #endif // ... okay - that's the end of predef
 
+
+$val namespace = module.name.replace(".", "::")
+
+$sub pull(argument: Argument)
+	$val namespace = module.name.replace(".", "::")
+	$match argument.kind
+		$case KindDeclaration(Script(name: String, _))
+							scad40::duk_ptr<${namespace}::${name}>(ctx, ${argument.name}),
+		$case KindString
+							scad40::duk_string(ctx, ${argument.name}),
+	$end
+$end
+
+$alt push(kind: TKind)
+	$match kind
+		$case KindVoid
+						return 0;
+		$case KindDeclaration(_: TDeclaration)
+						result.Push();
+						return 1;
+	$end
+$end
+
+$alt duktype(kind: TKind)
+    $match kind
+        $case KindBool
+            bool
+        $case KindDouble
+            double
+        $case KindSingle
+            float
+        $case KindSInt8
+            int8_t
+        $case KindSInt16
+            int16_t
+        $case KindSInt32
+            int32_t
+        $case KindUInt8
+            uint8_t
+        $case KindUInt16
+            uint16_t
+        $case KindUInt32
+            uint32_t
+        $case KindVoid
+            void
+    $end
+$end
+
+$alt memberPrototype(member: TMember)
+    $match member
+        $case memberFunction: MemberFunction
+            ${duktype(memberFunction.resultKind).trim} $(memberFunction.name) (${memberFunction.arguments.toString})
+    $end
+$end
+
+$alt constCharWrapper(memberFunction: MemberFunction)
+	$val parameters = memberFunction.arguments.foldLeft("")((l, a) => l + ", " + a).replaceAll("^, ", "")
+	$match memberFunction.resultKind
+		$case KindVoid
+			inline void $(memberFunction.name) (${parameters})
+			{
+				$(memberFunction.name)(
+		$case KindDeclaration(Native(name: String, _))
+			inline scad40::duk_native<$(name)> $(memberFunction.name) (${parameters})
+			{
+				return $(memberFunction.name)(
+	$end
+				??? ${memberFunction.source}
+				);
+			}
+$end
+
 $each module.name.split("\\.")
 $case namespace
 namespace $(namespace) {
@@ -751,7 +763,7 @@ $case Script(name: String, members: Stream[TMember])
 		/// the user's requested members
 		$each members
 		$case member
-		    $sub memberPrototype(member)
+			${memberPrototype(member)}
         $end
 
 		/// alternative const char* interfaces
@@ -783,7 +795,10 @@ $case native: Native
 
 		/// the user's requested members
 		/// the user must implement these
-			meat goes here
+		$each native.members
+		$case member
+			${memberPrototype(member)}
+        $end
 
 		/// alternative const char* interfaces
 		$each native.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
@@ -819,7 +834,10 @@ $case global: Global
 
 		/// the user's requested members
 		/// ... the user must implement these
-			meat goes here
+		$each global.members
+		$case member
+			${memberPrototype(member)}
+        $end
 
 		/// alternative const char* interfaces
 		$each global.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
@@ -916,7 +934,7 @@ $end
 						${if (member.resultKind != KindVoid) "auto result = " else ""}this$(globalName)->$(member.name)(
 						$each member.arguments.zipWithIndex
 						$case (Argument(_, kind), index)
-							$sub pull(Argument(index.toString, kind))
+							${pull(module, Argument(index.toString, kind))}
 						$end
 						);
 						$sub push(member.resultKind)
