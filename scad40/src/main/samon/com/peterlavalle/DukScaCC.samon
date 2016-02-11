@@ -700,7 +700,7 @@ $sub cppType(kind: TKind)
     $match kind
         $case KindBool
             bool
-        $case KindDeclaration(Native(name, ))
+        $case KindDeclaration(Native(name, _))
             scad40::duk_ptr<${namespace}::${name}>
         $case KindDouble
             double
@@ -720,15 +720,16 @@ $sub cppType(kind: TKind)
 $end
 
 $sub memberPrototype(member: TMember)
+    $val cppTy = (kind: TKind) => cppType(module, kind).trim
     $match member
         $case MemberRaw(name, kind)
-            $<kind> _$(name);
+            $<kind> _$(name)
         $case memberFunction: MemberFunction
-            $map cppType{memberFunction.resultKind} $(memberFunction.name) (${memberFunction.arguments.toString});
+            ${cppTy(memberFunction.resultKind)} $(memberFunction.name) (${memberFunction.arguments.toString})
         $case MemberVariable(name, kind)
-            $map cppType(kind) _${name};
+            ${cppTy(kind)} _${name}
         $case MemberValue(name, kind)
-            $map cppType(kind) _${name};
+            ${cppTy(kind)} _${name}
     $end
 $end
 
@@ -767,7 +768,7 @@ $case Script(name: String, members: Stream[TMember])
 		/// the user's requested members
 		$each members
 		$case member
-			${memberPrototype(member)}
+			$map memberPrototype(member)
         $end
 
 		/// alternative const char* interfaces
@@ -801,7 +802,7 @@ $case native: Native
 		/// the user must implement these
 		$each native.members
 		$case member
-			${memberPrototype(member)}
+			$map memberPrototype(member)
         $end
 
 		/// alternative const char* interfaces
@@ -840,7 +841,7 @@ $case global: Global
 		/// ... the user must implement these
 		$each global.members
 		$case member
-			${memberPrototype(member)}
+			$map memberPrototype(member);
         $end
 
 		/// alternative const char* interfaces

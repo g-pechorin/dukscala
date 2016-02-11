@@ -1,13 +1,11 @@
 package peterlavalle.scad40
 
-import java.io.StringWriter
-
+import com.peterlavalle.DukScaCC
 import junit.framework.TestCase
 import org.antlr.v4.runtime.{ANTLRInputStream, CommonTokenStream}
-import com.peterlavalle.DukScaCC
+import org.junit.Assert._
 
 import scala.io.Source
-import org.junit.Assert._
 
 class ScadSamonTest extends TestCase {
 
@@ -27,8 +25,8 @@ class ScadSamonTest extends TestCase {
 
     val actual: String = DukScaCC(module)
     assertEquals(
-      expected.trim.replaceAll("[\t\r ]*\n", "\n"),
-      actual.trim.replaceAll("[\t\r ]*\n", "\n")
+      expected.trim.replaceAll("[\t\r ]*\n", "\n").replaceAll("\n\n+", "\n"),
+      actual.trim.replaceAll("[\t\r ]*\n", "\n").replaceAll("\n\n+", "\n")
     )
   }
 

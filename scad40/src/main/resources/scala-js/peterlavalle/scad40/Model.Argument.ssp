@@ -1,4 +1,0 @@
-#import(peterlavalle.scad40.Model)
-<%@ val modelArgument: Model.Argument %>
-<%@ val nephrite: peterlavalle.scad40.Nephrite %>
-${modelArgument.name}: ${nephrite(modelArgument.kind).trim}

@@ -1,3 +1,0 @@
-#import(peterlavalle.scad40.Model)
-<%@ val modelKindDeclaration: Model.KindDeclaration %>
-${modelKindDeclaration.declaration.name.trim}

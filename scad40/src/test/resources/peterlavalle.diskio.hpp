@@ -203,7 +203,6 @@ namespace scad40
 	};
 
 	/// this allows manipulating a pure-script object from C++ using a predefined interface
-	/// ironically ; less sophiticated than the ref
 	template<typename T>
 	struct duk_ptr : public scad40::_handle
 	{

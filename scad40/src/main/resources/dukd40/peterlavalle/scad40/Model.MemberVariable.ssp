@@ -1,4 +1,0 @@
-#import(peterlavalle.scad40.Model)
-<%@ val modelMemberVariable: Model.MemberVariable %>
-<%@ val nephrite: peterlavalle.scad40.Nephrite %>
-${nephrite(modelMemberVariable.kind)} _${modelMemberVariable.name};
