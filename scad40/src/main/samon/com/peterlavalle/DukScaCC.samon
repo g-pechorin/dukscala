@@ -206,7 +206,6 @@ namespace scad40
 	};
 
 	/// this allows manipulating a pure-script object from C++ using a predefined interface
-	/// ironically ; less sophiticated than the ref
 	template<typename T>
 	struct duk_ptr : public scad40::_handle
 	{
@@ -696,10 +695,13 @@ $alt push(kind: TKind)
 	$end
 $end
 
-$alt duktype(kind: TKind)
+$sub cppType(kind: TKind)
+	$val namespace = module.name.replace(".", "::")
     $match kind
         $case KindBool
             bool
+        $case KindDeclaration(Native(name, ))
+            scad40::duk_ptr<${namespace}::${name}>
         $case KindDouble
             double
         $case KindSingle
@@ -710,21 +712,23 @@ $alt duktype(kind: TKind)
             int16_t
         $case KindSInt32
             int32_t
-        $case KindUInt8
-            uint8_t
-        $case KindUInt16
-            uint16_t
-        $case KindUInt32
-            uint32_t
+        $case KindString
+            scad40::duk_string
         $case KindVoid
             void
     $end
 $end
 
-$alt memberPrototype(member: TMember)
+$sub memberPrototype(member: TMember)
     $match member
+        $case MemberRaw(name, kind)
+            $<kind> _$(name);
         $case memberFunction: MemberFunction
-            ${duktype(memberFunction.resultKind).trim} $(memberFunction.name) (${memberFunction.arguments.toString})
+            $map cppType{memberFunction.resultKind} $(memberFunction.name) (${memberFunction.arguments.toString});
+        $case MemberVariable(name, kind)
+            $map cppType(kind) _${name};
+        $case MemberValue(name, kind)
+            $map cppType(kind) _${name};
     $end
 $end
 
@@ -934,7 +938,7 @@ $end
 						${if (member.resultKind != KindVoid) "auto result = " else ""}this$(globalName)->$(member.name)(
 						$each member.arguments.zipWithIndex
 						$case (Argument(_, kind), index)
-							${pull(module, Argument(index.toString, kind))}
+							$map pull{Argument(index.toString, kind)}
 						$end
 						);
 						$sub push(member.resultKind)
