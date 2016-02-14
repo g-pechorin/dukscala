@@ -3,7 +3,7 @@ lazy val root = (project in file(".")).
   settings(
     name := "scad40",
     version := "0.0-SNAPSHOT",
-    scalaVersion := "2.11.7",
+    scalaVersion := "2.10.6",
     organization := "com.peterlavalle"
   )
   .enablePlugins(SamonPlugin)
