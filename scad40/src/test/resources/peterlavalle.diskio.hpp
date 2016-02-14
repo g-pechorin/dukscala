@@ -681,13 +681,13 @@ namespace diskio {
 	public:
 
 		/// the user's requested members
-			void fileChanged (const scad40::duk_string& path);
+			void fileChanged (scad40::duk_string& path);
 
 		/// alternative const char* interfaces
 			inline void fileChanged (const char* path)
 			{
 				fileChanged(
-					scad40::duk_string(Host(), path)
+					scad40::duk_string(Host(), path),
 				);
 			}
 
@@ -749,38 +749,38 @@ namespace diskio {
 
 		/// the user's requested members
 		/// ... the user must implement these
-			void foobar (const scad40::duk_string& text);
-			scad40::duk_native<Reading> open (const scad40::duk_string& path);
+			void foobar (scad40::duk_string& text);
+			scad40::duk_native<peterlavalle::diskio::Reading> open (scad40::duk_string& path);
 			scad40::duk_string _pwd;
 			void* _bar;
-			void subscribe (const scad40::duk_string& path, const scad40::duk_ptr<ChangeListener>& listener);
-			void unsubscribe (const scad40::duk_string& path, const scad40::duk_ptr<ChangeListener>& listener);
+			void subscribe (scad40::duk_string& path, scad40::duk_ptr<peterlavalle::diskio::ChangeListener>& listener);
+			void unsubscribe (scad40::duk_string& path, scad40::duk_ptr<peterlavalle::diskio::ChangeListener>& listener);
 
 		/// alternative const char* interfaces
 			inline void foobar (const char* text)
 			{
 				foobar(
-					scad40::duk_string(Host(), text)
+					scad40::duk_string(Host(), text),
 				);
 			}
-			inline scad40::duk_native<Reading> open (const char* path)
+			inline scad40::duk_native<peterlavalle::diskio::Reading> open (const char* path)
 			{
 				return open(
-					scad40::duk_string(Host(), path)
+					scad40::duk_string(Host(), path),
 				);
 			}
-			inline void subscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
+			inline void subscribe (const char* path, scad40::duk_ptr<peterlavalle::diskio::ChangeListener>& listener)
 			{
 				subscribe(
 					scad40::duk_string(Host(), path),
-					listener
+					listener,
 				);
 			}
-			inline void unsubscribe (const char* path, scad40::duk_ptr<ChangeListener> listener)
+			inline void unsubscribe (const char* path, scad40::duk_ptr<peterlavalle::diskio::ChangeListener>& listener)
 			{
 				unsubscribe(
 					scad40::duk_string(Host(), path),
-					listener
+					listener,
 				);
 			}
 
@@ -865,7 +865,7 @@ namespace diskio {
 				// def foobar(text: string): void
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->foobar(
-							scad40::duk_string(ctx, 0)
+							scad40::duk_string(ctx, 0),
 						);
 
 						return 0;
@@ -876,7 +876,7 @@ namespace diskio {
 				// def open(path: string): Reading
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						auto result = thisDisk->open(
-							scad40::duk_string(ctx, 0)
+							scad40::duk_string(ctx, 0),
 						);
 						result.Push();
 						return 1;
@@ -899,7 +899,7 @@ namespace diskio {
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->subscribe(
 							scad40::duk_string(ctx, 0),
-							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1),
 						);
 
 						return 0;
@@ -910,9 +910,9 @@ namespace diskio {
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->unsubscribe(
 							scad40::duk_string(ctx, 0),
-							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1),
 						);
-						
+
 						return 0;
 					});
 					duk_put_prop_string(ctx, idxBase, "unsubscribe");

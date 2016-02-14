@@ -685,7 +685,7 @@ $sub pull(argument: Argument)
 	$end
 $end
 
-$alt push(kind: TKind)
+$sub push(kind: TKind)
 	$match kind
 		$case KindVoid
 						return 0;
@@ -697,25 +697,49 @@ $end
 
 $sub cppType(kind: TKind)
 	$val namespace = module.name.replace(".", "::")
-    $match kind
+  $match kind
+      $case KindBool
+          bool
+      $case KindDeclaration(Native(name, _))
+          scad40::duk_native<${namespace}::${name}>
+      $case KindDouble
+          double
+      $case KindSingle
+          float
+      $case KindSInt8
+          int8_t
+      $case KindSInt16
+          int16_t
+      $case KindSInt32
+          int32_t
+      $case KindString
+          scad40::duk_string
+      $case KindVoid
+          void
+  $end
+$end
+
+$sub argType(argument: Argument)
+	$val namespace = module.name.replace(".", "::")
+    $match argument.kind
         $case KindBool
-            bool
+            bool $(argument.name)
         $case KindDeclaration(Native(name, _))
-            scad40::duk_ptr<${namespace}::${name}>
+            scad40::duk_native<${namespace}::${name}>& $(argument.name)
+				$case KindDeclaration(Script(name, _))
+            scad40::duk_ptr<${namespace}::${name}>& $(argument.name)
         $case KindDouble
-            double
+            double& $(argument.name)
         $case KindSingle
-            float
+            float $(argument.name)
         $case KindSInt8
-            int8_t
+            int8_t $(argument.name)
         $case KindSInt16
-            int16_t
+            int16_t $(argument.name)
         $case KindSInt32
-            int32_t
+            int32_t $(argument.name)
         $case KindString
-            scad40::duk_string
-        $case KindVoid
-            void
+            scad40::duk_string& $(argument.name)
     $end
 $end
 
@@ -725,7 +749,7 @@ $sub memberPrototype(member: TMember)
         $case MemberRaw(name, kind)
             $<kind> _$(name)
         $case memberFunction: MemberFunction
-            ${cppTy(memberFunction.resultKind)} $(memberFunction.name) (${memberFunction.arguments.toString})
+            ${cppTy(memberFunction.resultKind)} $(memberFunction.name) (${memberFunction.arguments.foldLeft("")((l, a) => l + ", " + argType(module, a).trim).replaceAll("^, ", "")})
         $case MemberVariable(name, kind)
             ${cppTy(kind)} _${name}
         $case MemberValue(name, kind)
@@ -733,19 +757,32 @@ $sub memberPrototype(member: TMember)
     $end
 $end
 
-$alt constCharWrapper(memberFunction: MemberFunction)
-	$val parameters = memberFunction.arguments.foldLeft("")((l, a) => l + ", " + a).replaceAll("^, ", "")
+$sub constCharWrapper(argument: Argument)
+	$match argument.kind
+		$case KindString
+		  const char* $(argument.name)
+		$case _
+		  ${argType(module, argument).trim}
+	$end
+$end
+
+$sub constCharWrapper(memberFunction: MemberFunction)
+	$val parameters = memberFunction.arguments.foldLeft("")((l, a) => l + ", " + constCharWrapper(module, a).trim).replaceAll("^, ", "")
+	$val namespace = module.name.replace(".", "::")
 	$match memberFunction.resultKind
 		$case KindVoid
 			inline void $(memberFunction.name) (${parameters})
 			{
 				$(memberFunction.name)(
 		$case KindDeclaration(Native(name: String, _))
-			inline scad40::duk_native<$(name)> $(memberFunction.name) (${parameters})
+			inline scad40::duk_native<${namespace}::${name}> $(memberFunction.name) (${parameters})
 			{
 				return $(memberFunction.name)(
 	$end
-				??? ${memberFunction.source}
+			$each memberFunction.arguments
+			$case argument: Argument
+					${if (argument.kind == KindString) "scad40::duk_string(Host(), " + argument.name + ")" else argument.name},
+			$end
 				);
 			}
 $end
@@ -768,13 +805,13 @@ $case Script(name: String, members: Stream[TMember])
 		/// the user's requested members
 		$each members
 		$case member
-			$map memberPrototype(member)
-        $end
+			$map memberPrototype(member);
+    $end
 
 		/// alternative const char* interfaces
 		$each members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
 		$case memberFunction: MemberFunction
-			$sub constCharWrapper(memberFunction)
+			$run constCharWrapper(memberFunction)
 		$end
 
 		/// create an instance of a scripted class that extends this class
@@ -802,13 +839,13 @@ $case native: Native
 		/// the user must implement these
 		$each native.members
 		$case member
-			$map memberPrototype(member)
-        $end
+			$map memberPrototype(member);
+    $end
 
 		/// alternative const char* interfaces
 		$each native.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
 		$case memberFunction: MemberFunction
-			$sub constCharWrapper(memberFunction)
+			$run constCharWrapper(memberFunction)
 		$end
 
 		/// the $(native.name) destructor
@@ -847,7 +884,7 @@ $case global: Global
 		/// alternative const char* interfaces
 		$each global.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
 		$case memberFunction: MemberFunction
-			$sub constCharWrapper(memberFunction)
+			$run constCharWrapper(memberFunction)
 		$end
 
 		/// the $(global.name) destructor
@@ -942,13 +979,28 @@ $end
 							$map pull{Argument(index.toString, kind)}
 						$end
 						);
-						$sub push(member.resultKind)
+						$run push(member.resultKind)
 					});
 					duk_put_prop_string(ctx, idxBase, "$(member.name)");
 
-				$case member: TMember
-				$(member.source)
-					need moar guts
+				$case member: MemberVariable
+				// $(member.source)
+					duk_push_string(ctx, "${member.name}");
+					scad40::push_selfie<${namespace}::${globalName}>(ctx, this${globalName}, 3, [](duk_context* ctx, ${namespace}::${globalName}* this${globalName}) -> duk_ret_t {
+          $match member.kind
+          $case KindString
+						this${globalName}->_${member.name}.Push();
+          $end
+						return 1;
+					});
+					scad40::push_selfie<${namespace}::${globalName}>(ctx, this${globalName}, 3, [](duk_context* ctx, ${namespace}::${globalName}* this${globalName}) -> duk_ret_t {
+          $match member.kind
+          $case KindString
+						this${globalName}->_${member.name} = scad40::duk_string(ctx, 0);
+          $end
+						return 0;
+					});
+					duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
 				$end
 				assert(duk_get_top(ctx) == 1 + idxBase);
 
@@ -978,12 +1030,184 @@ $end
 $each module.contents
 $case script: Script
 #pragma region "script $(script.name)"
-???
+nneeed thunkers here
+
+... thunkher
+... thunkher
+... thunkher
+
+inline scad40::duk_ptr<${namespace}::${script.name}> ${namespace}::${script.name}::New(duk_context* ctx, const char* subclass)
+{
+	// stack -> ... ;
+	scad40::env::lookup(ctx, subclass);
+
+	// stack -> ... ; ?class? ;
+	if (!duk_is_function(ctx, -1))
+	{
+		duk_pop(ctx);
+		duk_error(ctx, 314, "Thing `%s` is not a function", subclass);
+	}
+
+	// stack -> ... ; class() ;
+	duk_new(ctx, 0);
+	assert(duk_is_object(ctx, -1) && "SAN failed");
+
+	// stack -> ... ; ?object? ;
+	if (!${namespace}::${script.name}::As(ctx, -1))
+	{
+		duk_pop(ctx);
+		duk_error(ctx, 314, "Thing `%s` is not usable as ${namespace}::${script.name}", subclass);
+	}
+
+	// stack -> ... ; object ;
+	scad40::duk_ptr<${namespace}::${script.name}> object(ctx, -1);
+	duk_pop(ctx);
+
+	// stack -> ... ;
+	assert(!object.IsNull());
+
+	return object;
+}
+
+inline bool ${namespace}::${script.name}::As(duk_context* ctx, duk_idx_t idx)
+{
+	// stack -> ... ; idx .. base .. ;
+
+	//
+	// check each function / member ... not sure what to do about values
+
+  check for methods
+    ... thunker
+    ... thunker
+
+
+  return true;
+}
+
+inline scad40::duk_ptr<${namespace}::${script.name}> ${namespace}::${script.name}::To(duk_context* ctx, duk_idx_t idx)
+{
+	return scad40::duk_ptr<${namespace}::${script.name}>(ctx, idx);
+}
 #pragma endregion
 
 $case native: Native
 #pragma region "native $(native.name)"
-???
+inline bool ${namespace}::${native.name}::Is(duk_context* ctx, duk_idx_t idx)
+{
+	// stack -> ... ; ?[T]? ;
+	if (!duk_is_object(ctx, idx))
+	{
+		return false;
+	}
+	duk_get_prop_string(ctx, idx, "\xFF" "typeid().name()");
+	// stack -> ... ; ?[T]? ; ?"${native.name}"? ;
+	const char* that = duk_to_string(ctx, -1);
+	static const char* name = typeid(${namespace}::${native.name}).name();
+	const bool matches = strcmp(name, that) ? false : true;
+	duk_pop(ctx);
+	// stack -> ... ; ?[T]? ;
+	return matches;
+}
+
+inline scad40::duk_native<${namespace}::${native.name}> ${namespace}::${native.name}::New(duk_context* ctx)
+{
+	${native.name}* this${native.name} = (${native.name}*)duk_alloc(ctx, sizeof(${native.name}));
+	const auto idxBase = duk_get_top(ctx);
+	// stack -> ... ;
+	duk_push_object(ctx);
+	// stack -> ... ; [${native.name}] ;
+	scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 0, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+		this${native.name}->~${native.name}();
+		duk_free(ctx, this${native.name});
+		return 0;
+	});
+	// stack -> ... ; [${native.name}] ; ~${native.name}() ;
+	duk_set_finalizer(ctx, idxBase);
+	// stack -> ... ; [${native.name}] ;
+	duk_push_string(ctx, typeid(${namespace}::${native.name}).name());
+	// stack -> ... ; [${native.name}] ; typeid(${namespace}::${native.name}).name() ;
+	duk_put_prop_string(ctx, idxBase, "\xFF" "typeid().name()");
+	// stack -> ... ; [${native.name}] ;
+	assert(${namespace}::${native.name}::Is(ctx, -1));
+	duk_push_pointer(ctx, this${native.name});
+	// stack -> ... ; [${native.name}] ; *${native.name} ;
+	duk_put_prop_string(ctx, idxBase, "\xFF" "*");
+	// stack -> ... ; [${native.name}] ;
+	{
+  $each native.member.filterNot(_.isInstance[MemberRaw])
+  $case member: MemberFunction
+		// def read(): sint8
+			scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 0, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+				auto result = this${native.name}->read();
+				duk_push_uint(ctx, result);
+				return 1;
+			});
+			duk_put_prop_string(ctx, idxBase, "read");
+		// def close(): void
+			scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 0, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+				this${native.name}->close();
+				return 0;
+			});
+			duk_put_prop_string(ctx, idxBase, "close");
+		// def endOfFile(): bool
+			scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 0, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+				auto result = this${native.name}->endOfFile();
+				duk_push_boolean(ctx, result ? 1 : 0);
+				return 1;
+			});
+			duk_put_prop_string(ctx, idxBase, "endOfFile");
+
+    $case member: MemberVariable
+		// var number: single
+			// property name
+				duk_push_string(ctx, "number");
+			// getter
+				scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 3, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+					duk_push_number(ctx, (duk_double_t)(this${native.name}->_number));
+					return 1;
+				});
+			// setter
+				scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 3, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+					this${native.name}->_number = (float)duk_to_number(ctx, 0);
+					return 0;
+				});
+			// assign
+				duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+    $case member: MemberValue
+		// val path: string
+			// property name
+				duk_push_string(ctx, "path");
+			// getter
+				scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 3, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+					this${native.name}->_path.Push();
+					return 1;
+				});
+			// assign
+				duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER);
+	}
+	// stack -> ... ; [${native.name}] ;
+	*reinterpret_cast<duk_context**>(this${native.name}) = ctx;
+	auto t = duk_get_top(ctx);
+	new (this${native.name})${native.name}();
+	assert(t == duk_get_top(ctx));
+	auto ret = scad40::duk_native<${native.name}>(ctx, -1);
+	assert((t) == duk_get_top(ctx));
+	// stack -> ... ; [${native.name}] ;
+	duk_pop(ctx);
+	assert(ret.operator->() == this${native.name});
+	assert(!ret.IsNull());
+	assert(nullptr != ret.operator ->());
+	return ret;
+}
+
+inline scad40::duk_native<${namespace}::${native.name}> ${namespace}::${native.name}::To(duk_context* ctx, duk_idx_t idx)
+{
+	if (!${namespace}::${native.name}::Is(ctx, idx))
+	{
+		duk_error(ctx, 314, "Tried to grab `%s` as a {${native.name}} (which it is not)", duk_to_string(ctx, idx));
+	}
+	return scad40::duk_native< ${namespace}::${native.name} >(ctx, idx);
+}
 #pragma endregion
 
 $case global: Global
