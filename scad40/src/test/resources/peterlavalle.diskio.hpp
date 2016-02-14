@@ -687,7 +687,7 @@ namespace diskio {
 			inline void fileChanged (const char* path)
 			{
 				fileChanged(
-					scad40::duk_string(Host(), path),
+					scad40::duk_string(Host(), path)
 				);
 			}
 
@@ -760,27 +760,27 @@ namespace diskio {
 			inline void foobar (const char* text)
 			{
 				foobar(
-					scad40::duk_string(Host(), text),
+					scad40::duk_string(Host(), text)
 				);
 			}
 			inline scad40::duk_native<peterlavalle::diskio::Reading> open (const char* path)
 			{
 				return open(
-					scad40::duk_string(Host(), path),
+					scad40::duk_string(Host(), path)
 				);
 			}
 			inline void subscribe (const char* path, scad40::duk_ptr<peterlavalle::diskio::ChangeListener>& listener)
 			{
 				subscribe(
 					scad40::duk_string(Host(), path),
-					listener,
+					listener
 				);
 			}
 			inline void unsubscribe (const char* path, scad40::duk_ptr<peterlavalle::diskio::ChangeListener>& listener)
 			{
 				unsubscribe(
 					scad40::duk_string(Host(), path),
-					listener,
+					listener
 				);
 			}
 
@@ -865,7 +865,7 @@ namespace diskio {
 				// def foobar(text: string): void
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->foobar(
-							scad40::duk_string(ctx, 0),
+							scad40::duk_string(ctx, 0)
 						);
 
 						return 0;
@@ -876,7 +876,7 @@ namespace diskio {
 				// def open(path: string): Reading
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 1, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						auto result = thisDisk->open(
-							scad40::duk_string(ctx, 0),
+							scad40::duk_string(ctx, 0)
 						);
 						result.Push();
 						return 1;
@@ -899,7 +899,7 @@ namespace diskio {
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->subscribe(
 							scad40::duk_string(ctx, 0),
-							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1),
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
 						);
 
 						return 0;
@@ -910,7 +910,7 @@ namespace diskio {
 					scad40::push_selfie<peterlavalle::diskio::Disk>(ctx, thisDisk, 2, [](duk_context* ctx, peterlavalle::diskio::Disk* thisDisk) -> duk_ret_t {
 						thisDisk->unsubscribe(
 							scad40::duk_string(ctx, 0),
-							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1),
+							scad40::duk_ptr<peterlavalle::diskio::ChangeListener>(ctx, 1)
 						);
 
 						return 0;
@@ -1032,21 +1032,21 @@ inline bool peterlavalle::diskio::ChangeListener::As(duk_context* ctx, duk_idx_t
 
 	//
 	// check each function / member ... not sure what to do about values
+        // check def fileChanged(path: string): void
+            duk_get_prop_string(ctx, idx, "fileChanged");
+            // stack -> ... ; idx .. base .. ; ?fileChanged() ;
+            if (duk_is_function(ctx, -1))
+            {
+                duk_pop(ctx);
+            }
+            else
+            {
+                duk_pop(ctx);
+                return false;
+            }
+            // stack -> ... ; idx .. base .. ;
 
-	duk_get_prop_string(ctx, idx, "fileChanged");
-	// stack -> ... ; idx .. base .. ; ?fileChanged() ;
-
-	if (duk_is_function(ctx, -1))
-		duk_pop(ctx);
-	else
-	{
-		duk_pop(ctx);
-		return false;
-	}
-
-
-
-
+    // yeah - it's probably what we want
 	return true;
 }
 
@@ -1119,7 +1119,7 @@ inline scad40::duk_native<peterlavalle::diskio::Reading> peterlavalle::diskio::R
 
 				auto result = thisReading->read();
 
-				duk_push_uint(ctx, result);
+				duk_push_int(ctx, result);
 				return 1;
 
 			});
@@ -1150,12 +1150,13 @@ inline scad40::duk_native<peterlavalle::diskio::Reading> peterlavalle::diskio::R
 				duk_push_string(ctx, "number");
 			// getter
 				scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-					duk_push_number(ctx, (duk_double_t)(thisReading->_number));
+					auto result = thisReading->_number;
+					duk_push_number(ctx, result);
 					return 1;
 				});
 			// setter
 				scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-					thisReading->_number = (float)duk_to_number(ctx, 0);
+					thisReading->_number = (float) duk_to_number(ctx, 0);
 					return 0;
 				});
 			// assign
@@ -1166,7 +1167,8 @@ inline scad40::duk_native<peterlavalle::diskio::Reading> peterlavalle::diskio::R
 				duk_push_string(ctx, "path");
 			// getter
 				scad40::push_selfie< peterlavalle::diskio::Reading >(ctx, thisReading, 3, [](duk_context* ctx, peterlavalle::diskio::Reading* thisReading) -> duk_ret_t {
-					thisReading->_path.Push();
+					auto result = thisReading->_path;
+					result.Push();
 					return 1;
 				});
 			// assign
