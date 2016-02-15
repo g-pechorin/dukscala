@@ -1,0 +1,1324 @@
+$import peterlavalle.scad40.Model._
+
+$def(module: Module)
+
+#pragma once
+
+///
+/// These classes are used to bridge-the-gap between Scala-JS and C++
+/// ... they're not thread-safe but then ... neither is DukTape
+/// ... all modules (should) use the same definition of them - so don't worry about namespace collisions
+#ifndef _scad40_head
+#define _scad40_head
+
+#include <duktape.h>
+
+#include "pal_adler32.hpp"
+
+#include <array>
+#include <string>
+#include <iostream>
+
+#include <assert.h>
+#include <stdint.h>
+
+#define scad40__pre_string ("\xFF" "scad40")
+#define scad40__pre_strlen (7)
+
+namespace scad40
+{
+	/// goofy wrapper to push member-like functions (so methods and accessors)
+	/// ... should I call it "push_method?" or "push_member?"
+	template<typename T>
+	void push_selfie(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*));
+
+	/// checks if the table at {idx} has a key named {key} and
+	/// @returns false if the value is undefined_or_null.
+	/// restores the stack
+	bool has_prop(duk_context* ctx, const duk_idx_t idx, const char* key);
+
+	/// base object for things that play with with pointers
+	/// don't look to closesly at the guts
+	/// used for both the "_handle" subclasses and the generated derrived types
+	class _object
+	{
+		/// magical pointer to the object's hosting context
+		/// ... it will/should be set before construction (did I mention `magic`)
+		duk_context* _ctx;
+
+		friend struct _handle;
+
+		/// usercode should never actually call this (trust me)
+		_object(duk_context* ctx) :
+			_ctx(ctx)
+		{
+			assert(nullptr != _ctx);
+		}
+
+	protected:
+		/// copy operators are hidden since they should only be used by _handle
+		_object(const _object& other) :
+			_object(other._ctx)
+		{
+		}
+
+		_object& operator=(const _object& other)
+		{
+			assert(_ctx == other._ctx);
+			return *this;
+		}
+
+		/// usercode will laways use this method to invoke the parent
+		_object(void)
+		{
+			/// this will/should have been magically setup
+			assert(nullptr != _ctx);
+		}
+
+	public:
+		duk_context* Host(void) const
+		{
+			return _ctx;
+		}
+	};
+
+	/// this refers to a thing in script-land but is not itself a thing
+	/// it's used for the duk_(ref|str|ptr) classes
+	/// Google calls it a handle - https://developers.google.com/v8/embed?hl=en
+	struct _handle : scad40::_object
+	{
+		/// pushes (a reference to) the value onto the stack (or maybe null if the value is null)
+		void Push(void) const
+		{
+			duk_push_global_stash(_ctx);
+			// stack -> ... ; [stash] ;
+
+			// because we're using the pointer as a GUID this is acceptable
+			duk_push_pointer(_ctx, const_cast<scad40::_handle*>(this));
+			// stack -> ... ; [stash] ; *this ;
+
+			duk_get_prop(_ctx, -2);
+			// stack -> ... ; [stash] ; value ;
+
+			duk_remove(_ctx, -2);
+			// stack -> ... ; value ;
+		}
+
+		bool IsNull(void) const
+		{
+			// stack -> ... ;
+
+			duk_push_global_stash(Host());
+			// stack -> ... ; [global stash] ;
+
+			duk_push_pointer(_ctx, const_cast<scad40::_handle*>(this));
+			// stack -> ... ; [global stash] ; *this ;
+
+			duk_get_prop(Host(), -2);
+			// stack -> ... ; [global stash] ; value ;
+
+			const bool result = duk_is_null_or_undefined(Host(), -1) ? true : false;
+
+			duk_pop_2(Host());
+			// stack -> ... ;
+
+			return result;
+		}
+
+	protected:
+
+		/// making this protected approaximates an abstract class without introducting method-tables
+		/// ... introducting method-tables would kill us in evil little ways
+		_handle(duk_context* ctx) : scad40::_object(ctx) { }
+
+		/// partially expose the copy constructor to allow subclasses copy instances
+		_handle(const scad40::_handle& that) : scad40::_object(that)
+		{
+			duk_push_global_stash(_ctx);
+			// stack -> ... ; [stash] ;
+
+			duk_push_pointer(_ctx, this);
+			// stack -> ... ; [stash] ; *this ;
+
+			duk_push_pointer(_ctx, const_cast<scad40::_handle*>(&that));
+			// stack -> ... ; [stash] ; *this ; *that ;
+
+			duk_get_prop(_ctx, -3);
+			// stack -> ... ; [stash] ; *this ; value ;
+
+			duk_put_prop(_ctx, -3);
+			// stack -> ... ; [stash] ;
+
+			duk_pop(_ctx);
+		}
+
+		/// partially expose the copy operator to allow subclasses copy instances
+		_handle& operator=(const scad40::_handle& that)
+		{
+			assert(_ctx == that._ctx);
+
+			// stack -> ... ;
+
+			duk_push_global_stash(_ctx);
+			// stack -> ... ; [stash] ;
+
+			duk_push_pointer(_ctx, const_cast<scad40::_handle*>(this));
+			// stack -> ... ; [stash] ; *this ;
+
+			duk_push_pointer(_ctx, const_cast<scad40::_handle*>(&that));
+			// stack -> ... ; [stash] ; *this ; *that ;
+
+			duk_get_prop(_ctx, -3);
+			// stack -> ... ; [stash] ; *this ; value ;
+
+			duk_put_prop(_ctx, -3);
+			// stack -> ... ; [stash] ;
+
+			duk_pop(_ctx);
+			// stack -> ... ;
+
+			return *this;
+		}
+
+		~_handle(void)
+		{
+			if (nullptr == _ctx)
+			{
+				return;
+			}
+
+			// stack -> ... ;
+
+			duk_push_global_stash(_ctx);
+			// stack -> ... ; [global stash] ;
+
+			duk_push_pointer(_ctx, this);
+			// stack -> ... ; [global stash] ; *this ;
+
+			duk_del_prop(_ctx, -2);
+			// stack -> ... ; [global stash] ;
+
+			duk_pop(_ctx);
+			// stack -> ... ;
+
+			_ctx = nullptr;
+		}
+	};
+
+	/// this allows manipulating a pure-script object from C++ using a predefined interface
+	template<typename T>
+	struct duk_ptr : public scad40::_handle
+	{
+		duk_ptr(duk_context* ctx, duk_idx_t idx) : scad40::_handle(ctx)
+		{
+			idx = duk_normalize_index(ctx, idx);
+			assert(T::As(ctx, idx));
+
+			// stack -> ... ; idx ... ;
+
+			duk_push_global_stash(ctx);
+			// stack -> ... ; idx ... ; [stash] ;
+
+			duk_push_pointer(ctx, this);
+			// stack -> ... ; idx ... ; [stash] ; *this ;
+
+			duk_dup(ctx, idx);
+			// stack -> ... ; idx ... ; [stash] ; *this ; [val] ;
+
+			duk_put_prop(ctx, -3);
+			// stack -> ... ; idx ... ; [stash] ;
+
+			duk_pop(ctx);
+			// stack -> ... ; idx ... ;
+		}
+
+		T* operator->(void) { return reinterpret_cast<T*>(this); }
+
+		const T* operator->(void) const { return reinterpret_cast<T*>(this); }
+	};
+
+	/// baseclass used for _handle things with a native pointer
+	/// ... which is really just an optimization for strings and native objects ...
+	template<typename T>
+	struct _native : scad40::_handle
+	{
+
+	protected:
+		T* _pointer;
+		_native(duk_context* ctx) : scad40::_handle(ctx) { }
+
+	public:
+		T* operator->(void) { return _pointer; }
+		const T* operator->(void) const { return _pointer; }
+	};
+
+	/// holds a ref to a C++ object built for duktape using magic
+	/// the pointer is updated on copy so that you get a bit faster access to it
+	template<typename T>
+	struct duk_native : public scad40::_native<T>
+	{
+	public:
+
+		/// grab an instance from the stack. fails violently if types are wrong
+		duk_native(duk_context* ctx, duk_idx_t idx) :
+			scad40::_native<T>(ctx)
+		{
+			idx = duk_normalize_index(ctx, idx);
+			assert(T::Is(ctx, idx));
+			// stack -> ... ; [T] ; ... ;
+
+			duk_get_prop_string(ctx, idx, "\xFF" "*");
+			// stack -> ... ; [T] ; ... ; T* ;
+
+			_pointer = (T*)duk_to_pointer(ctx, -1);
+
+			duk_pop(ctx);
+			// stack -> ... ; [T] ; ... ;
+
+			duk_push_global_stash(ctx);
+			// stack -> ... ; [T] ; ... ; [stash] ;
+
+			duk_push_pointer(ctx, this);
+			// stack -> ... ; [T] ; ... ; [stash] ; *this ;
+
+			duk_dup(ctx, idx);
+			// stack -> ... ; [T] ; ... ; [stash] ; *this ; [T] ;
+
+			duk_put_prop(ctx, -3);
+			// stack -> ... ; [T] ; ... ; [stash] ;
+
+			duk_pop(ctx);
+			// stack -> ... ; [T] ; ... ;
+		}
+
+	};
+
+	/// holds a ref to a duktape string using magic
+	/// as much as possible I stick strings into duktape and try not to think too hard about them
+	/// the pointer is updated on copy so that you get a bit faster access to it
+	class duk_string : public scad40::_native<const char>
+	{
+	public:
+		const char* c_str(void) const { return _pointer; }
+		operator std::string (void) const { return _pointer; }
+
+		/// create an instance and set it to point to the passed string
+		duk_string(duk_context* ctx, const char* str = nullptr) :
+			scad40::_native<const char>(ctx)
+		{
+			duk_push_global_stash(ctx);
+			// stack -> ... ; [stash] ;
+
+			duk_push_pointer(ctx, this);
+			// stack -> ... ; [stash] ; *this ;
+
+			if (nullptr == str)
+			{
+				duk_push_undefined(ctx);
+				_pointer = nullptr;
+			}
+			else
+			{
+				_pointer = duk_push_string(ctx, str);
+			}
+			// stack -> ... ; [stash] ; *this ; "_pointer" ;
+
+			duk_put_prop(ctx, -3);
+			// stack -> ... ; [stash] ;
+
+			duk_pop(ctx);
+			// stack -> ... ;
+		}
+
+		/// create an instance and set it to point to the passed string
+		duk_string(duk_context* ctx, const std::string&);
+
+		/// grab an instance from the stack
+		duk_string(duk_context* ctx, duk_idx_t idx) :
+			scad40::_native<const char>(ctx)
+		{
+			assert(duk_is_string(ctx, idx));
+
+			idx = duk_normalize_index(ctx, idx);
+
+			// stack -> ... ; "val" ; ... ;
+
+			auto stash = duk_get_top(ctx);
+			duk_push_global_stash(ctx);
+			// stack -> ... ; "val" ; ... ; [stash] ;
+
+			duk_push_pointer(ctx, this);
+			// stack -> ... ; "val" ; ... ; [stash] ; *this ;
+
+			_pointer = duk_is_null_or_undefined(ctx, idx) ? nullptr : duk_to_string(ctx, idx);
+			if (!_pointer)
+				duk_push_undefined(ctx);
+			else
+				duk_dup(ctx, idx);
+			// stack -> ... ; "val" ; ... ; [stash] ; *this ; "val" ;
+
+			duk_put_prop(ctx, stash);
+			// stack -> ... ; "val" ; ... ; [stash] ;
+
+			duk_pop(ctx);
+			// stack -> ... ; "val" ; ... ;
+		}
+
+		duk_string& operator= (const char* value)
+		{
+
+			// stack -> ... ;
+
+			auto stash = duk_get_top(Host());
+			duk_push_global_stash(Host());
+			// stack -> ... ; [stash] ;
+
+			duk_push_pointer(Host(), this);
+			// stack -> ... ; [stash] ; *this ;
+
+			duk_push_string(Host(), value);
+			// stack -> ... ; [stash] ; *this ; "value" ;
+
+			duk_put_prop(Host(), stash);
+			// stack -> ... ; [stash] ;
+
+			duk_pop(Host());
+			// stack -> ... ;
+
+			return *this;
+		}
+		duk_string& operator= (const std::string& other)	{ return *this = other.c_str(); }
+
+		bool operator== (const char* other) const			{ return 0 == strcmp(_pointer, other); }
+		bool operator== (const std::string& other) const	{ return 0 == strcmp(_pointer, other.c_str()); }
+		bool operator== (const duk_string& other) const		{ return 0 == strcmp(_pointer, other._pointer); }
+	};
+
+	/// tools to pick at DukTape's global table like we're in script-land
+	namespace env
+	{
+		/// puts whatever is on top of the stack somewhere into the global namespace
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
+		/// creates whatever tables it needs to along the way
+		/// throws an error if it finds a pre-existing value
+		void assign(duk_context* ctx, const char* key);
+
+		/// checks the global namespace for a non null_or_undefined value at path
+		bool exists(duk_context* ctx, const char* path);
+
+		/// reads something from the global namespace and pushes it on the stack
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
+		/// happily pushes undefined if there's no value there
+		void lookup(duk_context* ctx, const char* binding);
+
+		/// drops the value at key from the global namespace
+		/// happily splits up names with '.' in them - otherwise it'd redumdant
+		/// leaves empty containers et-al in place
+		/// bails if there's no key
+		/// really-really calls the delete function (instead of assigning null/undef to it)
+		/// throws an error iff nothing exists there
+		void remove(duk_context* ctx, const char* path);
+	};
+};
+
+inline bool scad40::has_prop(duk_context* ctx, const duk_idx_t idx, const char* key)
+{
+	// stack -> .. idx ... ;
+
+	duk_get_prop_string(ctx, idx, key);
+	// stack -> .. idx ... ; value ;
+
+	const bool result = duk_is_null_or_undefined(ctx, -1) ? false : true;
+
+	duk_pop(ctx);
+	// stack -> .. idx ... ;
+
+	return result;
+}
+
+template<typename T>
+inline void scad40::push_selfie<T>(duk_context* ctx, T* self, duk_idx_t nargs, duk_ret_t(*code)(duk_context*, T*))
+{
+	duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+		duk_push_current_function(ctx);
+		duk_get_prop_string(ctx, -1, "\xFF" "self");
+		duk_get_prop_string(ctx, -2, "\xFF" "code");
+		auto self = (T*)duk_to_pointer(ctx, -2);
+		auto code = (duk_ret_t(*)(duk_context*, T*))duk_to_pointer(ctx, -1);
+		duk_pop_3(ctx);
+		return code(ctx, self);
+	}, nargs);
+	duk_push_pointer(ctx, self);
+	duk_put_prop_string(ctx, -2, "\xFF" "self");
+	duk_push_pointer(ctx, code);
+	duk_put_prop_string(ctx, -2, "\xFF" "code");
+}
+
+inline void scad40::env::assign(duk_context* ctx, const char* key)
+{
+	size_t idx = 0, len = 0;
+
+	const auto val = duk_get_top(ctx);
+	// stack -> ... ; val ;
+
+	duk_push_global_object(ctx);
+	// stack -> ... ; val ; [global host] ;
+
+	while (key[idx + len])
+	{
+		// stack -> ... ; val ; [host] ;
+
+		if ('.' != key[idx + len])
+		{
+			++len;
+		}
+		else
+		{
+			duk_push_lstring(ctx, key + idx, len);
+			// stack -> ... ; val ; [outer host] ; "key" ;
+
+			duk_get_prop(ctx, -2);
+			// stack -> ... ; val ; [outer host] ; ?[inner host]? ;
+
+			if (duk_is_null_or_undefined(ctx, -1))
+			{
+				// stack -> ... ; val ; [outer host] ; <undefined> ;
+
+				duk_pop(ctx);
+				// stack -> ... ; val ; [outer host] ;
+
+				duk_push_object(ctx);
+				// stack -> ... ; val ; [outer host] ; [inner host] ;
+
+				duk_push_lstring(ctx, key + idx, len);
+				// stack -> ... ; val ; [outer host] ; [inner host] ; "key" ;
+
+				duk_dup(ctx, -2);
+				// stack -> ... ; val ; [outer host] ; [inner host] ; "key" ; [inner host] ;
+
+				duk_put_prop(ctx, -4);
+				// stack -> ... ; val ; [outer host] ; [inner host] ;
+			}
+			else if (!duk_is_object(ctx, -1))
+			{
+				duk_push_lstring(ctx, key, idx + len);
+				duk_error(ctx, 314, "Collision `%s`", duk_to_string(ctx, -1));
+				return;
+			}
+
+			// stack -> ... ; val ; [outer host] ; [inner host] ;
+
+			duk_remove(ctx, -2);
+			// stack -> ... ; val ; [inner host] ;
+
+			idx = idx + len + 1;
+			len = 0;
+		}
+	}
+
+	// stack -> ... ; val ; [host] ;
+
+	duk_push_lstring(ctx, key + idx, len);
+	// stack -> ... ; val ; [host] ; "key" ;
+
+	duk_dup(ctx, -3);
+	// stack -> ... ; val ; [host] ; "key" ; val ;
+
+	duk_remove(ctx, -4);
+	// stack -> ... ; [host] ; "key" ; val ;
+
+	duk_put_prop(ctx, -3);
+	// stack -> ... ; [host] ;
+
+	duk_pop(ctx);
+	// stack -> ... ;
+
+}
+
+inline bool scad40::env::exists(duk_context* ctx, const char* path)
+{
+	// stack -> .... base .. ;
+
+	scad40::env::lookup(ctx, path);
+	// stack -> .... base .. ; ??? ;
+
+	const auto result = duk_is_null_or_undefined(ctx, -1) ? false : true;
+
+	duk_pop(ctx);
+	// stack -> .... base .. ;
+
+	return result;
+}
+
+inline void scad40::env::lookup(duk_context* ctx, const char* binding)
+{
+	size_t idx = 0, len = 0;
+
+	auto base = duk_get_top(ctx);
+	// stack -> .... base .. ;
+
+	duk_push_global_object(ctx);
+	// stack -> .... base .. ; [global host] ;
+
+	while (binding[idx + len])
+	{
+		// stack -> .... base .. ; [host] ;
+		if ('.' != binding[idx + len])
+		{
+			++len;
+		}
+		else
+		{
+			duk_push_lstring(ctx, binding + idx, len);
+			// stack -> .... base .. ; [outer host] ; "key" ;
+
+			assert((2 + base) == duk_get_top(ctx));
+			duk_get_prop(ctx, -2);
+			// stack -> .... base .. ; [outer host] ; ?[inner host]? ;
+
+			if (duk_is_null_or_undefined(ctx, -1))
+			{
+				duk_pop_2(ctx);
+				// stack -> .... base .. ;
+
+				assert(base == duk_get_top(ctx));
+				duk_push_undefined(ctx);
+				// stack -> .... base .. ; <undefined> ;
+
+				return;
+			}
+
+			// stack -> .... base .. ; [outer host] ; [inner host] ;
+
+			duk_remove(ctx, base);
+			// stack -> .... base .. ; [inner host] ;
+
+			idx = idx + len + 1;
+			len = 0;
+		}
+	}
+
+	assert(0 != len);
+	// stack -> .... base .. ; [host] ;
+
+	duk_get_prop_string(ctx, -1, binding + idx);
+	// stack -> .... base .. ; [host] ; val ;
+
+	duk_remove(ctx, -2);
+	// stack -> .... base .. ; val ;
+}
+
+inline void scad40::env::remove(duk_context* ctx, const char* binding)
+{
+	size_t idx = 0, len = 0;
+
+	auto base = duk_get_top(ctx);
+	// stack -> .... base .. ;
+
+	duk_push_global_object(ctx);
+	// stack -> .... base .. ; [global host] ;
+
+	while (binding[idx + len])
+	{
+		// stack -> .... base .. ; [host] ;
+		if ('.' != binding[idx + len])
+		{
+			++len;
+		}
+		else
+		{
+			const char* key = duk_push_lstring(ctx, binding + idx, len);
+			// stack -> .... base .. ; [outer host] ; "key" ;
+
+			assert((2 + base) == duk_get_top(ctx));
+			duk_get_prop(ctx, -2);
+			// stack -> .... base .. ; [outer host] ; ?[inner host]? ;
+
+			if (duk_is_null_or_undefined(ctx, -1))
+			{
+				duk_pop_2(ctx);
+				// stack -> .... base .. ;
+
+				return;
+			}
+
+			// stack -> .... base .. ; [outer host] ; [inner host] ;
+
+			duk_remove(ctx, base);
+			// stack -> .... base .. ; [inner host] ;
+
+			idx = idx + len + 1;
+			len = 0;
+		}
+	}
+
+	assert(0 != len);
+	assert(0 == binding[idx + len]);
+	assert((base + 1) == duk_get_top(ctx));
+	// stack -> .... base .. ; [host] ;
+
+	duk_del_prop_string(ctx, -1, binding + idx);
+	// stack -> .... base .. ; [host] ;
+
+	duk_pop(ctx);
+	// stack -> .... base .. ;
+}
+#pragma endregion
+
+inline std::ostream& operator<<(std::ostream& ostream, const scad40::duk_string& string)
+{
+	return ostream << string.c_str();
+}
+
+#endif // ... okay - that's the end of predef
+
+
+$val namespace = module.name.replace(".", "::")
+
+$sub pull(argument: Argument)
+	$val namespace = module.name.replace(".", "::")
+	$match argument.kind
+		$case KindDeclaration(Script(name: String, _))
+			scad40::duk_ptr<${namespace}::${name}>(ctx, ${argument.name})
+		$case KindSingle
+			(float) duk_to_number(ctx, ${argument.name})
+		$case KindString
+			scad40::duk_string(ctx, ${argument.name})
+	$end
+$end
+
+$alt stack(argument: Argument)
+	$match argument.kind
+		$case KindBool
+						duk_push_boolean(ctx, ${argument.name} ? 1 : 0)
+		$case KindDeclaration(_: TDeclaration)
+						${argument.name}.Push()
+		$case KindSingle
+						duk_push_number(ctx, ${argument.name})
+		$case KindSInt8
+						duk_push_int(ctx, ${argument.name})
+		$case KindSInt16
+						duk_push_int(ctx, ${argument.name})
+		$case KindString
+						${argument.name}.Push()
+		$case KindVoid
+	$end
+$end
+
+$sub push(kind: TKind)
+	$match kind
+		$case KindVoid
+						return 0;
+		$case _
+						${stack(Argument("result", kind)).trim};
+						return 1;
+	$end
+$end
+
+$sub cppType(kind: TKind)
+	$val namespace = module.name.replace(".", "::")
+	$match kind
+			$case KindBool
+					bool
+			$case KindDeclaration(Native(name, _))
+					scad40::duk_native<${namespace}::${name}>
+			$case KindDouble
+					double
+			$case KindSingle
+					float
+			$case KindSInt8
+					int8_t
+			$case KindSInt16
+					int16_t
+			$case KindSInt32
+					int32_t
+			$case KindString
+					scad40::duk_string
+			$case KindVoid
+					void
+	$end
+$end
+
+$sub argType(argument: Argument)
+	$val namespace = module.name.replace(".", "::")
+		$match argument.kind
+				$case KindBool
+						bool $(argument.name)
+				$case KindDeclaration(Native(name, _))
+						scad40::duk_native<${namespace}::${name}>& $(argument.name)
+				$case KindDeclaration(Script(name, _))
+						scad40::duk_ptr<${namespace}::${name}>& $(argument.name)
+				$case KindDouble
+						double& $(argument.name)
+				$case KindSingle
+						float $(argument.name)
+				$case KindSInt8
+						int8_t $(argument.name)
+				$case KindSInt16
+						int16_t $(argument.name)
+				$case KindSInt32
+						int32_t $(argument.name)
+				$case KindString
+						scad40::duk_string& $(argument.name)
+		$end
+$end
+
+$sub memberPrototype(member: TMember)
+		$val cppTy = (kind: TKind) => cppType(module, kind).trim
+		$match member
+				$case MemberRaw(name, kind)
+						$<kind> _$(name)
+				$case memberFunction: MemberFunction
+						${cppTy(memberFunction.resultKind)} $(memberFunction.name) (${memberFunction.arguments.foldLeft("")((l, a) => l + ", " + argType(module, a).trim).replaceAll("^, ", "")})
+				$case MemberVariable(name, kind)
+						${cppTy(kind)} _${name}
+				$case MemberValue(name, kind)
+						${cppTy(kind)} _${name}
+		$end
+$end
+
+$sub constCharWrapper(argument: Argument)
+	$match argument.kind
+		$case KindString
+			const char* $(argument.name)
+		$case _
+			${argType(module, argument).trim}
+	$end
+$end
+
+$sub constCharWrapper(memberFunction: MemberFunction)
+	$val parameters = memberFunction.arguments.foldLeft("")((l, a) => l + ", " + constCharWrapper(module, a).trim).replaceAll("^, ", "")
+	$val namespace = module.name.replace(".", "::")
+	$match memberFunction.resultKind
+		$case KindVoid
+			inline void $(memberFunction.name) (${parameters})
+			{
+				$(memberFunction.name)(
+		$case KindDeclaration(Native(name: String, _))
+			inline scad40::duk_native<${namespace}::${name}> $(memberFunction.name) (${parameters})
+			{
+				return $(memberFunction.name)(
+	$end
+			$each memberFunction.arguments.zipWithIndex
+			$case (argument: Argument, index)
+					${if (argument.kind == KindString) "scad40::duk_string(Host(), " + argument.name + ")" else argument.name}${if ((index + 1) != memberFunction.arguments.size) "," else ""}
+			$end
+				);
+			}
+$end
+
+$each module.name.split("\\.")
+$case namespace
+namespace $(namespace) {
+$end
+
+$each module.contents
+$case Script(name: String, members: Stream[TMember])
+	/// a script class
+	// script C++ classes are really just wrappers to access the ECMAScript implementation
+	class $(name)
+	{
+		/// used for const-char wrapping
+		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
+	public:
+
+		/// the user's requested members
+		$each members
+		$case member
+			$map memberPrototype(member);
+		$end
+
+		/// alternative const char* interfaces
+		$each members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
+		$case memberFunction: MemberFunction
+			$run constCharWrapper(memberFunction)
+		$end
+
+		/// create an instance of a scripted class that extends this class
+		static scad40::duk_ptr<$(name)> New(duk_context* ctx, const char* subclass);
+
+		/// is the value at the stack index useable as an instance of this class
+		static bool As(duk_context* ctx, duk_idx_t idx);
+
+		/// pull whatever is at the stack index into C++
+		static scad40::duk_ptr<$(name)> To(duk_context* ctx, duk_idx_t idx);
+	};
+
+$case native: Native
+	/// a native class
+	struct $(native.name) : public scad40::_object
+	{
+		/// the $(native.name) constructor
+		/// ... the user must implement this
+		$(native.name)(void);
+
+		$(native.name)(const $(native.name)&) = delete;
+		$(native.name)& operator= (const $(native.name)&) = delete;
+
+		/// the user's requested members
+		/// the user must implement these
+		$each native.members
+		$case member
+			$map memberPrototype(member);
+		$end
+
+		/// alternative const char* interfaces
+		$each native.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
+		$case memberFunction: MemberFunction
+			$run constCharWrapper(memberFunction)
+		$end
+
+		/// the $(native.name) destructor
+		/// the user must implement this
+		~$(native.name)(void);
+
+		/// queries if the passed index is a $(native.name) object
+		static bool Is(duk_context* ctx, duk_idx_t idx);
+
+		/// creates a new $(native.name) object and returns a magical pointer to it
+		static scad40::duk_native<$(native.name)> New(duk_context* ctx);
+
+		/// pulls the the passed index into a $(native.name) object
+		/// ... if the passed index is not a $(native.name) object - behaviour is undefined
+		static scad40::duk_native<$(native.name)> To(duk_context* ctx, duk_idx_t idx);
+	};
+
+$case global: Global
+	/// a global class
+	struct $(global.name) : public scad40::_object
+	{
+		/// the $(global.name) constructor
+		/// ... the user must implement this
+		$(global.name)(void);
+
+		$(global.name)(const $(global.name)&) = delete;
+		$(global.name)& operator = (const $(global.name)&) = delete;
+
+		/// the user's requested members
+		/// ... the user must implement these
+		$each global.members
+		$case member
+			$map memberPrototype(member);
+				$end
+
+		/// alternative const char* interfaces
+		$each global.members.filter(m => m.isInstanceOf[MemberFunction] && m.asInstanceOf[MemberFunction].arguments.exists(_.kind == KindString))
+		$case memberFunction: MemberFunction
+			$run constCharWrapper(memberFunction)
+		$end
+
+		/// the $(global.name) destructor
+		/// ... the user must implement this
+		~$(global.name)(void);
+
+		/// locates the singleton instance
+		static $(global.name)& get(duk_context*);
+	};
+
+$end
+
+	/// sets up the tables and calls to this VM
+	inline void install(duk_context* ctx)
+	{
+		const auto idxBase = duk_get_top(ctx);
+
+		// >> check for name collisions
+		if (scad40::env::exists(ctx, "$(module.name)"))
+		{
+			duk_error(ctx, 314, "Can't redefine module `$(module.name)`");
+			return;
+		}
+
+		// >> bind lambdas for native class construction
+$each module.contents.filter(_.isInstanceOf[Native])
+$case native: Native
+		{
+
+			// stack -> .... base .. ;
+
+			duk_push_c_function(ctx, [](duk_context* ctx) -> duk_ret_t {
+
+				auto ptr = $(namespace)::$(native.name)::New(ctx);
+
+				ptr.Push();
+
+				assert($(namespace)::$(native.name)::Is(ctx, -1) && "SAN failed");
+
+				return 1;
+
+			}, 0);
+			// stack -> .... base .. ; class:$(native.name)() ;
+
+			scad40::env::assign(ctx, "$(module.name).$(native.name)");
+			// stack -> .... base .. ;
+
+			assert(duk_get_top(ctx) == idxBase);
+		}
+$end
+
+		// >> allocate / in-place-new and store ALL global objects (including context pointers)
+		{
+			// stack -> .... base .. ;
+			$each module.contents.filter(_.isInstanceOf[Global])
+			$case Global(globalName: String, members: Stream[TMember])
+			// $(module.name)/$(globalName)
+			{
+				duk_push_object(ctx);
+				// stack -> .... base .. ; [$(globalName)] ;
+
+				$(namespace)::$(globalName)* this$(globalName) = ($(namespace)::$(globalName)*) duk_alloc(ctx, sizeof($(namespace)::$(globalName)));
+				duk_push_pointer(ctx, this$(globalName));
+				// stack -> .... base .. ; [$(globalName)] ; *$(globalName) ;
+
+				duk_put_prop_string(ctx, idxBase, "\xFF" "*$(globalName)");
+				// stack -> .... base .. ; [$(globalName)] ;
+
+				scad40::push_selfie<$(namespace)::$(globalName)>(ctx, this$(globalName), 0, [](duk_context* ctx, $(namespace)::$(globalName)* this$(globalName)) -> duk_ret_t {
+
+					assert(ctx == this$(globalName)->Host());
+
+					this$(globalName)->~$(globalName)();
+					duk_free(ctx, this$(globalName));
+					// scad40::env::remove(ctx, "$(module.name).$(globalName)");
+					// TODO ; find a way to actually DO THIS!?!?
+
+					return 0;
+				});
+				// stack -> .... base .. ; [$(globalName)] ; ~$(globalName)() ;
+
+				duk_set_finalizer(ctx, idxBase);
+				// stack -> .... base .. ; [$(globalName)] ;
+
+				$each members.filterNot(_.isInstanceOf[MemberRaw])
+				$case member: MemberFunction
+				// $(member.source)
+					scad40::push_selfie<$(namespace)::$(globalName)>(ctx, this$(globalName), ${member.arguments.length.toString}, [](duk_context* ctx, $(namespace)::$(globalName)* this$(globalName)) -> duk_ret_t {
+						${if (member.resultKind != KindVoid) "auto result = " else ""}this$(globalName)->$(member.name)(
+						$each member.arguments.zipWithIndex
+						$case (Argument(_, kind), index)
+							$map pull{Argument(index.toString, kind)}${if ((index + 1) != member.arguments.size) "," else ""}
+						$end
+						);
+						$run push(member.resultKind)
+					});
+					duk_put_prop_string(ctx, idxBase, "$(member.name)");
+
+				$case member: MemberVariable
+				// $(member.source)
+					duk_push_string(ctx, "${member.name}");
+					scad40::push_selfie<${namespace}::${globalName}>(ctx, this${globalName}, 3, [](duk_context* ctx, ${namespace}::${globalName}* this${globalName}) -> duk_ret_t {
+					$match member.kind
+					$case KindString
+						this${globalName}->_${member.name}.Push();
+					$end
+						return 1;
+					});
+					scad40::push_selfie<${namespace}::${globalName}>(ctx, this${globalName}, 3, [](duk_context* ctx, ${namespace}::${globalName}* this${globalName}) -> duk_ret_t {
+					$match member.kind
+					$case KindString
+						this${globalName}->_${member.name} = scad40::duk_string(ctx, 0);
+					$end
+						return 0;
+					});
+					duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+				$end
+				assert(duk_get_top(ctx) == 1 + idxBase);
+
+				// stack -> .... base .. ; [$(globalName)] ;
+
+				scad40::env::assign(ctx, "$(module.name).$(globalName)");
+				// stack -> .... base .. ;
+
+				*reinterpret_cast<duk_context**>(this$(globalName)) = ctx;
+				new (this$(globalName)) $(namespace)::$(globalName)();
+
+				assert(duk_get_top(ctx) == idxBase);
+			}
+			$end
+		}
+		assert(duk_get_top(ctx) == idxBase);
+	}
+$each module.name.split("\\.")
+$case namespace
+}
+$end
+
+// =====================================================================================================================
+// boilerplate usercode implementations - these things wrap/cast/adapt stuff for your "real" methods
+// ---------------------------------------------------------------------------------------------------------------------
+
+$each module.contents
+$case script: Script
+#pragma region "script $(script.name)"
+
+$each script.members.filter(_.isInstanceOf[MemberFunction])
+$case member: MemberFunction
+$val parameters = member.arguments.map(a => argType(module, a).trim).foldLeft("")(_ + ", " + _).replaceAll("^, ", "")
+inline ${cppType(module, member.resultKind).trim} ${namespace}::${script.name}::${member.name}(${parameters})
+{
+	auto ptr = reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this);
+	auto ctx = Host();
+
+	assert(ctx == ptr->Host() && "SAN failed");
+	$each member.arguments
+		$case Argument(name, KindString)
+			assert(ctx == path.Host() && "Arg SAN failed");
+		$case Argument(_, kind)
+			${sys.error("Update script-thunker:sanity to handle kind:" + kind)}
+	$end
+
+	const auto base = duk_get_top(ctx);
+
+	// stack -> .. base .. ;
+
+	ptr->Push();
+	// stack -> .. base .. ; [self] ;
+
+#ifdef _DEBUG
+	const auto is_object = duk_is_object(ctx, -1) ? true : false;
+	const auto is_null = ptr->IsNull();
+	duk_get_prop_string(ctx, -1, "${member.name}");
+	// stack -> .. base .. ; [self] ; ${member.name}() ;
+
+	auto is_function = duk_is_function(ctx, -1) ? true : false;
+	duk_pop(ctx);
+	// stack -> .. base .. ; [self] ;
+#endif
+
+	duk_push_string(ctx, "${member.name}");
+	// stack -> .. base .. ; [self] ; "${member.name}" ;
+
+$each member.arguments /* push arguments using the stack alt-template */
+$case argument: Argument
+	${stack(argument).trim};
+$end
+
+#ifndef _DEBUG
+	duk_call_prop(ctx, base, ${member.arguments.size});
+#else
+	auto result = duk_pcall_prop(ctx, base, ${member.arguments.size});
+	if (DUK_EXEC_SUCCESS != result)
+	{
+		const char* message = duk_safe_to_string(ctx, -1);
+		std::cerr << "Failed to call `${module.name}/${script.name}::${member.name}()` because\n\t" << message << std::endl;
+		duk_error(ctx, 314, "Failed to call `${module.name}/${script.name}::${member.name}()` because\n\t%s", message);
+	}
+#endif
+	// stack -> .. base .. ; ?result? ;
+
+$match member.resultKind
+$case KindVoid
+	duk_pop(ctx);
+	return;
+$case kind
+	${sys.error("Update script-thunker:return to handle kind:" + kind)}
+$end
+}
+$end
+
+
+inline scad40::duk_ptr<${namespace}::${script.name}> ${namespace}::${script.name}::New(duk_context* ctx, const char* subclass)
+{
+	// stack -> ... ;
+	scad40::env::lookup(ctx, subclass);
+
+	// stack -> ... ; ?class? ;
+	if (!duk_is_function(ctx, -1))
+	{
+		duk_pop(ctx);
+		duk_error(ctx, 314, "Thing `%s` is not a function", subclass);
+	}
+
+	// stack -> ... ; class() ;
+	duk_new(ctx, 0);
+	assert(duk_is_object(ctx, -1) && "SAN failed");
+
+	// stack -> ... ; ?object? ;
+	if (!${namespace}::${script.name}::As(ctx, -1))
+	{
+		duk_pop(ctx);
+		duk_error(ctx, 314, "Thing `%s` is not usable as ${namespace}::${script.name}", subclass);
+	}
+
+	// stack -> ... ; object ;
+	scad40::duk_ptr<${namespace}::${script.name}> object(ctx, -1);
+	duk_pop(ctx);
+
+	// stack -> ... ;
+	assert(!object.IsNull());
+
+	return object;
+}
+
+inline bool ${namespace}::${script.name}::As(duk_context* ctx, duk_idx_t idx)
+{
+	// stack -> ... ; idx .. base .. ;
+
+	//
+	// check each function / member ... not sure what to do about values
+$each script.members.filter(_.isInstanceOf[MemberFunction])
+$case member: MemberFunction
+		// check ${member.source}
+			duk_get_prop_string(ctx, idx, "${member.name}");
+			// stack -> ... ; idx .. base .. ; ?${member.name}() ;
+
+			if (duk_is_function(ctx, -1))
+			{
+				duk_pop(ctx);
+			}
+			else
+			{
+				duk_pop(ctx);
+				return false;
+			}
+			// stack -> ... ; idx .. base .. ;
+$end
+
+	// yeah - it's probably what we want
+	return true;
+}
+
+inline scad40::duk_ptr<${namespace}::${script.name}> ${namespace}::${script.name}::To(duk_context* ctx, duk_idx_t idx)
+{
+	return scad40::duk_ptr<${namespace}::${script.name}>(ctx, idx);
+}
+#pragma endregion
+
+$case native: Native
+#pragma region "native $(native.name)"
+inline bool ${namespace}::${native.name}::Is(duk_context* ctx, duk_idx_t idx)
+{
+	// stack -> ... ; ?[T]? ;
+	if (!duk_is_object(ctx, idx))
+	{
+		return false;
+	}
+	duk_get_prop_string(ctx, idx, "\xFF" "typeid().name()");
+	// stack -> ... ; ?[T]? ; ?"${native.name}"? ;
+	const char* that = duk_to_string(ctx, -1);
+	static const char* name = typeid(${namespace}::${native.name}).name();
+	const bool matches = strcmp(name, that) ? false : true;
+	duk_pop(ctx);
+	// stack -> ... ; ?[T]? ;
+	return matches;
+}
+
+inline scad40::duk_native<${namespace}::${native.name}> ${namespace}::${native.name}::New(duk_context* ctx)
+{
+	${native.name}* this${native.name} = (${native.name}*)duk_alloc(ctx, sizeof(${native.name}));
+	const auto idxBase = duk_get_top(ctx);
+	// stack -> ... ;
+	duk_push_object(ctx);
+	// stack -> ... ; [${native.name}] ;
+	scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 0, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+		this${native.name}->~${native.name}();
+		duk_free(ctx, this${native.name});
+		return 0;
+	});
+	// stack -> ... ; [${native.name}] ; ~${native.name}() ;
+	duk_set_finalizer(ctx, idxBase);
+	// stack -> ... ; [${native.name}] ;
+	duk_push_string(ctx, typeid(${namespace}::${native.name}).name());
+	// stack -> ... ; [${native.name}] ; typeid(${namespace}::${native.name}).name() ;
+	duk_put_prop_string(ctx, idxBase, "\xFF" "typeid().name()");
+	// stack -> ... ; [${native.name}] ;
+	assert(${namespace}::${native.name}::Is(ctx, -1));
+	duk_push_pointer(ctx, this${native.name});
+	// stack -> ... ; [${native.name}] ; *${native.name} ;
+	duk_put_prop_string(ctx, idxBase, "\xFF" "*");
+	// stack -> ... ; [${native.name}] ;
+	{
+	$each native.members.filterNot(_.isInstanceOf[MemberRaw])
+	$case member: MemberFunction
+		// ${member.source}
+			scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 0, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+			$val parameters = member.arguments.zipWithIndex.map{case(a, i) => Argument(i.toString, a.kind)}.foldLeft("")((l, a) => l + ", " + pull(module, a).trim).replaceAll("^, ", "")
+			$match member.resultKind
+			$case KindVoid
+				this${native.name}->${member.name}(${parameters});
+				return 0;
+			$case _
+				auto result = this${native.name}->${member.name}(${parameters});
+				${push(module, member.resultKind).trim.split("\r?\n").foldLeft("")(_ + "\n\t\t\t\t" + _.trim).trim}
+			$end
+			});
+			duk_put_prop_string(ctx, idxBase, "${member.name}");
+
+	$case member: MemberVariable
+		// ${member.source}
+			// property name
+				duk_push_string(ctx, "${member.name}");
+			// getter
+				scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 3, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+					auto result = this${native.name}->_${member.name};
+					${push(module, member.kind).trim.split("\r?\n").foldLeft("")(_ + "\n\t\t\t\t\t" + _.trim).trim}
+				});
+			// setter
+				scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 3, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+					this${native.name}->_${member.name} = ${pull(module, Argument("0", member.kind)).trim};
+					return 0;
+				});
+			// assign
+				duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_SETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+
+	$case member: MemberValue
+		// ${member.source}
+			// property name
+				duk_push_string(ctx, "${member.name}");
+			// getter
+				scad40::push_selfie< ${namespace}::${native.name} >(ctx, this${native.name}, 3, [](duk_context* ctx, ${namespace}::${native.name}* this${native.name}) -> duk_ret_t {
+					auto result = this${native.name}->_${member.name};
+					${push(module, member.kind).trim.split("\r?\n").foldLeft("")(_ + "\n\t\t\t\t\t" + _.trim).trim}
+				});
+			// assign
+				duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER);
+	$end
+	}
+	// stack -> ... ; [${native.name}] ;
+	*reinterpret_cast<duk_context**>(this${native.name}) = ctx;
+	auto t = duk_get_top(ctx);
+	new (this${native.name})${native.name}();
+	assert(t == duk_get_top(ctx));
+	auto ret = scad40::duk_native<${native.name}>(ctx, -1);
+	assert((t) == duk_get_top(ctx));
+	// stack -> ... ; [${native.name}] ;
+	duk_pop(ctx);
+	assert(ret.operator->() == this${native.name});
+	assert(!ret.IsNull());
+	assert(nullptr != ret.operator ->());
+	return ret;
+}
+
+inline scad40::duk_native<${namespace}::${native.name}> ${namespace}::${native.name}::To(duk_context* ctx, duk_idx_t idx)
+{
+	if (!${namespace}::${native.name}::Is(ctx, idx))
+	{
+		duk_error(ctx, 314, "Tried to grab `%s` as a {${native.name}} (which it is not)", duk_to_string(ctx, idx));
+	}
+	return scad40::duk_native< ${namespace}::${native.name} >(ctx, idx);
+}
+#pragma endregion
+
+$case global: Global
+#pragma region "global $(global.name)"
+inline $(namespace)::$(global.name)& $(namespace)::$(global.name)::get(duk_context* ctx)
+{
+	auto base = duk_get_top(ctx);
+
+	// stack -> .... base .. ;
+
+	scad40::env::lookup(ctx, "$(module.name).$(global.name)");
+	// stack -> .... base .. ; [$(global.name)] ;
+
+	duk_get_prop_string(ctx, base, "\xFF" "*$(global.name)");
+	// stack -> .... base .. ; [$(global.name)] ; $(global.name)[*] ;
+
+	auto ptr$(global.name) = reinterpret_cast<$(namespace)::$(global.name)*>(duk_to_pointer(ctx, -1));
+	duk_pop_2(ctx);
+	// stack -> .... base .. ;
+
+	return *ptr$(global.name);
+}
+#pragma endregion
+
+$end

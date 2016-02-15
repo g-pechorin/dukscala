@@ -7,7 +7,7 @@ import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.antlr.v4.runtime.dfa.DFA
 import org.junit.Assert._
 import junit.framework.TestCase
-import com.peterlavalle.DukScaCC
+import com.peterlavalle.{D40, D40$}
 
 import scala.io.Source
 
@@ -33,7 +33,7 @@ class EndToEndTest extends TestCase {
     }
   }
 
-  lazy val sourceHpp =
+  lazy val expectedHpp =
     Source.fromFile(
       new File(projectFolder, "src/test/cmake/inc/peterlavalle.diskio.hpp")
     ).mkString
@@ -43,7 +43,7 @@ class EndToEndTest extends TestCase {
       new File(projectFolder, "src/test/peterlavalle.diskio.scad40")
     ).mkString.trim.replaceAll("\r?\n", "\n")
 
-  lazy val sourceScalaJS =
+  lazy val expectedSJS =
     Source.fromFile(
       new File(projectFolder, "src/test/scala-js.txt")
     ).mkString.trim.replaceAll("\r?\n", "\n")
@@ -89,7 +89,7 @@ class EndToEndTest extends TestCase {
       leikata(expected).replaceAll("[ \t\r\n]*\n", "\n"),
       (preFolder match {
         case "dukd40/" =>
-          DukScaCC(FromAntlr4(parser.module()))
+          D40(FromAntlr4(parser.module()))
         case "scala-js/" =>
           val message = "Someone needs to create a Scala-JS template"
           fail(message)
@@ -99,9 +99,9 @@ class EndToEndTest extends TestCase {
   }
 
   def testScalaJS(): Unit =
-    prefixIs("scala-js/", sourceScalaJS)
+    prefixIs("scala-js/", expectedSJS)
 
   def testDukAla(): Unit =
-    prefixIs("dukd40/", sourceHpp)
+    prefixIs("dukd40/", expectedHpp)
 }
 
