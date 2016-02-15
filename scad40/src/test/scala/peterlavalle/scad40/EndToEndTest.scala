@@ -1,7 +1,7 @@
 package peterlavalle.scad40
 
 import java.util
-
+import java.io.File
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.antlr.v4.runtime.dfa.DFA
@@ -12,11 +12,40 @@ import com.peterlavalle.DukScaCC
 import scala.io.Source
 
 class EndToEndTest extends TestCase {
-  val source =
-    Source.fromInputStream(
-      ClassLoader.getSystemResourceAsStream(
-        "peterlavalle.diskio.scad40"
-      )
+  /**
+    * This is an icky work around for sbt not packing resources into tests (AFAIK) and IDEA running sbt from a folder that's not the project folder
+    */
+  lazy val projectFolder = {
+
+
+    val initialFolder = new File(".").getAbsoluteFile.getParentFile
+
+    if (initialFolder.getName == "modules" && initialFolder.getParentFile.getName == ".idea")
+      initialFolder.getParentFile.getParentFile
+
+    else if (initialFolder.getName == "scad40" && new File(initialFolder, "build.sbt").exists() && new File(initialFolder, "src/test").exists())
+      initialFolder
+
+    else {
+      val message = "Don't know where from `" + initialFolder + "`"
+      System.err.println(message)
+      sys.error(message)
+    }
+  }
+
+  lazy val sourceHpp =
+    Source.fromFile(
+      new File(projectFolder, "src/test/peterlavalle.diskio.hpp")
+    ).mkString
+
+  lazy val sourceScad =
+    Source.fromFile(
+      new File(projectFolder, "src/test/peterlavalle.diskio.scad40")
+    ).mkString.trim.replaceAll("\r?\n", "\n")
+
+  lazy val sourceScalaJS =
+    Source.fromFile(
+      new File(projectFolder, "src/test/scala-js.txt")
     ).mkString.trim.replaceAll("\r?\n", "\n")
 
   def prefixIs(preFolder: String, expected: String) = {
@@ -40,10 +69,9 @@ class EndToEndTest extends TestCase {
 
     val lexer: DefineLexer = new DefineLexer(
       new ANTLRInputStream(
-        source
+        sourceScad
       )
     )
-
 
     lexer.removeErrorListeners()
     lexer.addErrorListener(Fail)
@@ -62,73 +90,18 @@ class EndToEndTest extends TestCase {
       (preFolder match {
         case "dukd40/" =>
           DukScaCC(FromAntlr4(parser.module()))
+        case "scala-js/" =>
+          val message = "Someone needs to create a Scala-JS template"
+          fail(message)
+          sys.error(message)
       }).trim.replaceAll("[ \t\r\n]*\n", "\n")
     )
   }
 
-
   def testScalaJS(): Unit =
-    prefixIs("scala-js/",
-      """
-        |package peterlavalle.diskio {
-        |
-        |    @ScalaJSDefined
-        |    trait ChangeListener extends js.Object {
-        |
-        |        def fileChanged(path: String): Unit
-        |
-        |    }
-        |
-        |    @js.native
-        |    class Reading extends js.Object {
-        |
-        |        @js.native
-        |        def read(): Byte = js.native
-        |
-        |        @js.native
-        |        def close(): Unit = js.native
-        |
-        |        @js.native
-        |        def endOfFile(): Bool = js.native
-        |
-        |        @js.native
-        |        var number: Float = js.native
-        |
-        |        @js.native
-        |        val path: String = js.native
-        |
-        |    }
-        |
-        |    @js.native
-        |    object Disk extends js.Object {
-        |
-        |        @js.native
-        |        def foobar(text: String): Unit = js.native
-        |
-        |        @js.native
-        |        def open(path: String): Reading = js.native
-        |
-        |        @js.native
-        |        var pwd: String = js.native
-        |
-        |        @js.native
-        |        def subscribe(path: String, listener: ChangeListener): Unit = js.native
-        |
-        |        @js.native
-        |        def unsubscribe(path: String, listener: ChangeListener): Unit = js.native
-        |
-        |    }
-        |}
-      """.stripMargin
-    )
+    prefixIs("scala-js/", sourceScalaJS)
 
   def testDukAla(): Unit =
-    prefixIs(
-      "dukd40/",
-      Source.fromInputStream(
-        ClassLoader
-          .getSystemResourceAsStream("peterlavalle.diskio.hpp")
-      ).mkString
-    )
+    prefixIs("dukd40/", sourceHpp)
 }
 

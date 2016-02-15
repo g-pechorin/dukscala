@@ -679,36 +679,39 @@ $sub pull(argument: Argument)
 	$val namespace = module.name.replace(".", "::")
 	$match argument.kind
 		$case KindDeclaration(Script(name: String, _))
-							scad40::duk_ptr<${namespace}::${name}>(ctx, ${argument.name})
+			scad40::duk_ptr<${namespace}::${name}>(ctx, ${argument.name})
 		$case KindSingle
-							(float) duk_to_number(ctx, ${argument.name})
+			(float) duk_to_number(ctx, ${argument.name})
 		$case KindString
-							scad40::duk_string(ctx, ${argument.name})
+			scad40::duk_string(ctx, ${argument.name})
+	$end
+$end
+
+$alt stack(argument: Argument)
+	$match argument.kind
+		$case KindBool
+						duk_push_boolean(ctx, ${argument.name} ? 1 : 0)
+		$case KindDeclaration(_: TDeclaration)
+						${argument.name}.Push()
+		$case KindSingle
+						duk_push_number(ctx, ${argument.name})
+		$case KindSInt8
+						duk_push_int(ctx, ${argument.name})
+		$case KindSInt16
+						duk_push_int(ctx, ${argument.name})
+		$case KindString
+						${argument.name}.Push()
+		$case KindVoid
 	$end
 $end
 
 $sub push(kind: TKind)
 	$match kind
-		$case KindBool
-						duk_push_boolean(ctx, result ? 1 : 0);
-						return 1;
-		$case KindDeclaration(_: TDeclaration)
-						result.Push();
-						return 1;
-		$case KindSingle
-						duk_push_number(ctx, result);
-						return 1;
-		$case KindSInt8
-						duk_push_int(ctx, result);
-						return 1;
-		$case KindSInt16
-						duk_push_int(ctx, result);
-						return 1;
-		$case KindString
-						result.Push();
-						return 1;
 		$case KindVoid
 						return 0;
+		$case _
+						${stack(Argument("result", kind)).trim};
+						return 1;
 	$end
 $end
 
@@ -1047,11 +1050,72 @@ $end
 $each module.contents
 $case script: Script
 #pragma region "script $(script.name)"
-nneeed thunkers here
 
-... thunkher
-... thunkher
-... thunkher
+$each script.members.filter(_.isInstanceOf[MemberFunction])
+$case member: MemberFunction
+$val parameters = member.arguments.map(a => argType(module, a).trim).foldLeft("")(_ + ", " + _).replaceAll("^, ", "")
+inline ${cppType(module, member.resultKind).trim} ${namespace}::${script.name}::${member.name}(${parameters})
+{
+	auto ptr = reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this);
+	auto ctx = Host();
+
+	assert(ctx == ptr->Host() && "SAN failed");
+	$each member.arguments
+		$case Argument(name, KindString)
+			assert(ctx == path.Host() && "Arg SAN failed");
+		$case Argument(_, kind)
+			${sys.error("Update script-thunker:sanity to handle kind:" + kind)}
+	$end
+
+	const auto base = duk_get_top(ctx);
+
+	// stack -> .. base .. ;
+
+	ptr->Push();
+	// stack -> .. base .. ; [self] ;
+
+#ifdef _DEBUG
+	const auto is_object = duk_is_object(ctx, -1) ? true : false;
+	const auto is_null = ptr->IsNull();
+	duk_get_prop_string(ctx, -1, "${member.name}");
+	// stack -> .. base .. ; [self] ; ${member.name}() ;
+
+	auto is_function = duk_is_function(ctx, -1) ? true : false;
+	duk_pop(ctx);
+	// stack -> .. base .. ; [self] ;
+#endif
+
+	duk_push_string(ctx, "${member.name}");
+	// stack -> .. base .. ; [self] ; "${member.name}" ;
+
+$each member.arguments /* push arguments using the stack alt-template */
+$case argument: Argument
+	${stack(argument).trim};
+$end
+
+#ifndef _DEBUG
+	duk_call_prop(ctx, base, ${member.arguments.size});
+#else
+	auto result = duk_pcall_prop(ctx, base, ${member.arguments.size});
+	if (DUK_EXEC_SUCCESS != result)
+	{
+		const char* message = duk_safe_to_string(ctx, -1);
+		std::cerr << "Failed to call `${module.name}/${script.name}::${member.name}()` because\n\t" << message << std::endl;
+		duk_error(ctx, 314, "Failed to call `${module.name}/${script.name}::${member.name}()` because\n\t%s", message);
+	}
+#endif
+	// stack -> .. base .. ; ?result? ;
+
+$match member.resultKind
+$case KindVoid
+	duk_pop(ctx);
+	return;
+$case kind
+	${sys.error("Update script-thunker:return to handle kind:" + kind)}
+$end
+}
+$end
+
 
 inline scad40::duk_ptr<${namespace}::${script.name}> ${namespace}::${script.name}::New(duk_context* ctx, const char* subclass)
 {
