@@ -16,26 +16,10 @@ include_directories(
 	../duktape
 
 	# this test runs against the expectations
-	src/test/resources
+	src/test/cmake/inc
 )
 
 # main executable
-add_executable(
-	peterlavalle.diskio-test
-
-		../duktape/duk_config.h
-		../duktape/duktape.c
-		../duktape/duktape.h
-
-		src/test/cmake/peterlavalle.diskio-test.cpp
-		
-		src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
-
-		src/test/resources/pal_adler32.hpp
-		src/test/resources/peterlavalle.diskio.hpp
-
-	)
-
 
 	include(src/test/cmake/pal_gtest.cmake)
 	add_executable(
@@ -45,14 +29,14 @@ add_executable(
 			../duktape/duktape.c
 			../duktape/duktape.h
 
-			src/test/cmake/peterlavalle.diskio-gtest.cpp
-			src/test/cmake/peterlavalle.diskio-gtest.hpp
-			src/test/cmake/peterlavalle.diskio-stupid_mock.hpp
+			src/test/cmake/src/peterlavalle.diskio-gtest.cpp
+			src/test/cmake/src/peterlavalle.diskio-gtest.hpp
+			src/test/cmake/src/peterlavalle.diskio-stupid_mock.hpp
 
-			src/test/cmake/peterlavalle.diskio.hpp-multiple.cpp
+			src/test/cmake/src/peterlavalle.diskio.hpp-multiple.cpp
 		
-			src/test/resources/pal_adler32.hpp
-			src/test/resources/peterlavalle.diskio.hpp
+            src/test/cmake/inc/pal_adler32.hpp
+            src/test/cmake/inc/peterlavalle.diskio.hpp
 
 		)
 		pal_gtest_wire(peterlavalle.diskio-gtest)

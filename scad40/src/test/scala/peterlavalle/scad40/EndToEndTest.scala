@@ -35,7 +35,7 @@ class EndToEndTest extends TestCase {
 
   lazy val sourceHpp =
     Source.fromFile(
-      new File(projectFolder, "src/test/peterlavalle.diskio.hpp")
+      new File(projectFolder, "src/test/cmake/inc/peterlavalle.diskio.hpp")
     ).mkString
 
   lazy val sourceScad =
