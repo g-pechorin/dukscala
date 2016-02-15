@@ -2,53 +2,76 @@ $import peterlavalle.scad40.Model._
 $def(module: Module)
 package ${module.name} {
 
-asdhdsa
-hjksdfhkjsdf
+$alt kind(tKind: TKind)
+	$match tKind
+		$case KindBool
+			Bool
+    $case KindDeclaration(declaration: TDeclaration)
+      ${declaration.name}
+		$case KindVoid
+			Unit
+		$case KindSingle
+			Float
+		$case KindDouble
+			Double
+		$case KindString
+			String
+		$case KindSInt8
+			Byte
+		$case KindSInt16
+			Short
+		$case KindSInt32
+			Int
+	$end
+$end
 
-    @ScalaJSDefined
-    trait ChangeListener extends js.Object {
+$alt arg(argument: Argument)
+	${argument.name}: ${kind(argument.kind).trim}
+$end
 
-        def fileChanged(path: String): Unit
+$alt mem(member: TMember)
+	$match member
+		$case memberFunction: MemberFunction
+			def ${memberFunction.name}(${memberFunction.arguments.map(arg).foldLeft("")(_ + ", " + _.trim).replaceAll("^, ", "")}): ${kind(memberFunction.resultKind).trim}
+		$case memberVariable: MemberVariable
+			var ${memberVariable.name}: ${kind(memberVariable.kind).trim}
+		$case memberValue: MemberValue
+			val ${memberValue.name}: ${kind(memberValue.kind).trim}
+	$end
+$end
 
-    }
+$each module.contents
+$case script: Script
+	@ScalaJSDefined
+	trait ${script.name} extends js.Object {
+	$each script.members
+	$case member
+		${mem(member).trim}
+	$end
+	}
 
-    @js.native
-    class Reading extends js.Object {
+$case native: Native
+	@js.native
+	class ${native.name} extends js.Object {
 
-        @js.native
-        def read(): Byte = js.native
+	$each native.members.filterNot(_.isInstanceOf[MemberRaw])
+	$case member
+		@js.native
+		${mem(member).trim} = js.native
 
-        @js.native
-        def close(): Unit = js.native
+	$end
+	}
 
-        @js.native
-        def endOfFile(): Bool = js.native
+$case global: Global
+	@js.native
+	object ${global.name} extends js.Object {
 
-        @js.native
-        var number: Float = js.native
+	$each global.members.filterNot(_.isInstanceOf[MemberRaw])
+	$case member
+		@js.native
+		${mem(member).trim} = js.native
 
-        @js.native
-        val path: String = js.native
-
-    }
-
-    @js.native
-    object Disk extends js.Object {
-
-        @js.native
-        def foobar(text: String): Unit = js.native
-
-        @js.native
-        def open(path: String): Reading = js.native
-
-        @js.native
-        var pwd: String = js.native
-
-        @js.native
-        def subscribe(path: String, listener: ChangeListener): Unit = js.native
-
-        @js.native
-        def unsubscribe(path: String, listener: ChangeListener): Unit = js.native
-
-    }
+	$end
+	}
+$end
 }

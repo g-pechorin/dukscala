@@ -46,7 +46,7 @@ class EndToEndTest extends TestCase {
       new File(projectFolder, "src/test/scala-js.txt")
     ).mkString.trim.replaceAll("\r?\n", "\n")
 
-  def prefixIs(preFolder: String, expected: String) = {
+  def prefixIs(stripWs: Boolean, preFolder: String, expected: String) = {
 
     object Fail extends ANTLRErrorListener {
       override def reportContextSensitivity(parser: Parser, dfa: DFA, i: Int, i1: Int, i2: Int, atnConfigSet: ATNConfigSet): Unit =
@@ -83,21 +83,27 @@ class EndToEndTest extends TestCase {
     parser.removeErrorListeners()
     parser.addErrorListener(Fail)
 
+    val regex =
+      if (stripWs)
+        "[ \t\r\n]*\n"
+      else
+        "[ \t\r]*\n"
+
     assertEquals(
-      leikata(expected).replaceAll("[ \t\r\n]*\n", "\n"),
+      leikata(expected).replaceAll(regex, "\n"),
       (preFolder match {
         case "dukd40/" =>
           D40(FromAntlr4(parser.module()))
         case "scala-js/" =>
           SJS(FromAntlr4(parser.module()))
-      }).trim.replaceAll("[ \t\r\n]*\n", "\n")
+      }).trim.replaceAll(regex, "\n")
     )
   }
 
   def testScalaJS(): Unit =
-    prefixIs("scala-js/", expectedSJS)
+    prefixIs(stripWs = false, "scala-js/", expectedSJS)
 
   def testDukAla(): Unit =
-    prefixIs("dukd40/", expectedHpp)
+    prefixIs(stripWs = true, "dukd40/", expectedHpp)
 }
 
