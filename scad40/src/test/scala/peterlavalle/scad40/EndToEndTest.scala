@@ -7,7 +7,7 @@ import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.antlr.v4.runtime.dfa.DFA
 import org.junit.Assert._
 import junit.framework.TestCase
-import com.peterlavalle.{D40, D40$}
+import com.peterlavalle.{SJS, D40, D40$}
 
 import scala.io.Source
 
@@ -16,8 +16,6 @@ class EndToEndTest extends TestCase {
     * This is an icky work around for sbt not packing resources into tests (AFAIK) and IDEA running sbt from a folder that's not the project folder
     */
   lazy val projectFolder = {
-
-
     val initialFolder = new File(".").getAbsoluteFile.getParentFile
 
     if (initialFolder.getName == "modules" && initialFolder.getParentFile.getName == ".idea")
@@ -91,9 +89,7 @@ class EndToEndTest extends TestCase {
         case "dukd40/" =>
           D40(FromAntlr4(parser.module()))
         case "scala-js/" =>
-          val message = "Someone needs to create a Scala-JS template"
-          fail(message)
-          sys.error(message)
+          SJS(FromAntlr4(parser.module()))
       }).trim.replaceAll("[ \t\r\n]*\n", "\n")
     )
   }

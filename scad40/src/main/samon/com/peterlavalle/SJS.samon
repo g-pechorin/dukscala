@@ -1,0 +1,54 @@
+$import peterlavalle.scad40.Model._
+$def(module: Module)
+package ${module.name} {
+
+asdhdsa
+hjksdfhkjsdf
+
+    @ScalaJSDefined
+    trait ChangeListener extends js.Object {
+
+        def fileChanged(path: String): Unit
+
+    }
+
+    @js.native
+    class Reading extends js.Object {
+
+        @js.native
+        def read(): Byte = js.native
+
+        @js.native
+        def close(): Unit = js.native
+
+        @js.native
+        def endOfFile(): Bool = js.native
+
+        @js.native
+        var number: Float = js.native
+
+        @js.native
+        val path: String = js.native
+
+    }
+
+    @js.native
+    object Disk extends js.Object {
+
+        @js.native
+        def foobar(text: String): Unit = js.native
+
+        @js.native
+        def open(path: String): Reading = js.native
+
+        @js.native
+        var pwd: String = js.native
+
+        @js.native
+        def subscribe(path: String, listener: ChangeListener): Unit = js.native
+
+        @js.native
+        def unsubscribe(path: String, listener: ChangeListener): Unit = js.native
+
+    }
+}
