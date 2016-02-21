@@ -9,8 +9,6 @@
 
 #include <duktape.h>
 
-#include "pal_adler32.hpp"
-
 #include <array>
 #include <string>
 #include <iostream>
