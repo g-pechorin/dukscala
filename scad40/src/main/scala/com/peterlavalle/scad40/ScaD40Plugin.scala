@@ -35,7 +35,8 @@ object ScaD40Plugin extends AutoPlugin {
 		),
 		watchSources <++= sourceDirectory map {
 			case path =>
-				(path ** "*.scad40").get
+				(path ** "*.scad40")
+				???
 		},
 		scad40Generate := {
 			???
