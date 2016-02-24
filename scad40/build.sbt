@@ -1,12 +1,10 @@
 sbtPlugin := true
 
-
 name := "scad40"
 organization := "com.peterlavalle"
 version := "1.0.0-SNAPSHOT"
 
 scalaVersion := "2.10.6"
-
 
 enablePlugins(SamonPlugin)
 SamonPlugin.samonStuff
@@ -33,20 +31,32 @@ libraryDependencies ++= Seq(
     exclude("junit", "junit-dep")
 )
 
-
 publishTo := Some(
   Resolver.file(
     "file",
-    new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
+    new File(
+      if (version.value.toUpperCase().contains("SNAPSHOT"))
+        Path.userHome.absolutePath + "/Dropbox/Public/posted"
+      else
+        ???
+    )
   )
 )
 
-
 ////
-// SBT launcehr thingieies
+// SBT launcher things
 //
-import java.io.{FileInputStream, FileOutputStream, Writer, FileWriter}
-import java.util.zip.{ZipEntry, ZipOutputStream, ZipFile}
+
+// no ;   // EVILVEIL
+// no ;   crossPaths := false
+// no ;   artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
+// no ;     artifact.name + "-" + module.revision + "." + artifact.extension
+// no ;   }
+
+// no ;   publishMavenStyle := true
+
+import java.io.{FileInputStream, FileOutputStream, FileWriter, Writer}
+import java.util.zip.{ZipEntry, ZipFile, ZipOutputStream}
 
 import sbt.Keys._
 
@@ -139,22 +149,19 @@ createLauncherArchive := {
   require(ownLauncherJar.value.getParentFile.exists() || ownLauncherJar.value.getParentFile.mkdirs())
 
   val zipOutputStream = new ZipOutputStream(new FileOutputStream(ownLauncherJar.value))
+  zipOutputStream.setLevel(9)
+  zipOutputStream.setMethod(ZipOutputStream.DEFLATED)
 
-  import scala.collection.JavaConverters._
   import scala.collection.JavaConversions._
   sbtLauncherJar.value.entries().foreach {
     case entry =>
       val buffer = Array.ofDim[Byte](128)
-      if (entry.isDirectory) {
-
-      } else {
-
+      if (!entry.isDirectory) {
+        zipOutputStream.putNextEntry(new ZipEntry(entry.getName))
         val inputStream =
           if (entry.getName == "sbt/sbt.boot.properties") {
-            zipOutputStream.putNextEntry(new ZipEntry(entry.getName))
             new FileInputStream(emitLauncherProperties.value)
           } else {
-            zipOutputStream.putNextEntry(entry)
             sbtLauncherJar.value.getInputStream(entry)
           }
 
