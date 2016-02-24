@@ -8,6 +8,8 @@ import scala.collection.immutable.Stream.Empty
 
 class FromAntlr4Test extends TestCase {
 
+
+
   def antlr4string(source: String) =
     new DefineParser(new CommonTokenStream(new DefineLexer(new ANTLRInputStream(source))))
 
