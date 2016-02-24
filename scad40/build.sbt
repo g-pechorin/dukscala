@@ -68,7 +68,7 @@ emitLauncherProperties := {
   require(properties.getParentFile.exists() || properties.getParentFile.mkdirs())
 
   var rSection = "\\[(\\w+)\\]\\s*".r
-  val rKeyTag = "(\\s+)(version|org|name|class|components)(\\s*):(\\s*)(.*)".r
+  val rKeyTag = "(\\s+)(class|components|cross\\-versioned|name|org|resources|version)(\\s*):(\\s*)(.*)".r
 
   def recu(section: String, stream: Stream[String]): Stream[String] =
     (section, stream) match {
@@ -76,7 +76,7 @@ emitLauncherProperties := {
         Stream.Empty
 
       case (_, rSection(nextSection) #:: tail) =>
-        stream.head #:: (recu(nextSection, tail))
+        stream.head #:: recu(nextSection, tail)
 
       case ("scala", rKeyTag(indent, "version", predex, postdex, oldValue) #:: tail) =>
         s"${indent}version: ${scalaVersion.value}" #:: recu(section, tail)
@@ -86,12 +86,19 @@ emitLauncherProperties := {
           tag match {
             case "org" =>
               organization.value
+
             case "name" =>
               name.value
+
             case "version" =>
               version.value
-            case "components" =>
+
+            case "cross-versioned" =>
+              "${sbt.cross.versioned-false}"//full"
+
+            case "resources" | "components" =>
               ""
+
             case "class" =>
               "com.peterlavalle.scad40.ScaD40App"
           }
