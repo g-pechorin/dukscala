@@ -1,0 +1,16 @@
+
+module peterlavalle.diskio {
+
+ native Reading {
+   def read(): sint8
+   def close()
+   def endOfFile(): bool
+
+   val path: string
+   raw handle: `FILE*`
+ }
+
+ global Disk {
+   def open(path: string): Reading
+ }
+}
