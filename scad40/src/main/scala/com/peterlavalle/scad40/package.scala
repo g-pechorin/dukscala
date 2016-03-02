@@ -9,7 +9,7 @@ package object scad40 {
     def **(pattern: String): Stream[(String, File)]
   }
 
-  implicit def wrapFile(file: File): TFile =
+  implicit def wrapFile(root: File): TFile =
     new TFile {
       override def **(pattern: String): Stream[(String, File)] = {
 
@@ -17,18 +17,23 @@ package object scad40 {
           todo match {
             case Nil => Stream.Empty
 
-            case head :: tail =>
-              val root = new File(file, head)
+            case thisPath :: tail =>
+              val thisFile = new File(root, thisPath)
 
-              if (root.isDirectory) {
-                ???
-              } else {
-                ???
+              thisFile.list() match {
+                case null if thisPath.matches(pattern) =>
+                  (thisPath -> thisFile) #:: recu(tail)
+
+                case null =>
+                  recu(tail)
+
+                case list: Array[String] =>
+                  recu(todo ++ list.map(thisPath + "/" + _))
               }
           }
 
-        require(file.isDirectory)
-        recu(file.list().toList)
+        require(root.isDirectory)
+        recu(root.list().toList)
       }
     }
 }

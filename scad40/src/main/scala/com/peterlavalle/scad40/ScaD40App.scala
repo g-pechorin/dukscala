@@ -105,8 +105,12 @@ class ScaD40App(args: List[String], listing: ((File, String) => Stream[(String, 
     def recu(rgs: List[String], work: WorkLoad): WorkLoad =
       rgs match {
         case Nil =>
-          require(work.roots.nonEmpty, "Need at least one path to scan")
-          require(work.plops.nonEmpty, "Need at least one plop to make")
+          require(work.roots.nonEmpty && work.plops.nonEmpty,
+            """
+              |Need at least one path and one plop
+              |
+              | <run scaD40> -i src/d40 -p com.peterlavalle.D40 generated/D40.hpp
+            """.stripMargin.trim)
           WorkLoad(work.roots.reverse, work.plops)
 
         case "-i" :: path :: tail =>
