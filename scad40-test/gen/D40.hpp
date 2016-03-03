@@ -11,10 +11,6 @@
 #include <duktape.h>
 
 #include <array>
-
-
-
-
 #include <string>
 #include <iostream>
 
