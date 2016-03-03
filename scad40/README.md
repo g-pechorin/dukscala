@@ -1,31 +1,93 @@
-From ...
 
-  [this](https://github.com/g-pechorin/dukscala/blob/scad40/scad40/src/test/resources/peterlavalle.diskio.scad40) 
-  
-... definition you can get these two ...
+# Usage
 
- * [source](https://github.com/g-pechorin/dukscala/blob/scad40/scad40/src/test/resources/peterlavalle.diskio.hpp) `.hpp` file
- * [source](https://github.com/g-pechorin/dukscala/blob/scad40/scad40/src/test/scala/peterlavalle/scad40/EndToEndTest.scala#L71) `.scala`
+My objective was to prevent writing (typically verbose) interfaces between [Duktape][orgDuktape] and C (C++).
+While not challenging to do "the first time" ...
 
-# TODO
+* It's boring - so people do it badly
+* I've never known of a project that can get it *right* the first
+* It tends to be inconsistent
+* ... so there must be a better way
 
- * [ ] fill in the last stubs
-  * native "constructor thunks" 
-  * native "method thunks" 
- * [ ] achieve parity with the hand-written header
- * [ ] package as a `main()` and publish/run from SBT
-  * need to get `src/main/resources/` into the build
- * [ ] pre-compile ssp for speed (and ease) https://github.com/backchatio/xsbt-scalate-generate
-  * might prevent runtime templates
- * [ ] `nat` variable on not-scripts to create "whatever" C++ members/methods that ES can't see
- * [ ] `extern` native classes that can't be constructed
- * [ ] `range` thing to declare values as being restricted to a range of numbers or regular expressions
-  * use C++ `explicit` and wrap the thing(s) to force assignments (in C++) to be intentional
- * [ ] clean up Nephrite and template resolution
- * [ ] `either` classes that can be created and manipulated on either side
- * [x] rewrite inheritance to make actual sense
+I expected that interface could be expressed with a simplified textual description like this ...
 
-# Warning
+``` scala
+  module peterlavalle.diskio {
 
- * there's a possible vulnerability - if methods are retained after the objects are destroyed, then the method's dangling pointer could be used to execute something unexpected
-  * there's no way I know of to change jump locations or see which pointers point where so this will be "stabbing in the dark" until someone hits the bank
+   script ChangeListener {
+     def fileChanged(path: string)
+   }
+
+   native Reading {
+     def read(): sint8
+     def close()
+     def endOfFile(): bool
+
+     raw handle: `void*`
+     raw buffer: `std::array<uint8_t, 128>`
+     raw index: `size_t`
+   }
+
+   global Disk {
+     def open(path: string): Reading
+   }
+  }
+```
+
+... and a build tool could generate C++ headers for it as part of the compilation process.
+
+
+The use of [Scala-JS][orgScalaJS] was whimsical - the generated scripts work fine without it.
+
+# ScaD40
+
+ScaD40 (Scala WD-40) is an [Interface Description Language][wikiIDL] used for (local!) calls between [Scala-JS][orgScalaJS] and [Duktape][orgDuktape]/C++.
+In practice **there's no requirement that [Scala-JS][orgScalaJS] be used** - it can be used as a way to **just generate pretty C++/[Duktape][orgDuktape] bindings.**
+
+From a scala-like definition it produces;
+
+* C++ boilerplate source to interface with [Duktape][orgDuktape]
+* [Scala-JS][orgScalaJS] base-classes that line up with these ECMAScript functions
+
+The boilerplate will be a set of plain-old C++ classes.
+The actual meat of what the boilerplate does is (intentionally) left undefined ; the developer needs to implement it.
+Inline C++ (et al) were briefly considered ... but rejected since they'd likely require intricate preprocessor tooling.
+Leaving the bodies outside of the boilerplate simplified the IDL (which was the new thing) so ... would suggest a shallower learning curve.
+
+Delightfully - when the IDL file is changed, the boilerplate and base-classes can be regenerated with the new interface.
+This will give the developer compile-time-errors about the shift ... rather than run-time errors that require testing.
+Additionally - invoking the IDL tool (in the build) is *stable* such that it will always generate the same source file for the same definition file.
+These two should mean that the tool suits protracted development with shifting requirements (the real world) since adjustments raise noticeable errors.
+
+
+# Benefit
+
+Rapid development usually involves iterative changes to project sources.
+Agile development benefits from / embraces automated checking to track and isolate errors.
+(... in various degrees anyway. *Agile* is frequently taken as a justification for an *unstructured hack-a-thon* style of project management rather than a disciplined "keep it running or find a new job" mentality)
+
+
+# Drawback
+
+[F.U.D.][wikiFUD] basically.
+
+There's some churn with strings/object references that should be expected (with C++, DukTape, etc) but if that makes/breaks your project "ur doin it wrong" to some extent.
+
+The relative loss of control should be worth the free-consistency.
+
+There's no actual requirement that you use Scala-JS anywhere.
+
+# Further Work
+
+Given how good I feel about SCaD40 - I'd like to have a play at using it with JNI/JVM.
+ScaD40 should be able to spit-out JVM code.
+This would make debugging easier since JDWP is (relatively) cool.
+It would be nice if it was transparent to the "client code" and the interfaces could be reused.
+
+
+
+[orgDuktape]: http://duktape.org/
+[orgScalaJS]: http://www.scala-js.org/
+[orgSWIG]: http://www.swig.org/
+[wikiIDL]: https://en.wikipedia.org/wiki/Interface_description_language
+[wikiFUD]: https://en.wikipedia.org/wiki/Fear,_uncertainty_and_doubt
