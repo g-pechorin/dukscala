@@ -14,10 +14,10 @@ add_definitions(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 include_directories(
 	../duktape
-
 	gen
 )
 
+include(cmade/pal_glfw-3.1.2.cmake)
 
 include(../scad40/src/test/cmake/pal_gtest.cmake)
 
@@ -36,3 +36,17 @@ add_executable(
 
 	add_custom_command(TARGET scad40-gtest POST_BUILD COMMAND cmd //C ${CMAKE_SOURCE_DIR}/gen.bat)
 	#add_custom_command(TARGET scad40-gtest PRE_BUILD COMMAND java -jar ..//sbt-launch.jar scad40-launch.properties -i d40 -p com.peterlavalle.D40 gen//D40.hpp)
+
+add_executable(
+	scad40-glfw
+
+		../duktape/duk_config.h
+		../duktape/duktape.c
+		../duktape/duktape.h
+
+		gen/D40.hpp
+
+		scad40-glfw/glfw_queue.cpp
+		scad40-glfw/main.cpp
+	)
+	target_link_libraries(scad40-glfw glfw ${GLFW_LIBRARIES})

@@ -1,0 +1,14 @@
+
+module peterlavalle.glfw3 {
+
+  native Window {
+    def close(): void
+  }
+  script Listener {
+//    def onStart(window: Window): void
+  }
+
+  global Sys {
+    def open(title: string, listener: string)
+  }
+}
