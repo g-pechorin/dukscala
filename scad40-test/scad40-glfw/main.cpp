@@ -5,6 +5,9 @@
 #include <GLFW/glfw3.h>
 #include <queue>
 
+#include <functional>
+#include "D40.hpp"
+
 void main(int argc, char* argv[])
 {
 	std::cout << "Hello World" << std::endl;
@@ -43,6 +46,12 @@ void main(int argc, char* argv[])
 		}
 		glEnd();
 	});
+
+	auto ctx = duk_create_heap_default();
+
+	peterlavalle::glfw3::install(ctx);
+
+
 
 	for (int i = 0; i < 3; ++i)
 	{

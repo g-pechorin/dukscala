@@ -8,7 +8,12 @@ module peterlavalle.glfw3 {
 //    def onStart(window: Window): void
   }
 
-  global Sys {
+  global Magpie {
     def open(title: string, listener: string)
+
+    raw loader: `std::function<const char*(const char*)>`
+    def require(name: string)
+
+    def create(name: string)
   }
 }
