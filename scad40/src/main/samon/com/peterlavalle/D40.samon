@@ -817,7 +817,7 @@ $case Script(name: String, members: Stream[TMember])
 	class $(name)
 	{
 		/// used for const-char wrapping
-		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
+		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<${name}>*>(this)->Host(); }
 	public:
 
 		/// the user's requested members
@@ -1054,7 +1054,7 @@ $case member: MemberFunction
 $val parameters = member.arguments.map(a => argType(module, a).trim).foldLeft("")(_ + ", " + _).replaceAll("^, ", "")
 inline ${cppType(module, member.resultKind).trim} ${namespace}::${script.name}::${member.name}(${parameters})
 {
-	auto ptr = reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this);
+	auto ptr = reinterpret_cast<scad40::duk_ptr<${script.name}>*>(this);
 	auto ctx = Host();
 
 	assert(ctx == ptr->Host() && "SAN failed");
