@@ -1,19 +1,20 @@
+module peterlavalle.magpie {
 
-module peterlavalle.glfw3 {
-
-  native Window {
-    def close(): void
-  }
   script Listener {
-//    def onStart(window: Window): void
+    def onStart()
+    def onUpdate()
+    def onClose()
   }
 
-  global Magpie {
-    def open(title: string, listener: string)
+  global Time {
+    val now: single
+    val delta: single
+  }
 
-    raw loader: `std::function<const char*(const char*)>`
-    def require(name: string)
+  global System {
+    def require(name: string): bool
 
-    def create(name: string)
+    def out(message: string)
+    def err(message: string)
   }
 }

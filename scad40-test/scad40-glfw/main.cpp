@@ -10,8 +10,6 @@
 
 void main(int argc, char* argv[])
 {
-	std::cout << "Hello World" << std::endl;
-
 	glfwSetErrorCallback([](int error, const char* message)
 	{
 		std::cerr << "GLFW[" << std::hex << error << "] = `" << message << "`";
@@ -19,10 +17,25 @@ void main(int argc, char* argv[])
 	});
 
 	if (!glfwInit())
+	{
 		exit(EXIT_FAILURE);
+	}
+	atexit(glfwTerminate);
 
 	glfw_queue queue([](GLFWwindow* window)
 	{
+		auto ctx = (duk_context*)glfwGetWindowUserPointer(window);
+
+		auto& time = peterlavalle::magpie::Time::get(ctx);
+		{
+			const float next = glfwGetTime();
+			time._delta = next - time._now;
+			time._now = next;
+		}
+
+
+		// peterlavalle::magpie::
+
 		float ratio;
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
@@ -47,21 +60,32 @@ void main(int argc, char* argv[])
 		glEnd();
 	});
 
+	// create a context
 	auto ctx = duk_create_heap_default();
 
-	peterlavalle::glfw3::install(ctx);
-
-
-
-	for (int i = 0; i < 3; ++i)
 	{
-		GLFWwindow* window = queue.create(640, 480, "Simple example", nullptr);
+
+		// wipeout the world
+		duk_push_object(ctx);
+		duk_set_global_object(ctx);
+
+		// setup the loadering thing
+		peterlavalle::magpie::install(ctx);
+
+		if (!peterlavalle::magpie::System::get(ctx).require("demo"))
+		{
+			std::cerr << "Failed to load demo script" << std::endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+	{
+		//
+		GLFWwindow* window = queue.create(640, 480, "Simple example", ctx);
 		if (!window)
 		{
 			glfwTerminate();
 			exit(EXIT_FAILURE);
 		}
-
 
 		glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
 		{
@@ -70,15 +94,16 @@ void main(int argc, char* argv[])
 		});
 	}
 
+	auto hamster = peterlavalle::magpie::Listener::New(ctx, "Hamster");
 
-
-
+	hamster->onStart();
 	while (queue.step())
 	{
-		;
+		hamster->onUpdate();
 	}
+	hamster->onClose();
 
+	duk_destroy_heap(ctx);
 
-	glfwTerminate();
 	exit(EXIT_SUCCESS);
 }

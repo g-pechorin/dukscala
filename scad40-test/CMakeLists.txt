@@ -34,9 +34,6 @@ add_executable(
 	)
 	pal_gtest_wire(scad40-gtest)
 
-	add_custom_command(TARGET scad40-gtest POST_BUILD COMMAND cmd //C ${CMAKE_SOURCE_DIR}/gen.bat)
-	#add_custom_command(TARGET scad40-gtest PRE_BUILD COMMAND java -jar ..//sbt-launch.jar scad40-launch.properties -i d40 -p com.peterlavalle.D40 gen//D40.hpp)
-
 add_executable(
 	scad40-glfw
 
@@ -46,7 +43,9 @@ add_executable(
 
 		gen/D40.hpp
 
-		scad40-glfw/glfw_queue.cpp
+		scad40-glfw/glfw_queue.hpp
 		scad40-glfw/main.cpp
+		scad40-glfw/peterlavalle.sandbox.Magpie.cpp
+		scad40-glfw/peterlavalle.sandbox.Time.cpp
 	)
 	target_link_libraries(scad40-glfw glfw ${GLFW_LIBRARIES})
