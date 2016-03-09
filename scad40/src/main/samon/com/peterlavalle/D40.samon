@@ -840,6 +840,49 @@ $case Script(name: String, members: Stream[TMember])
 
 		/// pull whatever is at the stack index into C++
 		static scad40::duk_ptr<$(name)> To(duk_context* ctx, duk_idx_t idx);
+
+		// allows implementing scripted objects in C++
+		// ... are you not entertained? are you not satisfied!?
+		class interface
+		{
+			duk_context* _ctx;
+		protected:
+			duk_context* Host();
+		public:
+			// members that must be implemented
+			$each members.filter(m => m.isInstanceOf[MemberFunction])
+			$case memberFunction: MemberFunction
+				// virtual ${memberFunction.source} = 0;
+			$end
+
+			virtual ~interface(void);
+		};
+
+		// allocates an object of class T as a scripted object
+		template<typename T, typename ... ARGS>
+		static scad40::duk_ptr<$(name)> New(duk_context* ctx, ARGS&& ... args)
+		;/*
+			(maybe?) assert (somehow) that the class implements the proper interface
+
+			allocate memory as a duktape object - hide it somewhere
+
+			initialise the object's pointers (by hackey magic)
+
+			// run the in-place allocation
+			new T(args...);
+
+			create the scripty shell
+
+			wire functions to the scriptey shell
+			$each members.filter(m => m.isInstanceOf[MemberFunction])
+			$case memberFunction: MemberFunction
+				${memberFunction.source}
+			$end
+
+			wire destructor
+
+			return our scriptey-shell object
+		*/
 	};
 
 $case native: Native
