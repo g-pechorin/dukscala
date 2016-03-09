@@ -1,6 +1,6 @@
 name := "scad40"
 organization := "com.peterlavalle"
-version := "1.0.0-SNAPSHOT"
+version := "0.0.0-SNAPSHOT"
 
 scalaVersion := "2.10.6"
 

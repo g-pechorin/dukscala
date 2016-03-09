@@ -1,0 +1,20 @@
+module peterlavalle.magpie {
+
+  script Listener {
+    def onStart()
+    def onUpdate()
+    def onClose()
+  }
+
+  global Time {
+    val now: single
+    val delta: single
+  }
+
+  global System {
+    def require(name: string): bool
+
+    def out(message: string)
+    def err(message: string)
+  }
+}

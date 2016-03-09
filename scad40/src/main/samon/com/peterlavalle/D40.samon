@@ -779,6 +779,8 @@ $sub constCharWrapper(argument: Argument)
 	$match argument.kind
 		$case KindString
 			const char* $(argument.name)
+		$case KindBool
+			const bool $(argument.name)
 		$case _
 			${argType(module, argument).trim}
 	$end
@@ -792,6 +794,10 @@ $sub constCharWrapper(memberFunction: MemberFunction)
 			inline void $(memberFunction.name) (${parameters})
 			{
 				$(memberFunction.name)(
+		$case KindBool
+			inline bool $(memberFunction.name) (${parameters})
+			{
+				return $(memberFunction.name)(
 		$case KindDeclaration(Native(name: String, _))
 			inline scad40::duk_native<${namespace}::${name}> $(memberFunction.name) (${parameters})
 			{
@@ -817,7 +823,7 @@ $case Script(name: String, members: Stream[TMember])
 	class $(name)
 	{
 		/// used for const-char wrapping
-		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this)->Host(); }
+		duk_context* Host(void) { return reinterpret_cast<scad40::duk_ptr<${name}>*>(this)->Host(); }
 	public:
 
 		/// the user's requested members
@@ -1001,6 +1007,20 @@ $end
 					});
 					duk_put_prop_string(ctx, idxBase, "$(member.name)");
 
+				$case member: MemberValue
+				// $(member.source)
+					duk_push_string(ctx, "${member.name}");
+					scad40::push_selfie<${namespace}::${globalName}>(ctx, this${globalName}, 3, [](duk_context* ctx, ${namespace}::${globalName}* this${globalName}) -> duk_ret_t {
+					$match member.kind
+					$case KindString
+						this${globalName}->_${member.name}.Push();
+					$case KindSingle
+						duk_push_number(ctx, this${globalName}->_${member.name});
+					$end
+						return 1;
+					});
+					duk_def_prop(ctx, idxBase, DUK_DEFPROP_HAVE_GETTER | DUK_DEFPROP_HAVE_ENUMERABLE);
+
 				$case member: MemberVariable
 				// $(member.source)
 					duk_push_string(ctx, "${member.name}");
@@ -1054,7 +1074,7 @@ $case member: MemberFunction
 $val parameters = member.arguments.map(a => argType(module, a).trim).foldLeft("")(_ + ", " + _).replaceAll("^, ", "")
 inline ${cppType(module, member.resultKind).trim} ${namespace}::${script.name}::${member.name}(${parameters})
 {
-	auto ptr = reinterpret_cast<scad40::duk_ptr<ChangeListener>*>(this);
+	auto ptr = reinterpret_cast<scad40::duk_ptr<${script.name}>*>(this);
 	auto ctx = Host();
 
 	assert(ctx == ptr->Host() && "SAN failed");
