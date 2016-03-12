@@ -1,19 +1,20 @@
-name := "scad40"
-organization := "com.peterlavalle"
-version := "0.0.0-SNAPSHOT"
+import sbt.Keys._
 
-scalaVersion := "2.10.6"
+lazy val commonSettings = Seq(
+  organization := "com.peterlavalle",
+  version := "0.0.0-SNAPSHOT",
+  scalaVersion := "2.10.6"
+)
 
-enablePlugins(SamonPlugin)
-SamonPlugin.samonStuff
+//name := "scad40"
+
+lazy val lib = (project in file("scad40.lib"))
+  .enablePlugins(SamonPlugin)
+
 
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
-antlr4Settings
-antlr4GenListener in Antlr4 := false
-antlr4GenVisitor in Antlr4 := false
-antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
 
 
 libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.13"
