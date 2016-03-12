@@ -2,10 +2,12 @@ $import peterlavalle.scad40.Model._
 $def(module: Module)
 package ${module.name} {
 
+	import scala.scalajs.js
+
 $alt kind(tKind: TKind)
 	$match tKind
 		$case KindBool
-			Bool
+			Boolean
     $case KindDeclaration(declaration: TDeclaration)
       ${declaration.name}
 		$case KindVoid

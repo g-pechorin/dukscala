@@ -1,5 +1,7 @@
 package peterlavalle.diskio {
 
+	import scala.scalajs.js
+
 
 
 
@@ -18,7 +20,7 @@ package peterlavalle.diskio {
 		def close(): Unit = js.native
 
 		@js.native
-		def endOfFile(): Bool = js.native
+		def endOfFile(): Boolean = js.native
 
 		@js.native
 		var number: Float = js.native
