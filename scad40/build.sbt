@@ -1,4 +1,3 @@
-import com.simplytyped.Antlr4Plugin._
 import sbt.Keys._
 
 lazy val commonSettings = Seq(
@@ -25,17 +24,35 @@ lazy val commonSettings = Seq(
 
 name := "scad40"
 lazy val root = (project in file(".")).
-	aggregate(scad40Lib)
-
-lazy val scad40Lib = (project in file("scad40-lib"))
-	.settings(commonSettings: _*)
-	.enablePlugins(SamonPlugin)
-	.settings(
-		antlr4Settings,
-		antlr4GenListener in Antlr4 := false,
-		antlr4GenVisitor in Antlr4 := false,
-		antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
+	aggregate(
+		scad40Lib,
+		scad40Sbt,
+		scad40App
 	)
 
+lazy val scad40Lib =
+	(project in file("scad40-lib"))
+		.settings(commonSettings: _*)
+		.enablePlugins(SamonPlugin)
+		.settings(
+			antlr4Settings,
+			antlr4GenListener in Antlr4 := false,
+			antlr4GenVisitor in Antlr4 := false,
+			antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
+		)
+
+
+lazy val scad40Sbt =
+	(project in file("scad40-sbt"))
+		.settings(commonSettings: _*)
+		.settings(
+			sbtPlugin := true
+		)
+		.dependsOn(scad40Lib)
+
+lazy val scad40App =
+	(project in file("scad40-app"))
+		.settings(commonSettings: _*)
+		.dependsOn(scad40Lib)
 
 
