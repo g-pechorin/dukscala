@@ -31,8 +31,6 @@ lazy val scad40Lib = (project in file("scad40-lib"))
 	.settings(commonSettings: _*)
 	.enablePlugins(SamonPlugin)
 	.settings(
-		SamonPlugin.samonStuff,
-
 		antlr4Settings,
 		antlr4GenListener in Antlr4 := false,
 		antlr4GenVisitor in Antlr4 := false,
