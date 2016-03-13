@@ -13,18 +13,19 @@ lazy val commonSettings = Seq(
 
 		"com.novocode" % "junit-interface" % "0.11" % Test
 			exclude("junit", "junit-dep")
-	),
+	)
 
-	publishTo := Some(
-		Resolver.file(
-			"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
-		)
+)
+publishTo := Some(
+	Resolver.file(
+		"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
 	)
 )
 
 name := "scad40"
-lazy val root = (project in file(".")).
-	aggregate(
+lazy val root = (project in file("."))
+	.settings(commonSettings: _*)
+	.aggregate(
 		scad40Lib,
 		scad40Sbt,
 		scad40App

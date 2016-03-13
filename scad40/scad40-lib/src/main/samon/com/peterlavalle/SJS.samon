@@ -2,10 +2,14 @@ $import peterlavalle.scad40.Model._
 $def(module: Module)
 package ${module.name} {
 
+	import scala.scalajs.js.annotation.JSExport
+
+	import scala.scalajs.js
+	
 $alt kind(tKind: TKind)
 	$match tKind
 		$case KindBool
-			Bool
+			Boolean
     $case KindDeclaration(declaration: TDeclaration)
       ${declaration.name}
 		$case KindVoid
@@ -42,7 +46,7 @@ $end
 
 $each module.contents
 $case script: Script
-	@ScalaJSDefined
+	@js.native
 	trait ${script.name} extends js.Object {
 	$each script.members
 	$case member
