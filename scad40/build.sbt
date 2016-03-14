@@ -28,7 +28,8 @@ lazy val root = (project in file("."))
 	.aggregate(
 		scad40Lib,
 		scad40Sbt,
-		scad40App
+		scad40App,
+		scakaLib
 	)
 
 lazy val scad40Lib =
@@ -41,7 +42,6 @@ lazy val scad40Lib =
 			antlr4GenVisitor in Antlr4 := false,
 			antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
 		)
-
 
 lazy val scad40Sbt =
 	(project in file("scad40-sbt"))
@@ -56,4 +56,7 @@ lazy val scad40App =
 		.settings(commonSettings: _*)
 		.dependsOn(scad40Lib)
 
-
+lazy val scakaLib =
+	(project in file("scaka-lib"))
+		.settings(commonSettings: _*)
+		.enablePlugins(SamonPlugin)

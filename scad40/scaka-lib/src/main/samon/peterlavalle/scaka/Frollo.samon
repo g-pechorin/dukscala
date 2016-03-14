@@ -1,0 +1,57 @@
+
+$def(module: Rollo.ScList)
+cmake_minimum_required(VERSION 3.0.2)
+
+
+if(WIN32)
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+else(WIN32)
+	set(CMAKE_CXX_FLAGS "$<"${CMAKE_CXX_FLAGS}"> -std=c++11 -std=gnu++11 -static-libstdc++")
+	set(CMAKE_EXE_LINKER_FLAGS "$<"${CMAKE_EXE_LINKER_FLAGS}"> -static-libstdc++")
+endif(WIN32)
+
+add_definitions(-DCMAKE_BINARY_DIR="$<"${CMAKE_BINARY_DIR}">")
+add_definitions(-DCMAKE_SOURCE_DIR="$<"${CMAKE_SOURCE_DIR}">")
+
+$match module.hasMain
+$case false
+add_library(
+	${module.name} OBJECT
+$end
+$each module.mainInc
+$case path: String
+		../src/main/scaka/${path}
+$end
+$each module.mainSrc
+$case path: String
+		../src/main/scaka/${path}
+$end
+	)
+
+include_directories(../src/main/scaka)
+$match module.testSrc.isEmpty
+$case true
+$case false
+$each module.testSrc
+	$case test: String
+	# ${test.substring(0, test.lastIndexOf('.'))}
+		add_executable(
+			${module.name}-${test.substring(0, test.lastIndexOf('.'))}
+				../src/test/scaka/${test}
+
+$each module.mainInc
+$case path: String
+				../src/main/scaka/${path}
+$end
+$each module.mainSrc
+$case path: String
+				../src/main/scaka/${path}
+$end
+		)
+	add_test(
+		NAME ${module.name}-${test.substring(0, test.lastIndexOf('.'))}
+		COMMAND ${module.name}-${test.substring(0, test.lastIndexOf('.'))}
+		WORKING_DIRECTORY $<"${CMAKE_SOURCE_DIR}">
+	)
+$end
+$end
