@@ -18,6 +18,20 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
+	//
+	// run the whole thing in JS at once
+	if (duk_peval_string(ctx, "com.peterlavalle.dukscala.DumbCompiler().doThing('3+2')") != 0) {
+		std::cerr << "execute function failed: " << duk_safe_to_string(ctx, -1) << std::endl;
+		duk_pop(ctx);
+		return EXIT_FAILURE;
+	}
+	imperative(1 == duk_get_top(ctx));
+	imperative(duk_is_number(ctx, 0));
+	std::cout << "It is `" << duk_to_number(ctx, 0) << "`" << std::endl;
+
+
+	//
+	// run part of the thing in JS
 	if (duk_peval_string(ctx, "com.peterlavalle.dukscala.DumbCompiler().doThing") != 0) {
 		std::cerr << "lookup function failed: " << duk_safe_to_string(ctx, -1) << std::endl;
 		duk_pop(ctx);

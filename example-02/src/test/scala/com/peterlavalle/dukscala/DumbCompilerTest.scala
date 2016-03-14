@@ -16,6 +16,9 @@ object DumbCompilerTest extends TestSuite {
       'add3and4 {
         assert(7 == DumbCompiler.doThing("  3+ 4 "))
       }
+      'add3and2 {
+        assert(5 == DumbCompiler.doThing("3+2"))
+      }
     }
 
 }

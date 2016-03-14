@@ -1,36 +1,59 @@
-name := "scad40"
-organization := "com.peterlavalle"
-version := "0.0.0-SNAPSHOT"
+import sbt.Keys._
 
-scalaVersion := "2.10.6"
+lazy val commonSettings = Seq(
+	organization := "com.peterlavalle",
+	version := "0.0.0-SNAPSHOT",
+	scalaVersion := "2.10.6",
 
-enablePlugins(SamonPlugin)
-SamonPlugin.samonStuff
+	javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
 
+	libraryDependencies ++= Seq(
+		"junit" % "junit" % "4.12" % Test,
+		"org.easymock" % "easymock" % "3.4" % Test,
 
-javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
+		"com.novocode" % "junit-interface" % "0.11" % Test
+			exclude("junit", "junit-dep")
+	)
 
-antlr4Settings
-antlr4GenListener in Antlr4 := false
-antlr4GenVisitor in Antlr4 := false
-antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
-
-
-libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.13"
-libraryDependencies += "org.scalatra.scalate" %% "scalate-core" % "1.7.0"
-
-
-libraryDependencies ++= Seq(
-  "junit" % "junit" % "4.12" % Test,
-  "org.easymock" % "easymock" % "3.4" % Test,
-  //"org.scalatest" % "scalatest_2.11" % "2.2.6" % Test,
-
-  "com.novocode" % "junit-interface" % "0.11" % Test
-    exclude("junit", "junit-dep")
 )
-
 publishTo := Some(
-  Resolver.file(
-    "file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
-  )
+	Resolver.file(
+		"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
+	)
 )
+
+name := "scad40"
+lazy val root = (project in file("."))
+	.settings(commonSettings: _*)
+	.aggregate(
+		scad40Lib,
+		scad40Sbt,
+		scad40App
+	)
+
+lazy val scad40Lib =
+	(project in file("scad40-lib"))
+		.settings(commonSettings: _*)
+		.enablePlugins(SamonPlugin)
+		.settings(
+			antlr4Settings,
+			antlr4GenListener in Antlr4 := false,
+			antlr4GenVisitor in Antlr4 := false,
+			antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
+		)
+
+
+lazy val scad40Sbt =
+	(project in file("scad40-sbt"))
+		.settings(commonSettings: _*)
+		.settings(
+			sbtPlugin := true
+		)
+		.dependsOn(scad40Lib)
+
+lazy val scad40App =
+	(project in file("scad40-app"))
+		.settings(commonSettings: _*)
+		.dependsOn(scad40Lib)
+
+
