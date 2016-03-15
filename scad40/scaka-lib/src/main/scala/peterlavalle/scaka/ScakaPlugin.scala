@@ -56,29 +56,34 @@ object ScakaPlugin extends AutoPlugin {
 						url -> {
 							val name: String = "cache/" + url.split("/+", 3)(2).replaceAll("[[\\W]&&[^\\.]]+", "-")
 							requyre(!name.contains(".."))
+
+							val List(dumpFolder, extension) = name.splyt("\\.", -2)
+							val dirFile = target.value / dumpFolder
+
 							val cacheFile = target.value / name
 
-							requyre(cacheFile.getParentFile.exists() || cacheFile.getParentFile.mkdirs())
+							if (!cacheFile.exists() || !dirFile.exists()) {
+								requyre(cacheFile.getParentFile.exists() || cacheFile.getParentFile.mkdirs())
 
-							(new FileOutputStream(cacheFile) << new URL(url).openStream()).close()
+								(new FileOutputStream(cacheFile) << new URL(url).openStream()).close()
 
-							name.splyt("\\.", -2) match {
-								case List(folder, "zip") =>
+								extension match {
+									case "zip" =>
 
-									val dirFile = target.value / folder
-									val zipFile = new ZipFile(cacheFile)
+										val zipFile = new ZipFile(cacheFile)
 
-									zipFile.entries().filterNot(_.isDirectory).foreach {
-										case entry =>
-											val dumpFile = dirFile / entry.getName
+										zipFile.entries().filterNot(_.isDirectory).foreach {
+											case entry =>
+												val dumpFile = dirFile / entry.getName
 
-											requyre(dumpFile.getParentFile.exists() || dumpFile.getParentFile.mkdirs())
+												requyre(dumpFile.getParentFile.exists() || dumpFile.getParentFile.mkdirs())
 
-											(new FileOutputStream(dumpFile) << zipFile.getInputStream(entry)).close()
-									}
+												(new FileOutputStream(dumpFile) << zipFile.getInputStream(entry)).close()
+										}
+								}
 
-									dirFile
 							}
+							dirFile
 						}
 				}.toMap
 			},
