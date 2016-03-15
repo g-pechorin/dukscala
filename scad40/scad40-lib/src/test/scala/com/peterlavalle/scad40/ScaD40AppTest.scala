@@ -110,6 +110,7 @@ class ScaD40AppTest extends TestCase {
       """
         |package foo.bar {
         |
+        |	import scala.scalajs.js
         |
         |
         |
