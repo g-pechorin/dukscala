@@ -1,7 +1,5 @@
-
 $def(module: Rollo.ScList)
 cmake_minimum_required(VERSION 3.1.0)
-
 
 if(WIN32)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -17,6 +15,10 @@ $match module.hasMain
 $case false
 add_library(
 	${module.name} OBJECT
+$case true
+add_executable(
+	${module.name}
+	# TODO ; include things here
 $end
 $each module.mainInc
 $case path: String
@@ -55,3 +57,4 @@ $end
 	)
 $end
 $end
+
