@@ -59,4 +59,8 @@ lazy val scad40App =
 lazy val scakaLib =
 	(project in file("scaka-lib"))
 		.settings(commonSettings: _*)
+		.settings(
+			name := "scaka",
+			sbtPlugin := true
+		)
 		.enablePlugins(SamonPlugin)

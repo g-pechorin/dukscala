@@ -1,0 +1,5 @@
+
+enablePlugins(ScakaPlugin)
+
+
+
