@@ -1,13 +1,49 @@
 package peterlavalle
 
-import java.io.File
+import java.io.{File, InputStream, OutputStream}
 
 import scala.language.implicitConversions
 
 package object scaka {
 
+	sealed trait TWrappedOutputStream {
+		val stream: OutputStream
+
+		def <<(input: InputStream): OutputStream = {
+			val buffer = Array.ofDim[Byte](128)
+
+			def recu(len: Int): OutputStream = {
+				len match {
+					case -1 => stream
+					case count =>
+						stream.write(buffer, 0, len)
+						recu(input.read(buffer))
+				}
+			}
+			recu(input.read(buffer))
+		}
+	}
+
+	implicit def wrapOutputStream(value: OutputStream): TWrappedOutputStream =
+		new TWrappedOutputStream {
+			override val stream: OutputStream = value
+		}
+
 	sealed trait TWrappedString {
 		val string: String
+
+		def splyt(regex: String, limit: Int): List[String] =
+			if (limit > 0) {
+				string.split(regex, limit).toList
+			} else {
+				requyre(0 != limit)
+
+				// TODO ; implement a splyt that can handle these cases
+				requyre(regex.matches("(\\w|\\\\.|/)"))
+
+				string.reverse.split(regex, -limit).toList.reverse.map(_.reverse)
+			}
+
 
 		def #!(pattern: String): Stream[String] =
 			string.split(pattern, 2) match {
@@ -18,7 +54,7 @@ package object scaka {
 			}
 	}
 
-	implicit def wrap(value: String): TWrappedString =
+	implicit def wrapString(value: String): TWrappedString =
 		new TWrappedString {
 			override val string: String = value
 		}
@@ -71,7 +107,7 @@ package object scaka {
 		}
 	}
 
-	implicit def wrap(value: File): TWrappedFile =
+	implicit def wrapFile(value: File): TWrappedFile =
 		new TWrappedFile {
 			override val file: File = value
 		}

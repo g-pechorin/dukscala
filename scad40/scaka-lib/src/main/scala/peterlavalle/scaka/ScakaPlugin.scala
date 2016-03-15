@@ -1,10 +1,14 @@
 package peterlavalle.scaka
 
-import java.io.{FileWriter, File}
+import java.io.{File, FileOutputStream, FileWriter}
+import java.net.URL
+import java.util.zip.ZipFile
 
 import sbt.Keys._
 import sbt.plugins.JvmPlugin
 import sbt.{AutoPlugin, Plugins, SettingKey, TaskKey}
+
+import scala.collection.JavaConversions._
 
 object ScakaPlugin extends AutoPlugin {
 
@@ -12,10 +16,17 @@ object ScakaPlugin extends AutoPlugin {
 
 
 	object autoImport {
-		lazy val scakaRoot =
-			SettingKey[Boolean](
-				"scakaRoot",
-				"Is this a `root` Scaka project"
+
+		lazy val scakaCMakeLibs =
+			SettingKey[Seq[(String, String, Set[String])]](
+				"scakaCMakeLibs",
+				"[(url, dir, [libs])] to link into this project"
+			)
+
+		lazy val scakaCMakeScrape =
+			TaskKey[Map[String, java.io.File]](
+				"scakaCMakeScrape",
+				"scrape all CMakeLibs and return a mapping to the unpacked dirs they produce"
 			)
 
 		lazy val scakaList =
@@ -23,7 +34,6 @@ object ScakaPlugin extends AutoPlugin {
 				"scakaList",
 				"list of all native sources"
 			)
-
 		lazy val scakaCMakeFile =
 			TaskKey[File](
 				"scakaCMakeFile",
@@ -33,28 +43,93 @@ object ScakaPlugin extends AutoPlugin {
 
 	import autoImport._
 
-
 	override lazy val projectSettings =
 		Seq(
-			scakaRoot := false,
+			scakaCMakeLibs := Seq(),
+			scakaCMakeScrape := {
+				// TODO ; requyre that all urls will map to unique paths
+				// TODO ; touchfile for timestamps
+
+				scakaCMakeLibs.value.map {
+					case (url: String, path: String, _) =>
+						requyre(path.matches("([^/]+/)*"))
+						url -> {
+							val name: String = "cache/" + url.split("/+", 3)(2).replaceAll("[[\\W]&&[^\\.]]+", "-")
+							requyre(!name.contains(".."))
+							val cacheFile = target.value / name
+
+							requyre(cacheFile.getParentFile.exists() || cacheFile.getParentFile.mkdirs())
+
+							(new FileOutputStream(cacheFile) << new URL(url).openStream()).close()
+
+							name.splyt("\\.", -2) match {
+								case List(folder, "zip") =>
+
+									val dirFile = target.value / folder
+									val zipFile = new ZipFile(cacheFile)
+
+									zipFile.entries().filterNot(_.isDirectory).foreach {
+										case entry =>
+											val dumpFile = dirFile / entry.getName
+
+											requyre(dumpFile.getParentFile.exists() || dumpFile.getParentFile.mkdirs())
+
+											(new FileOutputStream(dumpFile) << zipFile.getInputStream(entry)).close()
+									}
+
+									dirFile
+							}
+						}
+				}.toMap
+			},
+
 			scakaList := {
 				Rollo(
 					name.value,
 					baseDirectory.value.getAbsoluteFile
 				)
 			},
+
 			scakaCMakeFile := {
-				val cmakeFile = {
+				val cmakeFile: File = {
 					val targetFile: File = target.value
 					requyre(targetFile.exists() || targetFile.mkdirs())
+
+					// HACK ; Why for is the implicit going away?
 					targetFile / "CMakeLists.txt"
 				}
 
 				val cmakeWriter = new FileWriter(cmakeFile)
 
+				val includes: Set[(Char, String)] =
+					scakaCMakeLibs.value.flatMap {
+						case (url, path, inks) =>
+							val dumpedFolder: File = scakaCMakeScrape.value(url) / path
+
+							inks.map {
+								case inc if inc.endsWith("/") =>
+									'd' -> (cmakeFile.getParentFile / (dumpedFolder / inc))
+
+								case lib =>
+									'l' -> lib
+							} + ('i' -> (cmakeFile.getParentFile / dumpedFolder))
+					}.toSet
+
 				Frollo(
 					cmakeWriter,
-					scakaList.value
+					Rollo.Module(
+						// include ()
+						includes.filter(_._1 == 'i').map(_._2),
+
+						// include_directories ()
+						includes.filter(_._1 == 'd').map(_._2),
+
+						// scList
+						scakaList.value,
+
+						// linked
+						includes.filter(_._1 == 'l').map(_._2)
+					)
 				)
 
 				cmakeWriter.close()
@@ -63,5 +138,7 @@ object ScakaPlugin extends AutoPlugin {
 			}
 
 			// TODO ; watch everything from scakaList
+
+			// TODO ; add our crapola to clean
 		)
 }
