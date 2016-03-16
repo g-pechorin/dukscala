@@ -1,11 +1,13 @@
 package peterlavalle.diskio {
 
+	import scala.scalajs.js.annotation.JSExport
+
 	import scala.scalajs.js
 
 
 
 
-	@ScalaJSDefined
+	@js.native
 	trait ChangeListener extends js.Object {
 		def fileChanged(path: String): Unit
 	}

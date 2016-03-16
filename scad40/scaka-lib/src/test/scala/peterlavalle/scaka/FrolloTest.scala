@@ -20,7 +20,9 @@ class FrolloTest extends TestCase {
 				|add_definitions(-DCMAKE_BINARY_DIR="${"${CMAKE_BINARY_DIR}"}")
 				 |add_definitions(-DCMAKE_SOURCE_DIR="${"${CMAKE_SOURCE_DIR}"}")
 				 |
-        |add_subdirectory(foobar)
+				 |set(BUILD_SHARED_LIBS OFF CACHE BOOL "Don't use shared libs - ever" FORCE)
+				 |
+				|add_subdirectory(foobar)
 				 |include_directories(bayond/)
 				 |
 				|add_library(
@@ -50,6 +52,9 @@ class FrolloTest extends TestCase {
 			""".stripMargin.trim.replaceAll("([\r \t]*\n)+", "\n"),
 			Frollo(
 				Rollo.Module(
+					Seq(
+						("BUILD_SHARED_LIBS", false, "Don't use shared libs - ever")
+					),
 					Set("foobar"),
 					Set("bayond/"),
 					Rollo.ScList(

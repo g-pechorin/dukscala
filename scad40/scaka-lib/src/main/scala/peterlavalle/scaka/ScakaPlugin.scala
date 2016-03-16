@@ -34,6 +34,12 @@ object ScakaPlugin extends AutoPlugin {
 				"scakaList",
 				"list of all native sources"
 			)
+
+		lazy val scakaCMakeForce =
+			SettingKey[Seq[(String, Any, String)]](
+				"scakaCMakeForce",
+				"force-set these values in the CMake file"
+			)
 		lazy val scakaCMakeFile =
 			TaskKey[File](
 				"scakaCMakeFile",
@@ -46,6 +52,7 @@ object ScakaPlugin extends AutoPlugin {
 	override lazy val projectSettings =
 		Seq(
 			scakaCMakeLibs := Seq(),
+			scakaCMakeForce := Seq(),
 			scakaCMakeScrape := {
 				// TODO ; requyre that all urls will map to unique paths
 				// TODO ; touchfile for timestamps
@@ -123,6 +130,8 @@ object ScakaPlugin extends AutoPlugin {
 				Frollo(
 					cmakeWriter,
 					Rollo.Module(
+						scakaCMakeForce.value,
+
 						// include ()
 						includes.filter(_._1 == 'i').map(_._2),
 

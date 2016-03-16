@@ -13,12 +13,12 @@ lazy val commonSettings = Seq(
 
 		"com.novocode" % "junit-interface" % "0.11" % Test
 			exclude("junit", "junit-dep")
-	)
-
-)
-publishTo := Some(
-	Resolver.file(
-		"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
+	),
+	
+	publishTo := Some(
+		Resolver.file(
+			"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
+		)
 	)
 )
 
