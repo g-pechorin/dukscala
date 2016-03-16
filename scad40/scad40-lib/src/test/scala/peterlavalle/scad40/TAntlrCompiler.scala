@@ -10,7 +10,7 @@ import org.antlr.v4.runtime._
 trait TAntlrCompiler {
   def getName: String
 
-  def compile(source:String) = {
+  def compile(source: String) = {
 
     object Fail extends ANTLRErrorListener {
       override def reportContextSensitivity(parser: Parser, dfa: DFA, i: Int, i1: Int, i2: Int, atnConfigSet: ATNConfigSet): Unit =

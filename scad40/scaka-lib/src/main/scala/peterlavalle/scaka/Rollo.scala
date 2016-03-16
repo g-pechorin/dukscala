@@ -20,6 +20,7 @@ object Rollo {
 
 	case class Module
 	(
+		forceSet: Seq[(String,  Any, String)],
 		includes: Set[String],
 		directories: Set[String],
 		scList: ScList,
