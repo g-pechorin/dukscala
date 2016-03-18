@@ -103,6 +103,25 @@ object ScakaPlugin extends AutoPlugin {
 			},
 
 			scakaCMakeFile := {
+
+				println(s">> ${name.value} >>")
+				projectDependencies.value.foreach {
+					case moduleId: sbt.ModuleID =>
+						println("=======")
+						println(moduleId)
+						println(moduleId.getClass.getName)
+
+
+
+
+				}
+
+
+
+				thisProject.value.autoPlugins.foreach(println)
+				println(s"<<< ${name.value} <")
+
+
 				val cmakeFile: File = {
 					val targetFile: File = target.value
 					requyre(targetFile.exists() || targetFile.mkdirs())
