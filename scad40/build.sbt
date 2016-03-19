@@ -45,8 +45,9 @@ lazy val scad40Lib =
 			antlr4Settings,
 			antlr4GenListener in Antlr4 := false,
 			antlr4GenVisitor in Antlr4 := false,
-			antlr4PackageName in Antlr4 := Some("peterlavalle.scad40")
+			antlr4PackageName in Antlr4 := Some("com.peterlavalle.sca")
 		)
+		.dependsOn(scaUtil)
 
 lazy val scad40Sbt =
 	(project in file("scad40-sbt"))

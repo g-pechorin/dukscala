@@ -3,15 +3,16 @@ package com.peterlavalle
 import java.io._
 
 import scala.io.Source
+import language.implicitConversions
 
 package object sca {
 
 	sealed trait TWrappedFile {
 		val file: File
 
-		def mkParent(): Unit =
+		def mkParent =
 			file.getAbsoluteFile.getParentFile match {
-				case parentFile =>
+				case parentFile: File =>
 					requyre(parentFile.exists() || parentFile.mkdirs())
 			}
 
@@ -78,9 +79,9 @@ package object sca {
 		}
 
 		def **(pattern: String) = {
-			def recu(todo: List[String], done: Set[String]): Set[String] =
+			def recu(todo: List[String], done: Set[String]): Seq[String] =
 				todo match {
-					case Nil => done
+					case Nil => done.toSeq.sorted
 					case name :: tail =>
 						recu(
 							new File(file, name).list() match {
@@ -98,6 +99,33 @@ package object sca {
 				case null => Nil
 				case list => list.toList
 			}, Set())
+		}
+
+		def ***(pattern: String): Stream[(String, File)] = {
+
+			def recu(todo: List[String]): Stream[(String, File)] =
+				todo match {
+					case Nil => Stream.Empty
+
+					case thisPath :: tail =>
+						val thisFile = new File(file, thisPath)
+
+						thisFile.list() match {
+							case null if thisPath.matches(pattern) =>
+								(thisPath -> thisFile) #:: recu(tail)
+
+							case null =>
+								recu(tail)
+
+							case list: Array[String] =>
+								recu(todo ++ list.map(thisPath + "/" + _))
+						}
+				}
+
+			recu(file.list() match {
+				case null => Nil
+				case list => list.toList
+			})
 		}
 	}
 

@@ -944,7 +944,7 @@ inline void peterlavalle::diskio::ChangeListener::fileChanged(scad40::duk_string
 	auto ctx = Host();
 
 	assert(ctx == ptr->Host() && "SAN failed");
-            assert(ctx == path.Host() && "Arg SAN failed");
+			assert(ctx == path.Host() && "Arg SAN failed");
 
 	const auto base = duk_get_top(ctx);
 
@@ -1030,21 +1030,21 @@ inline bool peterlavalle::diskio::ChangeListener::As(duk_context* ctx, duk_idx_t
 
 	//
 	// check each function / member ... not sure what to do about values
-        // check def fileChanged(path: string): void
-            duk_get_prop_string(ctx, idx, "fileChanged");
-            // stack -> ... ; idx .. base .. ; ?fileChanged() ;
-            if (duk_is_function(ctx, -1))
-            {
-                duk_pop(ctx);
-            }
-            else
-            {
-                duk_pop(ctx);
-                return false;
-            }
-            // stack -> ... ; idx .. base .. ;
+		// check def fileChanged(path: string): void
+			duk_get_prop_string(ctx, idx, "fileChanged");
+			// stack -> ... ; idx .. base .. ; ?fileChanged() ;
+			if (duk_is_function(ctx, -1))
+			{
+				duk_pop(ctx);
+			}
+			else
+			{
+				duk_pop(ctx);
+				return false;
+			}
+			// stack -> ... ; idx .. base .. ;
 
-    // yeah - it's probably what we want
+	// yeah - it's probably what we want
 	return true;
 }
 
