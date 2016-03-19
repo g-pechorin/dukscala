@@ -17,10 +17,22 @@ object ScakaPlugin extends AutoPlugin {
 
 	object autoImport {
 
+		lazy val scakaSourceRegex =
+			SettingKey[String](
+				"scakaSourceRegex",
+				"pattern to use in looking for source files"
+			)
+
 		lazy val scakaCMakeLibs =
 			SettingKey[Seq[(String, String, Set[String])]](
 				"scakaCMakeLibs",
 				"[(url, dir, [libs])] to link into this project"
+			)
+
+		lazy val scakaCMakeRoots =
+			SettingKey[Seq[File]](
+				"scakaCMakeRoots",
+				"folders to look for source-code in"
 			)
 
 		lazy val scakaCMakeScrape =
@@ -29,20 +41,19 @@ object ScakaPlugin extends AutoPlugin {
 				"scrape all CMakeLibs and return a mapping to the unpacked dirs they produce"
 			)
 
-		lazy val scakaList =
-			TaskKey[Rollo.ScList](
-				"scakaList",
-				"list of all native sources"
-			)
-
 		lazy val scakaCMakeForce =
 			SettingKey[Seq[(String, Any, String)]](
 				"scakaCMakeForce",
 				"force-set these values in the CMake file"
 			)
 		lazy val scakaCMakeFile =
-			TaskKey[File](
+			SettingKey[File](
 				"scakaCMakeFile",
+				"The CMakeList file"
+			)
+		lazy val scakaCMakeGenerate =
+			TaskKey[File](
+				"scakaCMakeGenerate",
 				"write a CMakeList file"
 			)
 	}
@@ -51,6 +62,7 @@ object ScakaPlugin extends AutoPlugin {
 
 	override lazy val projectSettings =
 		Seq(
+			scakaSourceRegex := "(\\w+/)*\\w+([\\-\\.]\\w+)*\\.(c|cc|cpp|cxx|h|hh|hpp|hxx)",
 			scakaCMakeLibs := Seq(),
 			scakaCMakeForce := Seq(),
 			scakaCMakeScrape := {
@@ -95,22 +107,22 @@ object ScakaPlugin extends AutoPlugin {
 				}.toMap
 			},
 
-			scakaList := {
-				Rollo(
-					name.value,
-					baseDirectory.value.getAbsoluteFile
-				)
+			scakaCMakeFile := {
+				val targetFile: File = target.value
+				requyre(targetFile.exists() || targetFile.mkdirs())
+
+				// HACK ; Why for is the implicit going away?
+				targetFile / "CMakeLists.txt"
 			},
 
-			scakaCMakeFile := {
+			scakaCMakeRoots := {
+				Seq(baseDirectory.value / "src/main/scaka/")
+			},
 
-				val cmakeFile: File = {
-					val targetFile: File = target.value
-					requyre(targetFile.exists() || targetFile.mkdirs())
+			scakaCMakeGenerate := {
 
-					// HACK ; Why for is the implicit going away?
-					targetFile / "CMakeLists.txt"
-				}
+				val cmakeFile: File =
+					scakaCMakeFile.value
 
 				val cmakeWriter = cmakeFile.overWriter
 
@@ -126,7 +138,7 @@ object ScakaPlugin extends AutoPlugin {
 								case lib =>
 									'l' -> lib
 							} + ('i' -> (cmakeFile.getParentFile / dumpedFolder))
-					}.toSeq
+					}
 
 				Frollo(
 					cmakeWriter,
@@ -140,7 +152,14 @@ object ScakaPlugin extends AutoPlugin {
 						includes.filter(_._1 == 'd').map(_._2),
 
 						// scList
-						scakaList.value,
+						Rollo.ScList(
+							name.value, scakaCMakeFile.value,
+							scakaCMakeRoots.value.flatMap {
+								case root =>
+									(root *** scakaSourceRegex.value).map(_._2)
+							},
+							scakaCMakeRoots.value
+						),
 
 						// linked
 						includes.filter(_._1 == 'l').map(_._2)

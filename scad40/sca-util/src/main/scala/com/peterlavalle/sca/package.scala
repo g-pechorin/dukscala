@@ -54,25 +54,30 @@ package object sca {
 				}
 			}
 
-		def /(goal: File): String = {
+		def /(goal: File): String =
+			if (file.getAbsoluteFile != file)
+				file.getAbsoluteFile / goal
+			else if (file.isFile)
+				file.getParentFile / goal
+			else {
 
-			def chew(lS: Stream[String], rS: Stream[String]): Stream[String] =
-				(lS, rS) match {
-					case ((lHead #:: lTail), (rHead #:: rTail)) if lHead == rHead =>
-						chew(lTail, rTail)
+				def chew(lS: Stream[String], rS: Stream[String]): Stream[String] =
+					(lS, rS) match {
+						case ((lHead #:: lTail), (rHead #:: rTail)) if lHead == rHead =>
+							chew(lTail, rTail)
 
-					case ((lHead #:: lTail), tail) =>
-						".." #:: chew(lTail, tail)
+						case ((lHead #:: lTail), tail) =>
+							".." #:: chew(lTail, tail)
 
-					case (Stream.Empty, tail) =>
-						tail
-				}
+						case (Stream.Empty, tail) =>
+							tail
+					}
 
-			chew(
-				file.getAbsolutePath.replace("\\", "/") #! "/",
-				goal.getAbsolutePath.replace("\\", "/") #! "/"
-			).reduce(_ + "/" + _)
-		}
+				chew(
+					file.getAbsolutePath.replace("\\", "/") #! "/",
+					goal.getAbsolutePath.replace("\\", "/") #! "/"
+				).reduce(_ + "/" + _)
+			}
 
 		def /(path: String) = {
 			new File(file.getAbsoluteFile, path).getAbsoluteFile

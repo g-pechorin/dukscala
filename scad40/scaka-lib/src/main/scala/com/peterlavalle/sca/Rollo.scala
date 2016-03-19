@@ -8,16 +8,14 @@ object Rollo {
 	(
 		name: String,
 		root: File,
-		mainSrc: Seq[String],
-		mainInc: Seq[String],
-		cmade: Seq[String],
-		testSrc: Seq[String]
+		mainSrc: Seq[File],
+		mainInc: Seq[File]
 	) {
 		lazy val hasMain =
-			Set("main", "assembly").flatMap {
-				case n =>
-					Set("c", "cpp", "cc").map(n + "." + _)
-			}.exists(mainSrc.contains)
+			mainSrc.map(_.getName) match {
+				case names =>
+					names.contains("main.cpp") || names.contains("main.c")
+			}
 	}
 
 	case class ScrapeLink(lib: String, url: String, md5: String, dir: String)
@@ -34,10 +32,8 @@ object Rollo {
 	def apply(name: String, root: File): ScList = {
 		ScList(
 			name, root,
-			wrapFile(root / "src/main/scaka/") ** "(\\w+/)*\\w+([\\-\\.]\\w+)*\\.(c|cc|cpp|cxx)",
-			root / "src/main/scaka/" ** "(\\w+/)*\\w+([\\-\\.]\\w+)*\\.(h|hh|hpp|hxx)",
-			root / "src/" ** "(\\w+/)*\\w+\\.cmake",
-			root / "src/test/scaka/" ** "(\\w+/)*\\w+\\.(c|cc|cpp|cxx|h|hh|hpp|hxx)"
+			(root / "src/main/scaka/" *** "(\\w+/)*\\w+([\\-\\.]\\w+)*\\.(c|cc|cpp|cxx|h|hh|hpp|hxx)").map(_._2),
+			Seq(root / "src/main/scaka/")
 		)
 	}
 }
