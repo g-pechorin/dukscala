@@ -1,4 +1,4 @@
-package peterlavalle.scaka
+package com.peterlavalle.sca
 
 import junit.framework.TestCase
 import org.junit.Assert._

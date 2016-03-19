@@ -26,11 +26,16 @@ name := "scad40"
 lazy val root = (project in file("."))
 	.settings(commonSettings: _*)
 	.aggregate(
+		scaUtil,
 		scad40Lib,
 		scad40Sbt,
 		scad40App,
 		scakaLib
 	)
+
+lazy val scaUtil =
+	(project in file("sca-util"))
+		.settings(commonSettings: _*)
 
 lazy val scad40Lib =
 	(project in file("scad40-lib"))
@@ -64,3 +69,4 @@ lazy val scakaLib =
 			sbtPlugin := true
 		)
 		.enablePlugins(SamonPlugin)
+		.dependsOn(scaUtil)

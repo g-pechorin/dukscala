@@ -1,4 +1,4 @@
-package peterlavalle.scaka
+package com.peterlavalle.sca
 
 import java.io.{File, FileOutputStream, FileWriter}
 import java.net.URL
@@ -104,24 +104,6 @@ object ScakaPlugin extends AutoPlugin {
 
 			scakaCMakeFile := {
 
-				println(s">> ${name.value} >>")
-				projectDependencies.value.foreach {
-					case moduleId: sbt.ModuleID =>
-						println("=======")
-						println(moduleId)
-						println(moduleId.getClass.getName)
-
-
-
-
-				}
-
-
-
-				thisProject.value.autoPlugins.foreach(println)
-				println(s"<<< ${name.value} <")
-
-
 				val cmakeFile: File = {
 					val targetFile: File = target.value
 					requyre(targetFile.exists() || targetFile.mkdirs())
@@ -130,7 +112,7 @@ object ScakaPlugin extends AutoPlugin {
 					targetFile / "CMakeLists.txt"
 				}
 
-				val cmakeWriter = new FileWriter(cmakeFile)
+				val cmakeWriter = cmakeFile.overWriter
 
 				val includes: Set[(Char, String)] =
 					scakaCMakeLibs.value.flatMap {
