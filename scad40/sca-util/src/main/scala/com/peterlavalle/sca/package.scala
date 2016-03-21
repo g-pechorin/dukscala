@@ -123,7 +123,7 @@ package object sca {
 								recu(tail)
 
 							case list: Array[String] =>
-								recu(todo ++ list.map(thisPath + "/" + _))
+								recu(tail ++ list.map(thisPath + "/" + _))
 						}
 				}
 

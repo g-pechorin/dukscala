@@ -1,9 +1,12 @@
 This is ...
 
 * a [proof-of-concept demo](example01/) showing [Scala-JS][orgScalaJS] inside of C++/[Duktape][orgDuktape]
-* an [Interface Definition Language / binding generator](scad40/) with (decoupled! independent!) modules for
-  * C++/[Duktape][orgDuktape]
-  * [Scala-JS][orgScalaJS]
+* some SBT stuff including
+	* an [Interface Definition Language / binding generator](scad40/) with (decoupled! independent!) modules for
+	* C++/[Duktape][orgDuktape]
+	* [Scala-JS][orgScalaJS]
+	* a magical CMakeLists.txt generator to make CMake dance to SBT's tune
+	* an inevitable *utility code* project shared by the others
 
 ... so ; it's my pile-of-stuff repository.
 
