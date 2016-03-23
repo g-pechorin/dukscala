@@ -111,7 +111,6 @@ object ScakaPlugin extends AutoPlugin {
 				val targetFile: File = target.value
 				requyre(targetFile.exists() || targetFile.mkdirs())
 
-				// HACK ; Why for is the implicit going away?
 				targetFile / "CMakeLists.txt"
 			},
 
@@ -142,7 +141,8 @@ object ScakaPlugin extends AutoPlugin {
 
 				Frollo(
 					cmakeWriter,
-					Rollo.Module(
+					ScakaModule(
+						scakaCMakeFile.value,
 						scakaCMakeForce.value,
 
 						// include ()
@@ -152,17 +152,17 @@ object ScakaPlugin extends AutoPlugin {
 						includes.filter(_._1 == 'd').map(_._2),
 
 						// scList
-						Rollo.ScList(
-							name.value, scakaCMakeFile.value,
+						ScakaModule.Target(
+							name.value,
 							scakaCMakeRoots.value.flatMap {
 								case root =>
 									(root *** scakaSourceRegex.value).map(_._2)
 							},
-							scakaCMakeRoots.value
-						),
+							scakaCMakeRoots.value,
 
-						// linked
-						includes.filter(_._1 == 'l').map(_._2)
+							// linked
+							includes.filter(_._1 == 'l').map(_._2)
+						)
 					)
 				)
 

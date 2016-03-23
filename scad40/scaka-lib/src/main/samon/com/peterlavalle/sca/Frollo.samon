@@ -1,7 +1,6 @@
 $import java.io.File
-$def(module: Rollo.Module)
+$def(module: ScakaModule)
 cmake_minimum_required(VERSION 3.1.0)
-project ($<module.scList.name.replaceAll("[\\W_]+", "_")>)
 
 if(WIN32)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -28,38 +27,38 @@ $case directory
 include_directories(${directory})
 $end
 
-$each module.scList.mainInc
+$each module.target.mainInc
 $case file
-include_directories(${module.scList.root / file})
+include_directories(${module.lists / file})
 $end
 
-$match module.scList.hasMain
+$match module.target.hasMain
 $case false
 add_library(
-	${module.scList.name} OBJECT
+	${module.target.name} OBJECT
 $case true
 add_executable(
-	${module.scList.name}
+	${module.target.name}
 	# TODO ; include OBJECT libraries
 $end
-$each module.scList.mainSrc
+$each module.target.mainSrc
 $case file: File
-		${module.scList.root / file}
+		${module.lists / file}
 $end
 	)
-$match if (module.scList.hasMain) module.links.toList.sorted else List()
+$match if (module.target.hasMain) module.target.links.toList.sorted else List()
 $case Nil
 $case links
-	target_link_libraries(${module.scList.name}$<links.foldLeft("")(_ + " " + _)>)
+	target_link_libraries(${module.target.name}$<links.foldLeft("")(_ + " " + _)>)
 $end
-$match module.scList.root.findParent(p => new File(p, "build.sbt").exists())
+$match module.lists.findParent(p => new File(p, "build.sbt").exists())
 $case None
 $case Some(build)
 	$match build.findParent(p => new File(p, "sbt-launch.jar").exists() && new File(p, "sbt").exists() && new File(p, "sbt.bat").exists())
 	$case None
 	$case Some(sbtLaunch)
 	add_custom_command(
-		TARGET ${module.scList.name} PRE_BUILD
+		TARGET ${module.target.name} PRE_BUILD
 			COMMAND $<new File(sbtLaunch, "sbt").getAbsolutePath.replace("\\", "/")> scakaCMakeGenerate
 			WORKING_DIRECTORY $<build.getAbsolutePath.replace("\\", "/")>)
 	$end
