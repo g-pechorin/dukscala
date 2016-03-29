@@ -110,8 +110,13 @@ object ScakaPlugin extends AutoPlugin {
 			scakaCMakeFile := {
 				val targetFile: File = target.value
 				requyre(targetFile.exists() || targetFile.mkdirs())
-
-				targetFile / "CMakeLists.txt"
+				
+				val cmake = targetFile / "CMakeLists.txt"
+				
+				if (!cmake.exists())
+					cmake.overWriter.append("domeeeee").close()
+					
+				cmake				
 			},
 
 			scakaCMakeRoots := {
