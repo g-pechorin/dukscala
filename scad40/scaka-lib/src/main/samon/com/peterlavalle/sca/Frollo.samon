@@ -57,8 +57,11 @@ $case Some(build)
 	$match build.findParent(p => new File(p, "sbt-launch.jar").exists() && new File(p, "sbt").exists() && new File(p, "sbt.bat").exists())
 	$case None
 	$case Some(sbtLaunch)
+	if(NOT TARGET scaka)
+		add_custom_target(scaka)
+	endif()
 	add_custom_command(
-		TARGET ${module.target.name} PRE_BUILD
+		TARGET scaka PRE_BUILD
 			COMMAND $<new File(sbtLaunch, "sbt").getAbsolutePath.replace("\\", "/")> scakaCMakeGenerate
 			WORKING_DIRECTORY $<build.getAbsolutePath.replace("\\", "/")>)
 	$end
