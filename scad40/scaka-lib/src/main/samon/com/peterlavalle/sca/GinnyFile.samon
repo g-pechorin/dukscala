@@ -1,0 +1,85 @@
+$import com.peterlavalle.sca.GinnyPlugin._
+$import com.peterlavalle.sca.Horse._
+$import java.io.File
+
+$def(mouth: Horse.Mouth)
+cmake_minimum_required(VERSION 3.1.0)
+
+$match mouth.list
+$case app: AppListing
+project($<app.name>)
+$end
+
+if(WIN32)
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+else(WIN32)
+	set(CMAKE_CXX_FLAGS "$<"${CMAKE_CXX_FLAGS}"> -std=c++11 -std=gnu++11 -static-libstdc++")
+	set(CMAKE_EXE_LINKER_FLAGS "$<"${CMAKE_EXE_LINKER_FLAGS}"> -static-libstdc++")
+endif(WIN32)
+
+set(GINNY_CMAKE ON CACHE BOOL "Tell the computer this is a Ginny CMake build" FORCE)
+add_definitions(-DGINNY_CMAKE=true)
+
+$each mouth.sets
+$case (name: String, value: Boolean, description: String)
+set($<name> $<if (value) "ON" else "OFF"> CACHE BOOL "$<description>" FORCE)
+add_definitions(-D$<name>="$<value>")
+
+$case (name: String, value: File, description: String)
+set($<name> "$<value.AbsolutePath>" CACHE FILEPATH "$<description>" FORCE)
+add_definitions(-D$<name>="$<value.AbsolutePath>")
+
+$case (name: String, value: String, description: String)
+set($<name> "$<value>" CACHE STRING "$<description>" FORCE)
+add_definitions(-D$<name>="$<value>")
+
+$end
+
+add_definitions(-DCMAKE_BINARY_DIR="$<"${CMAKE_BINARY_DIR}">")
+
+$each mouth.list.dir
+$case dir
+add_subdirectory($<dir.AbsolutePath> sub$<dir.AbsolutePath.hashCode>)
+$end
+
+include_directories(
+$each mouth.list.inc
+$case inc: File
+	${inc.AbsolutePath}
+$end
+)
+
+$match mouth.list
+$case app: AppListing
+add_executable(
+	$<app.name>
+$end
+$each mouth.list.src
+$case src: File
+		$<src.AbsolutePath>
+$end
+	)
+
+$match (mouth.list, mouth.list.lib)
+$case (app: AppListing, none) if none.isEmpty
+	# no libs in $<app.name>
+$case (app: AppListing, libs)
+	target_link_libraries(
+		$<app.name>$<libs.foldLeft("")(_ + " " + _)>)
+$end
+
+$match mouth.home.findParent(p => new File(p, "build.sbt").exists())
+$case None
+$case Some(build)
+	$match build.findParent(p => new File(p, "sbt-launch.jar").exists() && new File(p, "sbt").exists() && new File(p, "sbt.bat").exists())
+	$case None
+	$case Some(sbtLaunch)
+	if(NOT TARGET scaka)
+		add_custom_target(scaka)
+	endif()
+	add_custom_command(
+		TARGET scaka PRE_BUILD
+			COMMAND $<new File(sbtLaunch, "sbt").getAbsolutePath.replace("\\", "/")> ginny
+			WORKING_DIRECTORY $<build.getAbsolutePath.replace("\\", "/")>)
+	$end
+$end

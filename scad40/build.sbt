@@ -7,6 +7,7 @@ lazy val commonSettings = Seq(
 
 	javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
 
+
 	libraryDependencies ++= Seq(
 		"junit" % "junit" % "4.12" % Test,
 		"org.easymock" % "easymock" % "3.4" % Test,
@@ -14,7 +15,7 @@ lazy val commonSettings = Seq(
 		"com.novocode" % "junit-interface" % "0.11" % Test
 			exclude("junit", "junit-dep")
 	),
-	
+
 	publishTo := Some(
 		Resolver.file(
 			"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")

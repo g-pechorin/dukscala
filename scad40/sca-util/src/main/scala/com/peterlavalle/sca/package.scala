@@ -1,6 +1,7 @@
 package com.peterlavalle
 
 import java.io._
+import java.util.zip.{ZipEntry, ZipInputStream}
 
 import scala.io.Source
 import language.implicitConversions
@@ -9,6 +10,16 @@ package object sca {
 
 	sealed trait TWrappedFile {
 		val file: File
+
+
+		def deleteAll(): Unit = {
+			if (file.exists()) {
+				if (file.isDirectory)
+					file.listFiles().foreach(_.deleteAll())
+
+				requyre(file.delete())
+			}
+		}
 
 		def mkParent =
 			file.getAbsoluteFile.getParentFile match {
@@ -83,6 +94,13 @@ package object sca {
 			new File(file.getAbsoluteFile, path).getAbsoluteFile
 		}
 
+		def <<(stream: InputStream) =
+			(new FileOutputStream({
+				requyre(null != file && file.getParentFile != file)
+				requyre(file.getParentFile.exists() || file.getParentFile.mkdirs())
+				file
+			}) << stream).close()
+
 		def **(pattern: String) = {
 			def recu(todo: List[String], done: Set[String]): Seq[String] =
 				todo match {
@@ -132,11 +150,58 @@ package object sca {
 				case list => list.toList
 			})
 		}
+
+		def AbsolutePath = {
+			def recu(path: String): String =
+				path match {
+					case rReduce(l, r) => recu(s"$l/$r")
+					case _ => path
+				}
+
+			recu(file.getAbsolutePath.replace("\\", "/"))
+		}
 	}
+
+	val rReduce = "(.+)/[^/]+/\\.\\./(.*)".r
 
 	implicit def wrapFile(value: File): TWrappedFile =
 		new TWrappedFile {
-			override val file: File = value
+			override val file: File = value.getAbsoluteFile
+		}
+
+	sealed trait TWrappedZipInputStream {
+		val stream: ZipInputStream
+
+		def files: Stream[(String, InputStream)] =
+
+			stream.getNextEntry match {
+				case null =>
+					stream.close()
+					Stream.Empty
+
+				case next if next.isDirectory =>
+					files
+
+				case file =>
+					val buffer = Array.ofDim[Byte](file.getSize.toInt)
+
+					def recu(offset: Int): Stream[(String, InputStream)] =
+						stream.read(buffer, offset, buffer.length - offset) match {
+							case 0 =>
+								stream.closeEntry()
+								(file.getName -> new ByteArrayInputStream(buffer)) #:: files
+							case read =>
+								recu(offset + read)
+						}
+
+					recu(0)
+			}
+
+	}
+
+	implicit def wrapInputStream(value: ZipInputStream): TWrappedZipInputStream =
+		new TWrappedZipInputStream {
+			override val stream = value
 		}
 
 	sealed trait TWrappedOutputStream {
@@ -194,6 +259,14 @@ package object sca {
 	def requyre(requirement: Boolean) {
 		if (!requirement) {
 			val illegalArgumentException: IllegalArgumentException = new scala.IllegalArgumentException("requirement failed")
+			illegalArgumentException.setStackTrace(illegalArgumentException.getStackTrace.tail)
+			throw illegalArgumentException
+		}
+	}
+
+	def requyre(requirement: Boolean, message: String) {
+		if (!requirement) {
+			val illegalArgumentException: IllegalArgumentException = new scala.IllegalArgumentException(message)
 			illegalArgumentException.setStackTrace(illegalArgumentException.getStackTrace.tail)
 			throw illegalArgumentException
 		}
