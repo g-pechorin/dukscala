@@ -43,10 +43,10 @@ object GinnyPlugin extends AutoPlugin {
 				"ginnyPattern",
 				"regex used to find sources"
 			)
-		lazy val ginnyMainRoots =
+		lazy val sourceDirectories =
 			SettingKey[Seq[File]](
-				"ginnyMainRoots",
-				"list of files to lookin for sources"
+				"sourceDirectories",
+				"list of files to look in for sources"
 			)
 		lazy val ginnyUses =
 			TaskKey[Seq[Horse.TListing]](
@@ -64,9 +64,9 @@ object GinnyPlugin extends AutoPlugin {
 				"Ginny's CMakeLists.txt file"
 			)
 		lazy val ginny =
-			TaskKey[File](
+			TaskKey[Seq[File]](
 				"ginny",
-				"Ginny's magical CMake generator"
+				"Ginny's magical generators"
 			)
 
 		lazy val ginnyGenerate =
@@ -112,27 +112,15 @@ object GinnyPlugin extends AutoPlugin {
 						}
 
 						val cmake = {
-							val cmake = dump / s"${
-								path
-							}/CMakeLists.txt"
+							val cmake = dump / s"${path}/CMakeLists.txt"
 							requyre(cmake.exists())
 							cmake.getParentFile
 						}
 
-						symbols.filter(_.endsWith("/")).foreach(i => requyre((wrapFile(dump) / s"${
-							i
-						}").exists(), s"The inc `${
-							i
-						}` does not exits"))
-						symbols.filter(_.endsWith("/")).foreach(i => requyre((wrapFile(dump) / s"${
-							i
-						}").isDirectory, s"The inc `${
-							i
-						}` is not a dir"))
+						symbols.filter(_.endsWith("/")).foreach(i => requyre((wrapFile(dump) / s"${i}").exists(), s"The inc `${i}` does not exits"))
+						symbols.filter(_.endsWith("/")).foreach(i => requyre((wrapFile(dump) / s"${i}").isDirectory, s"The inc `${i}` is not a dir"))
 
-						(cmake, symbols.filter(_.endsWith("/")).map(i => wrapFile(dump) / s"${
-							i
-						}"), symbols.filterNot(_.endsWith("/")))
+						(cmake, symbols.filter(_.endsWith("/")).map(i => wrapFile(dump) / s"${i}"), symbols.filterNot(_.endsWith("/")))
 				}
 			},
 
@@ -145,23 +133,21 @@ object GinnyPlugin extends AutoPlugin {
 				)
 			},
 			ginnyPattern := "(\\w+/)*\\w+([\\-\\.]\\w+)*\\.(c|cc|cpp|cxx|h|hh|hpp|hxx)",
-			ginnyMainRoots := {
+			sourceDirectories := {
 				Seq(
 					baseDirectory.value / "src/main/scaka"
 				)
 			},
 			ginnyUses := Seq(),
 			ginnyListing := {
-				((ginnyMainRoots.value ++ ginnyGenerate.value).map {
+				((sourceDirectories.value ++ ginnyGenerate.value).map {
 					case root: File =>
 						Horse.SourceSet(root, (root ** ginnyPattern.value).toSet)
 				}
 					.filter(_.srcs.nonEmpty) match {
 
 					case Seq() =>
-						requyre(ginnyBogies.value.nonEmpty, s"The project ${
-							name.value
-						} needs to do something")
+						requyre(ginnyBogies.value.nonEmpty, s"The project ${name.value} needs to do something")
 						(u: Seq[Horse.TListing]) => Horse.ProxyListing(u, ginnyBogies.value)
 
 					case app: Seq[Horse.SourceSet] if app.exists(_.srcs.exists(_.matches(appPattern))) =>
@@ -186,9 +172,9 @@ object GinnyPlugin extends AutoPlugin {
 			},
 			ginnyCMakeFile := target.value / "CMakeLists.txt",
 			ginny := {
-				val file: File = ginnyCMakeFile.value
+				val cmakeFile: File = ginnyCMakeFile.value
 
-				val writer = file.overWriter
+				val writer = cmakeFile.overWriter
 				GinnyFile(
 					writer,
 					Horse.Mouth(
@@ -198,7 +184,10 @@ object GinnyPlugin extends AutoPlugin {
 					)
 				)
 				writer.close()
-				file
+
+				Seq(
+					cmakeFile
+				)
 			},
 
 			// by default - don't generate anything
