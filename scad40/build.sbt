@@ -64,7 +64,7 @@ lazy val scad40App =
 		.dependsOn(scad40Lib)
 
 lazy val scakaLib =
-	(project in file("scaka-lib"))
+	(project in file("scaka-sbt"))
 		.settings(commonSettings: _*)
 		.settings(
 			name := "scaka",
