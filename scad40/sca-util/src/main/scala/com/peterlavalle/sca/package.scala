@@ -162,7 +162,7 @@ package object sca {
 		}
 	}
 
-	val rReduce = "(.+)/[^/]+/\\.\\./(.*)".r
+	val rReduce = "^(.+?)/[^/]+/\\.\\./(.*)$".r
 
 	implicit def wrapFile(value: File): TWrappedFile =
 		new TWrappedFile {

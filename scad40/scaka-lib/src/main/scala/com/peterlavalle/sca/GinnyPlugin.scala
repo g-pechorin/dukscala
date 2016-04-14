@@ -43,9 +43,9 @@ object GinnyPlugin extends AutoPlugin {
 				"ginnyPattern",
 				"regex used to find sources"
 			)
-		lazy val sourceDirectories =
+		lazy val ginnyMainRoots =
 			SettingKey[Seq[File]](
-				"sourceDirectories",
+				"ginnyMainRoots",
 				"list of files to look in for sources"
 			)
 		lazy val ginnyUses =
@@ -128,27 +128,27 @@ object GinnyPlugin extends AutoPlugin {
 				Seq(
 					("BUILD_SHARED_LIBS", false, "Don't use shared libs - ever"),
 					("USE_MSVC_RUNTIME_LIBRARY_DLL", false, "Don't use shared vcrt - it saves a few kB of file size but causes problems that only show up on user machines"),
-					("BASE_DIRECTORY", baseDirectory.value, "Where the project was built from"),
-					("GINNY_CMAKE", true, "Are we using Ginny? (of course we are!)")
+					("BASE_DIRECTORY", baseDirectory.value, "Where the project was built from")
 				)
 			},
 			ginnyPattern := "(\\w+/)*\\w+([\\-\\.]\\w+)*\\.(c|cc|cpp|cxx|h|hh|hpp|hxx)",
-			sourceDirectories := {
+			ginnyMainRoots := {
 				Seq(
 					baseDirectory.value / "src/main/scaka"
 				)
 			},
 			ginnyUses := Seq(),
 			ginnyListing := {
-				((sourceDirectories.value ++ ginnyGenerate.value).map {
-					case root: File =>
-						Horse.SourceSet(root, (root ** ginnyPattern.value).toSet)
-				}
+				((ginnyMainRoots.value ++ ginnyGenerate.value)
+					.map((root: File) => Horse.SourceSet(root, (root ** ginnyPattern.value).toSet))
 					.filter(_.srcs.nonEmpty) match {
 
 					case Seq() =>
 						requyre(ginnyBogies.value.nonEmpty, s"The project ${name.value} needs to do something")
-						(u: Seq[Horse.TListing]) => Horse.ProxyListing(u, ginnyBogies.value)
+						(u: Seq[Horse.TListing]) => {
+							requyre(u.isEmpty)
+							Horse.ProxyListing(ginnyBogies.value)
+						}
 
 					case app: Seq[Horse.SourceSet] if app.exists(_.srcs.exists(_.matches(appPattern))) =>
 						requyre(ginnyBogies.value.isEmpty)

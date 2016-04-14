@@ -10,32 +10,38 @@ $case app: AppListing
 project($<app.name>)
 $end
 
+set(GINNY_CMAKE ON CACHE BOOL "Tell the computer this is a Ginny CMake build" FORCE)
+$each mouth.sets
+$case (name: String, value: Boolean, description: String)
+	set($<name> $<if (value) "ON" else "OFF"> CACHE BOOL "$<description>" FORCE)
+$case (name: String, value: File, description: String)
+	set($<name> "$<value.AbsolutePath>" CACHE FILEPATH "$<description>" FORCE)
+$case (name: String, value: String, description: String)
+	set($<name> "$<value>" CACHE STRING "$<description>" FORCE)
+$end
+
+add_definitions(
+	-D_CRT_SECURE_NO_WARNINGS
+	-DGINNY_CMAKE=true
+$each mouth.sets
+	$case (name: String, value: Boolean, description: String)
+		-D$<name>=$<value>
+
+	$case (name: String, value: File, description: String)
+		-D$<name>="$<value.AbsolutePath>"
+
+	$case (name: String, value: String, description: String)
+		-D$<name>="$<value>"
+$end
+	-DCMAKE_BINARY_DIR="$<"${CMAKE_BINARY_DIR}">"
+)
 if(WIN32)
-	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 else(WIN32)
 	set(CMAKE_CXX_FLAGS "$<"${CMAKE_CXX_FLAGS}"> -std=c++11 -std=gnu++11 -static-libstdc++")
 	set(CMAKE_EXE_LINKER_FLAGS "$<"${CMAKE_EXE_LINKER_FLAGS}"> -static-libstdc++")
 endif(WIN32)
 
-set(GINNY_CMAKE ON CACHE BOOL "Tell the computer this is a Ginny CMake build" FORCE)
-add_definitions(-DGINNY_CMAKE=true)
 
-$each mouth.sets
-$case (name: String, value: Boolean, description: String)
-set($<name> $<if (value) "ON" else "OFF"> CACHE BOOL "$<description>" FORCE)
-add_definitions(-D$<name>="$<value>")
-
-$case (name: String, value: File, description: String)
-set($<name> "$<value.AbsolutePath>" CACHE FILEPATH "$<description>" FORCE)
-add_definitions(-D$<name>="$<value.AbsolutePath>")
-
-$case (name: String, value: String, description: String)
-set($<name> "$<value>" CACHE STRING "$<description>" FORCE)
-add_definitions(-D$<name>="$<value>")
-
-$end
-
-add_definitions(-DCMAKE_BINARY_DIR="$<"${CMAKE_BINARY_DIR}">")
 
 $each mouth.list.dir
 $case dir
