@@ -1,13 +1,13 @@
 package com.peterlavalle.sca
 
 
-import java.io.{File, InputStream, StringWriter}
+import java.io.{File, InputStream}
 import java.net.URL
 import java.util.zip.ZipInputStream
 
 import com.peterlavalle.sca.Horse.SourceSet
 import sbt.Keys._
-import sbt.{AutoPlugin, SettingKey, TaskKey}
+import sbt.{AutoPlugin, Reference, SettingKey, TaskKey}
 
 object GinnyPlugin extends AutoPlugin {
 	/*
@@ -18,68 +18,26 @@ object GinnyPlugin extends AutoPlugin {
 		... but it should show a P.o.C. right?
 	*/
 
+
 	type Slug = (URL /* remote address */ , String /* internal path to CMake */ , Seq[String] /* dirs and symbols */ )
 
 	object autoImport {
-		lazy val ginnyFresh =
-			SettingKey[Boolean](
-				"ginnyFresh",
-				"should Ginny download fresh copies of everything even if pre-existing stuff is there?"
-			)
 
-		lazy val ginnyRemotes =
-			SettingKey[Seq[Slug]](
-				"ginnyRemotes",
-				"stuff that Ginny should download and extract"
-			)
-		lazy val ginnyBogies =
-			TaskKey[Seq[Horse.Bogey]](
-				"ginnyBogies",
-				"get Ginny to download stuff and extract it"
-			)
+		lazy val ginnyFresh = SettingKey[Boolean]("ginnyFresh", "should Ginny download fresh copies of everything even if pre-existing stuff is there?")
 
-		lazy val ginnyPattern =
-			SettingKey[String](
-				"ginnyPattern",
-				"regex used to find sources"
-			)
-		lazy val ginnyMainRoots =
-			SettingKey[Seq[File]](
-				"ginnyMainRoots",
-				"list of files to look in for sources"
-			)
-		lazy val ginnyUses =
-			TaskKey[Seq[Horse.TListing]](
-				"ginnyUses",
-				"HACK ; dependencies"
-			)
-		lazy val ginnyListing =
-			TaskKey[Horse.TListing](
-				"ginnyListing",
-				"workout how Ginny is doing this stuff"
-			)
-		lazy val ginnyCMakeFile =
-			SettingKey[File](
-				"ginnyCMakeFile",
-				"Ginny's CMakeLists.txt file"
-			)
-		lazy val ginny =
-			TaskKey[Seq[File]](
-				"ginny",
-				"Ginny's magical generators"
-			)
+		lazy val ginnyRemotes = SettingKey[Seq[Slug]]("ginnyRemotes", "stuff that Ginny should download and extract")
+		lazy val ginnyBogies = TaskKey[Seq[Horse.Bogey]]("ginnyBogies", "get Ginny to download stuff and extract it")
 
-		lazy val ginnyGenerate =
-			TaskKey[Seq[File]](
-				"ginnyGenerate",
-				"Folders of auto-generated source"
-			)
+		lazy val ginnyPattern = SettingKey[String]("ginnyPattern", "regex used to find sources")
+		lazy val ginnyMainRoots = SettingKey[Seq[File]]("ginnyMainRoots", "list of to lookin for a project's sources")
+		lazy val ginnyUses = TaskKey[Seq[Horse.TListing]]("ginnyUses", "HACK ; dependencies. can't 'just` use dependencies for £reasons")
+		lazy val ginnyListing = TaskKey[Horse.TListing]("ginnyListing", "workout how Ginny is doing this stuff")
+		lazy val ginnyCMakeFile = SettingKey[File]("ginnyCMakeFile", "Ginny's CMakeLists.txt file")
+		lazy val ginny = TaskKey[Seq[File]]("ginny", "Ginny's magical generators")
 
-		lazy val ginnySets =
-			SettingKey[Seq[(String, Any, String)]](
-				"ginnySets",
-				"Things that'll be set in the preprocessor and CMakeCache"
-			)
+		lazy val ginnyGenerate = TaskKey[Seq[File]]("ginnyGenerate", "Folders of auto-generated source")
+
+		lazy val ginnySets = SettingKey[Seq[(String, Any, String)]]("ginnySets", "Things that'll be set in the preprocessor and CMakeCache")
 	}
 
 	import autoImport._
@@ -105,22 +63,23 @@ object GinnyPlugin extends AutoPlugin {
 									// TODO ; why aren't my implicits working here?
 									dump / file << stream
 
-									streams.value.log.info(s"Extracted ${
-										file
-									}")
+									streams.value.log.info(s"Extracted ${file}")
 							}
 						}
 
 						val cmake = {
 							val cmake = dump / s"${path}/CMakeLists.txt"
-							requyre(cmake.exists())
+							requyre(
+								cmake.exists(),
+								s"I couldn't find a CMakeLists.txt in ${cmake.getAbsolutePath.replace("\\", "/")}"
+							)
 							cmake.getParentFile
 						}
 
 						symbols.filter(_.endsWith("/")).foreach(i => requyre((wrapFile(dump) / s"${i}").exists(), s"The inc `${i}` does not exits"))
 						symbols.filter(_.endsWith("/")).foreach(i => requyre((wrapFile(dump) / s"${i}").isDirectory, s"The inc `${i}` is not a dir"))
 
-						(cmake, symbols.filter(_.endsWith("/")).map(i => wrapFile(dump) / s"${i}"), symbols.filterNot(_.endsWith("/")))
+						Horse.Bogey(cmake, symbols.filter(_.endsWith("/")).map(i => wrapFile(dump) / s"${i}"), symbols.filterNot(_.endsWith("/")))
 				}
 			},
 
@@ -139,9 +98,17 @@ object GinnyPlugin extends AutoPlugin {
 			},
 			ginnyUses := Seq(),
 			ginnyListing := {
-				((ginnyMainRoots.value ++ ginnyGenerate.value)
-					.map((root: File) => Horse.SourceSet(root, (root ** ginnyPattern.value).toSet))
-					.filter(_.srcs.nonEmpty) match {
+
+				// collect all
+				val sourceSets: Seq[SourceSet] =
+					(ginnyMainRoots.value ++ ginnyGenerate.value)
+						.map((root: File) => Horse.SourceSet(root, (root ** ginnyPattern.value).toSet))
+						.filter(_.srcs.nonEmpty)
+
+				val uses =
+					ginnyUses.value
+
+				(sourceSets match {
 
 					case Seq() =>
 						requyre(ginnyBogies.value.nonEmpty, s"The project ${name.value} needs to do something")
@@ -166,9 +133,7 @@ object GinnyPlugin extends AutoPlugin {
 						requyre(!obj.exists(_.srcs.exists(_.matches(appPattern))))
 						(u: Seq[Horse.TListing]) => Horse.LibListing(obj, u)
 
-				}) (
-					ginnyUses.value
-				)
+				}) (uses)
 			},
 			ginnyCMakeFile := target.value / "CMakeLists.txt",
 			ginny := {
