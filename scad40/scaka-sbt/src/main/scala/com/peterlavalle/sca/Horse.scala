@@ -5,14 +5,23 @@ import java.io.File
 
 object Horse {
 
-	type Bogey = (File /*path to downloaded CMakeList.txt*/ , Seq[File] /* paths to include */ , Seq[String] /* link symbols */ )
+	case class Bogey
+	(
+		path: File,
+		incs: Seq[File],
+		libs: Seq[String]
+	) {
+		requyre(path == path.getAbsoluteFile)
+	}
 
 	case class Mouth
 	(
 		list: TListing,
 		sets: Seq[(String, Any, String)],
 		home: File
-	)
+	) {
+		requyre(home == home.getAbsoluteFile)
+	}
 
 	sealed trait TListing {
 		val uses: Seq[TListing]
@@ -25,20 +34,20 @@ object Horse {
 			*/
 		final def dir =
 			chain.flatMap {
-				case ProxyListing(bogies) => bogies.map(_._1.getAbsoluteFile)
+				case ProxyListing(bogies) => bogies.map(_.path.getAbsoluteFile)
 				case _ => Nil
 			}.distinct
 
 
 		final def inc: List[File] =
 			chain.flatMap {
-				case ProxyListing(bogies) => bogies.flatMap(_._2.map(_.getAbsoluteFile))
+				case ProxyListing(bogies) => bogies.flatMap(_.incs.map(_.getAbsoluteFile))
 				case compiled: ACompiled => compiled.main.map(_.root.getAbsoluteFile)
 			}.distinct
 
 		final def lib =
 			chain.flatMap {
-				case ProxyListing(bogies) => bogies.flatMap(_._3)
+				case ProxyListing(bogies) => bogies.flatMap(_.libs)
 				case _ => Nil
 			}.distinct
 
@@ -65,4 +74,5 @@ object Horse {
 	case class AppListing(name: String, main: Seq[SourceSet], uses: Seq[TListing]) extends ACompiled
 
 	case class LibListing(main: Seq[SourceSet], uses: Seq[TListing]) extends ACompiled
+
 }

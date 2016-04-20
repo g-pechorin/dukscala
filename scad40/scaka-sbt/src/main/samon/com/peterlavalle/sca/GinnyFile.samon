@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.1.0)
 $match mouth.list
 $case app: AppListing
 project($<app.name>)
+$case _
+project(non-leaf-project)
 $end
 
 set(GINNY_CMAKE ON CACHE BOOL "Tell the computer this is a Ginny CMake build" FORCE)
@@ -56,23 +58,32 @@ $end
 )
 
 $match mouth.list
-$case app: AppListing
-add_executable(
-	$<app.name>
-$end
-$each mouth.list.src
-$case src: File
-		$<src.AbsolutePath>
-$end
-	)
+	$case _:AppListing | _:LibListing
+		$match mouth.list
+			$case app: AppListing
+				add_executable($<app.name>
+			$case lib: LibListing
+				add_library($<lib.toString>
+		$end
+		$each mouth.list.src
+			$case src: File
+					$<src.AbsolutePath>
+		$end
+				)
 
-$match (mouth.list, mouth.list.lib)
-$case (app: AppListing, none) if none.isEmpty
-	# no libs in $<app.name>
-$case (app: AppListing, libs)
-	target_link_libraries(
-		$<app.name>$<libs.foldLeft("")(_ + " " + _)>)
+		$match (mouth.list, mouth.list.lib)
+			$case (app: AppListing, none) if none.isEmpty
+				# no libs in $<app.name>
+			$case (app: AppListing, libs)
+				target_link_libraries(
+					$<app.name>$<libs.foldLeft("")(_ + " " + _)>)
+			$case _
+				# no libs or whatnot ... yet?
+		$end
+	$case _
+		non-leaf-project
 $end
+
 
 $match mouth.home.findParent(p => new File(p, "build.sbt").exists())
 $case None
