@@ -29,7 +29,7 @@ typeId
     ;
 returnType : typeId | VOID;
 
-packname : (LNAME '.')+ LNAME;
+packname : (LNAME '.')* LNAME;
 
 module :
     'module' packname

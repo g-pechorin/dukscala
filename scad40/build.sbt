@@ -1,27 +1,34 @@
 import sbt.Keys._
 
-lazy val commonSettings = Seq(
-	organization := "com.peterlavalle",
-	version := "0.0.0-SNAPSHOT",
-	scalaVersion := "2.10.6",
+lazy val commonSettings =
+	Seq(
+		organization := "com.peterlavalle",
+		version := "0.0.0-SNAPSHOT",
+		scalaVersion := "2.10.6",
 
-	javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
+		javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
 
+		libraryDependencies ++= Seq(
+			"junit" % "junit" % "4.12" % Test,
+			"org.easymock" % "easymock" % "3.4" % Test,
 
-	libraryDependencies ++= Seq(
-		"junit" % "junit" % "4.12" % Test,
-		"org.easymock" % "easymock" % "3.4" % Test,
+			"com.novocode" % "junit-interface" % "0.11" % Test
+				exclude("junit", "junit-dep")
+		),
 
-		"com.novocode" % "junit-interface" % "0.11" % Test
-			exclude("junit", "junit-dep")
-	),
+		publishTo := Some(
+			Resolver.file(
+				"Dropbox",
+				new File(Path.userHome.absolutePath + (version.value match {
+					case tag if tag matches "\\d+(\\.\\d+)+\\a*" =>
 
-	publishTo := Some(
-		Resolver.file(
-			"file", new File(Path.userHome.absolutePath + "/Dropbox/Public/posted")
+						"/Dropbox/Public/release"
+					case tag if tag matches "\\d+(\\.\\d+)+\\a*\\-SNAPSHOT" =>
+						"/Dropbox/Public/develop"
+				}))
+			)
 		)
 	)
-)
 
 name := "scad40"
 lazy val root = (project in file("."))

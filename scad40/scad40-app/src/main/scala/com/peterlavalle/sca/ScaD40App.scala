@@ -104,11 +104,11 @@ class ScaD40App(args: List[String], listing: ((File, String) => Stream[(String, 
 		def recu(rgs: List[String], work: WorkLoad): WorkLoad =
 			rgs match {
 				case Nil =>
-					require(work.roots.nonEmpty && work.plops.nonEmpty,
+					requyre(work.roots.nonEmpty && work.plops.nonEmpty,
 						"""
 							|Need at least one path and one plop
 							|
-							| <run scaD40> -i src/d40 -p com.peterlavalle.D40 generated/D40.hpp
+							| <run scaD40> -i src/d40 -p com.peterlavalle.sca.D40 generated/D40.hpp
 						""".stripMargin.trim)
 					WorkLoad(work.roots.reverse, work.plops)
 
@@ -128,7 +128,7 @@ class ScaD40App(args: List[String], listing: ((File, String) => Stream[(String, 
 					}
 			}
 
-		recu(args.toList, WorkLoad(List(), Set()))
+		recu(args, WorkLoad(List(), Set()))
 	}
 }
 

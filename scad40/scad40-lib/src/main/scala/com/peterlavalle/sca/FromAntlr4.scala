@@ -12,6 +12,9 @@ import org.antlr.v4.runtime.dfa.DFA
 import scala.collection.JavaConversions._
 import scala.collection.immutable.Stream.Empty
 
+/**
+	* Converts ANTLR4 output into my model stuff
+	*/
 object FromAntlr4 {
 
 	def apply(path: String, inputStream: InputStream): Model.Module = {
