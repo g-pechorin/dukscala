@@ -678,6 +678,8 @@ $sub pull(argument: Argument)
 	$match argument.kind
 		$case KindDeclaration(Script(name: String, _))
 			scad40::duk_ptr<${namespace}::${name}>(ctx, ${argument.name})
+		$case KindDeclaration(Native(name: String, _))
+			scad40::duk_native<${namespace}::${name}>(ctx, ${argument.name})
 		$case KindSingle
 			(float) duk_to_number(ctx, ${argument.name})
 		$case KindString
