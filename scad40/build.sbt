@@ -24,7 +24,7 @@ lazy val commonSettings =
 
 						"/Dropbox/Public/release"
 					case tag if tag matches "\\d+(\\.\\d+)+\\a*\\-SNAPSHOT" =>
-						"/Dropbox/Public/develop"
+						"/Dropbox/Public/posted"
 				}))
 			)
 		)
