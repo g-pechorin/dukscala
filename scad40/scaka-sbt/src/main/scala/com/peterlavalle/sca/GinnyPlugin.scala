@@ -28,7 +28,11 @@ object GinnyPlugin extends AutoPlugin {
 		lazy val ginnyRemotes = SettingKey[Seq[Slug]]("ginnyRemotes", "stuff that Ginny should download and extract")
 		lazy val ginnyBogies = TaskKey[Seq[Horse.Bogey]]("ginnyBogies", "get Ginny to download stuff and extract it")
 
+		// TODO ; use this ; http://www.scala-sbt.org/0.12.1/docs/Detailed-Topics/Paths.html
 		lazy val ginnyPattern = SettingKey[String]("ginnyPattern", "regex used to find sources")
+
+		lazy val ginnyBuildSBT = SettingKey[File]("ginnyBuildSBT", "The build file")
+
 		lazy val ginnyMainRoots = SettingKey[Seq[File]]("ginnyMainRoots", "list of to lookin for a project's sources")
 		lazy val ginnyUses = TaskKey[Seq[Horse.TListing]]("ginnyUses", "HACK ; dependencies. can't 'just` use dependencies for £reasons")
 		lazy val ginnyListing = TaskKey[Horse.TListing]("ginnyListing", "workout how Ginny is doing this stuff")
@@ -44,6 +48,17 @@ object GinnyPlugin extends AutoPlugin {
 
 	override lazy val projectSettings =
 		Seq(
+			ginnyBuildSBT := {
+				def recu(folder: File): File =
+					new File(folder, "build.sbt") match {
+						case buildSbt: File if buildSbt.exists() => buildSbt
+
+						case _ if null != folder.getParentFile && folder != folder.getParentFile =>
+							recu(folder.getParentFile)
+					}
+
+				recu(baseDirectory.value.getAbsoluteFile)
+			},
 			ginnyFresh := false,
 			ginnyRemotes := Seq(),
 			ginnyBogies := {
@@ -143,6 +158,7 @@ object GinnyPlugin extends AutoPlugin {
 				GinnyFile(
 					writer,
 					Horse.Mouth(
+						ginnyBuildSBT.value,
 						ginnyListing.value,
 						ginnySets.value,
 						baseDirectory.value

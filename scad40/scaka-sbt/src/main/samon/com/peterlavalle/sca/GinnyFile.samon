@@ -79,6 +79,7 @@ $match mouth.list
 			$case src: File
 					$<src.AbsolutePath>
 		$end
+					${mouth.build.AbsolutePath}
 				)
 
 		$match (mouth.list, mouth.list.lib)
