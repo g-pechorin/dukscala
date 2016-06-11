@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val commonSettings =
 	Seq(
 		organization := "com.peterlavalle",
-		version := "0.0.1-STAGING",
+		version := "0.0.0-STAGING",
 		scalaVersion := "2.10.6",
 
 		javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
@@ -21,7 +21,6 @@ lazy val commonSettings =
 				"Dropbox",
 				new File(Path.userHome.absolutePath + (version.value match {
 					case tag if tag matches "\\d+(\\.\\d+)+\\a*" =>
-
 						"/Dropbox/Public/release"
 					case tag if tag matches "\\d+(\\.\\d+)+\\a*\\-STAGING" =>
 						"/Dropbox/Public/staging"
