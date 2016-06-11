@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val commonSettings =
 	Seq(
 		organization := "com.peterlavalle",
-		version := "0.0.0",
+		version := "0.0.1-STAGING",
 		scalaVersion := "2.10.6",
 
 		javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
