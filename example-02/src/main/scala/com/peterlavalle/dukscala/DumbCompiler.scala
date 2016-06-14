@@ -7,6 +7,9 @@ import fastparse.all._
 import scala.language.implicitConversions
 import scala.scalajs.js.annotation.JSExport
 
+/**
+	* Mostly just fastparse's example, but, running on Scala.JS
+	*/
 @JSExport
 object DumbCompiler {
   // from : https://github.com/lihaoyi/fastparse/issues/72

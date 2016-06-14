@@ -18,7 +18,7 @@ project(example02)
 # magic thingie to re-build the Scaja-JS project
 	add_custom_target(
 		script-02
-			${CMAKE_SOURCE_DIR}/../sbt ;test;fastOptJS
+			${CMAKE_SOURCE_DIR}/../sbt fastOptJS
 	    	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/"
 	    	COMMENT "Generating .js file ..."
 		)
@@ -33,6 +33,6 @@ add_executable(
 
 		dukscala-02.cpp
 	)
-	if (NOT EXISTS target/scala-2.10/scala-js-tutorial-fastopt.js)
-		add_dependencies(native-02 script-02)
-	endif()
+#	if (NOT EXISTS target/scala-2.10/scala-js-tutorial-fastopt.js)
+#		add_dependencies(native-02 script-02)
+#	endif()

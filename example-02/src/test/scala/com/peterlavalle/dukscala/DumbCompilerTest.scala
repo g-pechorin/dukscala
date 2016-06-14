@@ -1,7 +1,7 @@
 package com.peterlavalle.dukscala
 
 import utest._
-import utest.framework.TestSuite
+import utest.TestSuite
 
 object DumbCompilerTest extends TestSuite {
 
