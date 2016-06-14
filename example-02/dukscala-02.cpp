@@ -24,7 +24,27 @@ int main(int argc, char* argv[])
 	imperative(5 == duk_to_int32(ctx, 0));
 	duk_pop(ctx);
 
-
+	//
+	// grab the object
+	if (DUK_ERR_NONE != duk_peval_string(ctx, "com.peterlavalle.dukscala.DumbCompiler()"))
+	{
+		std::cerr << "execute function failed: " << duk_safe_to_string(ctx, -1) << std::endl;
+		duk_pop(ctx);
+		return EXIT_FAILURE;
+	}
+	imperative(1 == duk_get_top(ctx));
+	duk_get_prop_string(ctx, 0, "doThing");
+	duk_swap(ctx, 0, 1);
+	duk_push_int(ctx, 2);
+	duk_push_int(ctx, 2);
+	std::cout << "Calling the method with 2+2" << std::endl;
+	if (DUK_ERR_NONE != duk_pcall_method(ctx, 2))
+	{
+		std::cerr << "execute function failed: " << duk_safe_to_string(ctx, -1) << std::endl;
+		duk_pop(ctx);
+		return EXIT_FAILURE;
+	}
+	std::cout << "Done with the method with 2+2" << std::endl;
 
 	//
 	// run the whole thing in JS at once

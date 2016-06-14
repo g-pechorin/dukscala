@@ -52,4 +52,7 @@ object DumbCompiler {
       case Parsed.Success(value: Int, _) =>
         value
     }
+
+  @JSExport
+  def doThing(l: Int, r: Int): Int = l + r
 }
