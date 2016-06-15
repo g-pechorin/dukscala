@@ -1,0 +1,43 @@
+module underlay {
+  global Log {
+    raw ioc: `ThreeOut*`
+
+    // Errors that we'll try and muscle through
+    // std::cerr, +record
+    def warn(message: string)
+
+    // Details that stdout but don't log
+    // std::cout, !record
+    def info(message: string)
+
+    // Error and exit
+    // std::cerr, +record, +kills
+    def fail(message: string)
+
+    // std::cout, +record
+    def note(message: string)
+  }
+  
+  native Pawn {
+	raw ioc: `buzzbird<>::pawn*`
+	raw onDed: `std::function<void(void)>`
+
+	def detach()
+
+	def notify(message: string)
+  }
+
+  native Soul {
+	raw ioc: `buzzbird<>::soul*`
+	raw onDed: `std::function<void(void)>`
+
+	def remove()
+//	def attach(pawn: string): Pawn
+  }
+
+  global Owner {
+	
+	def ofPawn(pawn: Pawn): Soul
+  }
+
+}
