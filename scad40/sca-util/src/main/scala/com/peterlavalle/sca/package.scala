@@ -11,7 +11,6 @@ package object sca {
 	sealed trait TWrappedFile {
 		val file: File
 
-
 		def deleteAll(): Unit = {
 			if (file.exists()) {
 				if (file.isDirectory)
@@ -42,28 +41,37 @@ package object sca {
 			recu(file.getAbsoluteFile)
 		}
 
-		def overWriter =
-			new StringWriter {
-				override def flush(): Unit = {
-					super.flush()
-					mkParent
-					if (!file.exists() || Source.fromFile(file).mkString != toString) {
-						new FileWriter(file)
-							.append(toString)
-							.close()
-					}
-				}
+		class OverWriter extends StringWriter {
+			def closeFile: File = {
+				this.close()
+				file
+			}
 
-				override def close(): Unit = {
-					flush()
-					super.close()
-				}
 
-				override def finalize(): Unit = {
-					flush()
-					super.finalize()
+			override def append(csq: CharSequence): OverWriter = super.append(csq).asInstanceOf[OverWriter]
+
+			override def flush(): Unit = {
+				super.flush()
+				mkParent
+				if (!file.exists() || Source.fromFile(file).mkString != toString) {
+					new FileWriter(file)
+						.append(toString)
+						.close()
 				}
 			}
+
+			override def close(): Unit = {
+				flush()
+				super.close()
+			}
+
+			override def finalize(): Unit = {
+				flush()
+				super.finalize()
+			}
+		}
+
+		def overWriter = new OverWriter
 
 		def /(goal: File): String =
 			if (file.getAbsoluteFile != file)
@@ -227,6 +235,18 @@ package object sca {
 			override val stream: OutputStream = value
 		}
 
+	sealed trait TWrappedWriter[W <: Writer] {
+		val writer: W
+
+		def mappend[T](things: Iterable[T])(lambda: (T => String)): W =
+			things.foldLeft(writer)((l, t) => l.append(lambda(t)).asInstanceOf[W])
+	}
+
+	implicit def wrapWriter[W <: Writer](value: W): TWrappedWriter[W] =
+		new TWrappedWriter[W] {
+			val writer: W = value
+		}
+
 	sealed trait TWrappedString {
 		val string: String
 
@@ -256,6 +276,7 @@ package object sca {
 			override val string: String = value
 		}
 
+
 	def requyre(requirement: Boolean) {
 		if (!requirement) {
 			val illegalArgumentException: IllegalArgumentException = new scala.IllegalArgumentException("requirement failed")
@@ -277,5 +298,4 @@ package object sca {
 		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
 		throw notImplementedError
 	}
-
 }

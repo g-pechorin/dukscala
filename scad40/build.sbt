@@ -3,7 +3,7 @@ import sbt.Keys._
 lazy val commonSettings =
 	Seq(
 		organization := "com.peterlavalle",
-		version := "0.0.1-STAGING",
+		version := "0.0.1-SNAPSHOT",
 		scalaVersion := "2.10.6",
 
 		javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
@@ -20,9 +20,9 @@ lazy val commonSettings =
 			Resolver.file(
 				"Dropbox",
 				new File(Path.userHome.absolutePath + (version.value match {
-					case tag if tag matches "\\d+(\\.\\d+)+\\a*" =>
+					case tag if tag matches "\\d+(\\.\\d+)+\\a*\\-RELEASE" =>
 						"/Dropbox/Public/release"
-					case tag if tag matches "\\d+(\\.\\d+)+\\a*\\-STAGING" =>
+					case tag if tag matches "\\d+(\\.\\d+)+\\a*\\-SNAPSHOT" =>
 						"/Dropbox/Public/staging"
 				}))
 			)
@@ -34,16 +34,16 @@ lazy val root = (project in file("."))
 	.settings(commonSettings: _*)
 	.aggregate(
 		scaUtil,
-		scad40Lib,
-		scad40Sbt,
-		scad40App,
+		//		scad40Lib,
+		//		scad40Sbt,
+		//		scad40App,
 		scakaLib
 	)
 
 lazy val scaUtil =
 	(project in file("sca-util"))
 		.settings(commonSettings: _*)
-
+/*
 lazy val scad40Lib =
 	(project in file("scad40-lib"))
 		.settings(commonSettings: _*)
@@ -55,7 +55,6 @@ lazy val scad40Lib =
 			antlr4PackageName in Antlr4 := Some("com.peterlavalle.sca")
 		)
 		.dependsOn(scaUtil)
-
 lazy val scad40Sbt =
 	(project in file("scad40-sbt"))
 		.settings(commonSettings: _*)
@@ -64,6 +63,7 @@ lazy val scad40Sbt =
 		)
 		.dependsOn(scad40Lib)
 
+
 lazy val scad40App =
 	(project in file("scad40-app"))
 		.settings(commonSettings: _*)
@@ -71,6 +71,7 @@ lazy val scad40App =
 			name := "scad40app"
 		)
 		.dependsOn(scad40Lib)
+*/
 
 lazy val scakaLib =
 	(project in file("scaka-sbt"))
@@ -79,5 +80,5 @@ lazy val scakaLib =
 			name := "scaka",
 			sbtPlugin := true
 		)
-		.enablePlugins(SamonPlugin)
+		//.enablePlugins(SamonPlugin)
 		.dependsOn(scaUtil)
