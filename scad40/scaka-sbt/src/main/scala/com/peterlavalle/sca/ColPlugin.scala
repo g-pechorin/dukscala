@@ -9,17 +9,17 @@ object ColPlugin extends AutoPlugin {
 
 	object autoImport {
 
-		lazy val colRoots = SettingKey[Seq[File]](
+		lazy val colRoots = SettingKey[Seq[Col.TSource]](
 			"colRoots", "file objects that're source roots")
 
-		lazy val colLinked = SettingKey[Seq[Col.Module]](
-			"colLinked", "???")
+		lazy val colDependencies = SettingKey[Seq[Col.Module]](
+			"colDependencies", "???")
 
 		lazy val colModule = SettingKey[Col.Module](
 			"colModule", "???")
 
-		lazy val colModules = SettingKey[Seq[Col.Module]](
-			"colModules", "???")
+		lazy val colAggregate = SettingKey[Seq[Col.Module]](
+			"colAggregate", "???")
 
 		lazy val colSolvers = SettingKey[Set[Col.TSolver]](
 			"colSolvers", "???")
@@ -32,16 +32,16 @@ object ColPlugin extends AutoPlugin {
 
 	override lazy val projectSettings =
 		Seq(
-			colRoots := Seq(new File(baseDirectory.value, "src/main/scaka")),
-			colLinked := Seq(),
+			colRoots := Seq(Col.Folder(new File(baseDirectory.value, "src/main/scaka"))),
+			colDependencies := Seq(),
 			colModule := {
 				Col.Module(
 					name.value,
-					colRoots.value.map(f => Col.Root(f.getAbsoluteFile)),
-					colLinked.value
+					colRoots.value,
+					colDependencies.value
 				)
 			},
-			colModules := Seq(),
+			colAggregate := Seq(),
 			colSolvers := Set(
 				ColCMakeApp
 			),
@@ -51,7 +51,7 @@ object ColPlugin extends AutoPlugin {
 						solver.emit(
 							target.value / solver.getClass.getSimpleName.replaceAll("\\W", ""),
 							Col.Module.labelArtifacts(
-								(colModule.value, colModules.value) match {
+								(colModule.value, colAggregate.value) match {
 									case (empty, peers) if empty.isEmpty && peers.nonEmpty =>
 										peers.toList
 

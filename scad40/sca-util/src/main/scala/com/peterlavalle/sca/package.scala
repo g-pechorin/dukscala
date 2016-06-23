@@ -11,7 +11,6 @@ package object sca {
 	sealed trait TWrappedFile {
 		val file: File
 
-
 		def deleteAll(): Unit = {
 			if (file.exists()) {
 				if (file.isDirectory)
@@ -277,6 +276,7 @@ package object sca {
 			override val string: String = value
 		}
 
+
 	def requyre(requirement: Boolean) {
 		if (!requirement) {
 			val illegalArgumentException: IllegalArgumentException = new scala.IllegalArgumentException("requirement failed")
@@ -298,5 +298,4 @@ package object sca {
 		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
 		throw notImplementedError
 	}
-
 }

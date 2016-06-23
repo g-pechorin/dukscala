@@ -21,6 +21,7 @@ class ColModuleTest extends TestCase {
 		val commandB = Col.Module("commandB", Seq(), Seq(sharedB))
 		val commandC = Col.Module("commandC", Seq(), Seq())
 
+
 		assertEquals(
 			Stream(
 				Col.Module("sharedA", Seq(), Seq()) -> false,

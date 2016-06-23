@@ -44,13 +44,13 @@ object ColCMakeApp extends Col.TSolver {
 
 				.append("\ninclude_directories(")
 				.mappend(modules.flatMap(_._1.fullSet).flatMap(_.roots.toSet)) {
-					case Col.Root(home: File) =>
+					case source: Col.TSource =>
+						val home = source.home
 						if (home.exists()) s"\n\t${home.AbsolutePath}" else ""
 				}
 				.append("\n)\n")
 
 				.mappend(Col.Module.inOrder(modules.map(_._1)).filterNot(_.allSourceFiles.isEmpty)) {
-					//.mappend(Col.Module.inOrder(modules.map(_._1))) {
 					case module: Col.Module =>
 
 						val toMap: Map[String, Boolean] =
@@ -70,20 +70,8 @@ object ColCMakeApp extends Col.TSolver {
 								else
 									s"\nadd_library(${module.name} OBJECT"
 							)
-							.mappend(module.ownSourceFiles) {
-								case file: File =>
-									s"\n\t${file.AbsolutePath}"
-							}
-							.mappend(module.ownHeaderFiles) {
-								case file: File =>
-									s"\n\t${file.AbsolutePath}"
-							}
-							.append("\n")
-							.mappend(module.linked.filterNot(_.isEmpty)) {
-								case module: Col.Module =>
-									s"\n\t${'$'}<TARGET_OBJECTS:${module.name}>"
-							}
-
+							.mappend(module.allSourceFiles)(file => s"\n\t${file.AbsolutePath}")
+							.mappend(module.allHeaderFiles)(file => s"\n\t${file.AbsolutePath}")
 							.append("\n)\n")
 							.toString
 				}
