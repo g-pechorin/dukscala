@@ -1,9 +1,8 @@
 package com.peterlavalle.sca
 
 import java.io.{File, FileInputStream, FileOutputStream}
-import java.util.zip.{ZipEntry, ZipInputStream}
+import java.util.zip.ZipInputStream
 
-import com.sun.org.apache.xpath.internal.functions.FuncStartsWith
 import sbt.URL
 
 object Col {
@@ -24,6 +23,15 @@ object Col {
 			home.list() match {
 				case null => Set()
 				case list => recu(list.toList).toSet
+			}
+		}
+
+		def Filtered(regex: String) = {
+			val real = this
+			new TSource {
+				override val home: File = real.home
+
+				override def contents: Set[String] = real.contents.filter(_.matches(regex))
 			}
 		}
 	}
@@ -81,11 +89,25 @@ object Col {
 	}
 
 	def GitHubZip(username: String, projectname: String, revision: String, sub: String = "")(cache: File) = {
-		requyre(sub.matches("(\\w+/)+"))
+		requyre(sub.matches("(\\w+/)*"))
 		Remote(
 			s"https://github.com/${username}/${projectname}/archive/${revision}.zip",
 			s"${projectname}-${revision}/${sub}"
 		)(cache)
+	}
+
+	object GLAD {
+		def c(hash: String = "tmp6djGaaglad")(cache: File) =
+			Remote(
+				s"http://glad.dav1d.de/generated/${hash}/glad.zip",
+				"src"
+			)(cache)
+
+		def h(hash: String = "tmp6djGaaglad")(cache: File) =
+			Remote(
+				s"http://glad.dav1d.de/generated/${hash}/glad.zip",
+				"include"
+			)(cache)
 	}
 
 	case class Folder(home: File) extends TSource
