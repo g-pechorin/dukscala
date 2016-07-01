@@ -78,7 +78,11 @@ lazy val scakaLib =
 		.settings(commonSettings: _*)
 		.settings(
 			name := "scaka",
-			sbtPlugin := true
+			sbtPlugin := true,
+			libraryDependencies ++= Seq(
+				"org.apache.commons" % "commons-compress" % "1.12",
+				"org.tukaani" % "xz" % "1.5"
+			)
 		)
 		//.enablePlugins(SamonPlugin)
 		.dependsOn(scaUtil)

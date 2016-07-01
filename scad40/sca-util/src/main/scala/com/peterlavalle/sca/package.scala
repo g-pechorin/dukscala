@@ -204,21 +204,34 @@ package object sca {
 
 					recu(0)
 			}
-
 	}
 
-	implicit def wrapInputStream(value: ZipInputStream): TWrappedZipInputStream =
+	implicit def wrapZipInputStream(value: ZipInputStream): TWrappedZipInputStream =
 		new TWrappedZipInputStream {
 			override val stream = value
 		}
 
-	sealed trait TWrappedOutputStream {
-		val stream: OutputStream
+	sealed trait TWrappedInputStream[I <: InputStream] {
+		val stream: I
 
-		def <<(input: InputStream): OutputStream = {
+		def toByteArrayInputStream =
+			new ByteArrayInputStream(
+				(new ByteArrayOutputStream() << stream).toByteArray
+			)
+	}
+
+	implicit def wrapInputStream[I <: InputStream](value: I): TWrappedInputStream[I] =
+		new TWrappedInputStream[I] {
+			override val stream = value
+		}
+
+	sealed trait TWrappedOutputStream[O <: OutputStream] {
+		val stream: O
+
+		def <<(input: InputStream): O = {
 			val buffer = Array.ofDim[Byte](128)
 
-			def recu(len: Int): OutputStream = {
+			def recu(len: Int): O = {
 				len match {
 					case -1 => stream
 					case count =>
@@ -230,9 +243,9 @@ package object sca {
 		}
 	}
 
-	implicit def wrapOutputStream(value: OutputStream): TWrappedOutputStream =
-		new TWrappedOutputStream {
-			override val stream: OutputStream = value
+	implicit def wrapOutputStream[O <: OutputStream](value: O): TWrappedOutputStream[O] =
+		new TWrappedOutputStream[O] {
+			override val stream: O = value
 		}
 
 	sealed trait TWrappedWriter[W <: Writer] {

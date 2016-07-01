@@ -4,9 +4,7 @@ import java.io.{File, StringWriter}
 
 object ColCMakeApp extends Col.TSolver {
 
-	import Col._
-
-	override def emit(dir: File, modules: Stream[(Module, Boolean)]): Set[File] =
+	override def emit(dir: File, modules: Stream[(Col.Module, Boolean)]): Set[File] =
 		Set(
 			(dir / "CMakeLists.txt")
 				.overWriter
@@ -35,10 +33,19 @@ object ColCMakeApp extends Col.TSolver {
 						|	foreach(CompilerFlag ${CompilerFlags})
 						|		string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
 						|	endforeach()
+						|
+						|	set(CompilerFlags
+						|		CMAKE_C_FLAGS_MINSIZEREL
+						|		CMAKE_CXX_FLAGS_MINSIZEREL)
+						|	foreach(CompilerFlag ${CompilerFlags})
+						|		string(REPLACE "/MT" "/MD" ${CompilerFlag} "${${CompilerFlag}}")
+						|	endforeach()
 						|else(WIN32)
 						|	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -std=gnu++11 -static-libstdc++")
 						|	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
 						|endif(WIN32)
+						|set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
+						|set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
 					""".stripMargin.trim
 				)
 

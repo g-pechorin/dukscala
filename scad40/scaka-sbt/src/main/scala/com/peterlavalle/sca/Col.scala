@@ -1,8 +1,11 @@
 package com.peterlavalle.sca
 
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.io._
 import java.util.zip.ZipInputStream
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
+import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 import sbt.URL
 
 object Col {
@@ -36,24 +39,66 @@ object Col {
 		}
 	}
 
+	val compressorFactory = new CompressorStreamFactory()
+	val archiveFactory = new ArchiveStreamFactory()
+
 	case class Remote(url: URL, prefix: String)(cache: File) extends TSource {
 		requyre(null != url)
 		requyre(null != prefix)
-
-		def zipInputStream: ZipInputStream = {
-			val file = new File(cache, s"_${url.toString.hashCode()}.zip")
-
-			if (!file.exists())
-				(new FileOutputStream(file) << url.openStream()).close()
-
-			new ZipInputStream(new FileInputStream(file))
-		}
+		requyre(cache.isDirectory || cache.mkdirs())
 
 		lazy val home: File = {
 
 			val home = new File(cache, s"_${url.toString.hashCode()}.dir")
 
-			zipInputStream.files.foreach {
+			val files: Stream[(String, InputStream)] = {
+				if (url.toString.endsWith(".zip")) {
+					val file = new File(cache, s"_${url.toString.hashCode()}.zip")
+
+					if (!file.exists())
+						(new FileOutputStream(file) << url.openStream()).close()
+
+					new ZipInputStream(new FileInputStream(file)).files
+				} else if (url.toString.matches(".*\\.tar\\.(xz)")) {
+
+					val file = new File(cache, s"_${url.toString.hashCode()}.tar")
+
+					if (!file.exists())
+						(new FileOutputStream(file) << url.openStream()).close()
+
+					val toByteArrayInputStream: ByteArrayInputStream = new FileInputStream(file).toByteArrayInputStream
+
+					val compressorInputStream: CompressorInputStream =
+						compressorFactory.createCompressorInputStream("xz", toByteArrayInputStream)
+
+					val archiveInputStream: ArchiveInputStream =
+						archiveFactory.createArchiveInputStream("tar", compressorInputStream)
+
+					def archiveStream: Stream[(String, InputStream)] =
+						archiveInputStream.getNextEntry match {
+							case null => Stream.Empty
+
+							case tarEntry: TarArchiveEntry =>
+								if (tarEntry.getName.endsWith("/"))
+									archiveStream
+								else {
+									(tarEntry.getName -> new ByteArrayInputStream({
+										val buffer = Array.ofDim[Byte](tarEntry.getSize.toInt)
+
+										requyre(buffer.length == archiveInputStream.read(buffer))
+
+										buffer
+									})) #:: archiveStream
+								}
+						}
+
+					archiveStream
+				} else {
+					??
+				}
+			}
+
+			files.foreach {
 				case (name, stream) if name.startsWith(prefix) =>
 					(new FileOutputStream({
 						val file = new File(home, name)
@@ -96,19 +141,41 @@ object Col {
 		)(cache)
 	}
 
+	def GitHubRelease(username: String, projectname: String, tag: String, sub: String = "")(cache: File) = {
+		requyre(sub.matches("(\\w+/)*"))
+		Remote(
+			s"https://codeload.github.com/${username}/${projectname}/zip/v${tag}",
+			s"${projectname}-${tag}/${sub}"
+		)(cache)
+	}
+
+	def GLAD(hash: String = "tmpuAXkrKglad")(cache: File): {def c: Remote; def h: Remote} = new {
+		def c: Remote = Remote(
+			s"http://glad.dav1d.de/generated/${hash}/glad.zip",
+			"src"
+		)(cache)
+
+		def h: Remote = Remote(
+			s"http://glad.dav1d.de/generated/${hash}/glad.zip",
+			"include"
+		)(cache)
+	}
+
+	/*
 	object GLAD {
-		def c(hash: String = "tmp6djGaaglad")(cache: File) =
+		def c(hash: String = "tmpuAXkrKglad")(cache: File) =
 			Remote(
 				s"http://glad.dav1d.de/generated/${hash}/glad.zip",
 				"src"
 			)(cache)
-
-		def h(hash: String = "tmp6djGaaglad")(cache: File) =
+// http://glad.dav1d.de/generated/tmpuAXkrKglad/glad.zip
+		def h(hash: String = "tmpuAXkrKglad")(cache: File) =
 			Remote(
 				s"http://glad.dav1d.de/generated/${hash}/glad.zip",
 				"include"
 			)(cache)
 	}
+	*/
 
 	case class Folder(home: File) extends TSource
 
