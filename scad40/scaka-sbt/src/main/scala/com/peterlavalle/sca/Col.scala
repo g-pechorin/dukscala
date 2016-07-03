@@ -133,7 +133,15 @@ object Col {
 			})(cache)
 	}
 
-	def GitHubZip(username: String, projectname: String, revision: String, sub: String = "")(cache: File) = {
+	def BitBucket(username: String, projectname: String, revision: String, sub: String = "")(cache: File) = {
+		requyre(sub.matches("(\\w+/)*"))
+		Remote(
+			s"https://bitbucket.org/${username}/${projectname}/get/${revision}.zip",
+			s"${username}-${projectname}-${revision}/${sub}"
+		)(cache)
+	}
+
+	def GitHubZip(username: String, projectname: String, revision: String = "master", sub: String = "")(cache: File) = {
 		requyre(sub.matches("(\\w+/)*"))
 		Remote(
 			s"https://github.com/${username}/${projectname}/archive/${revision}.zip",
