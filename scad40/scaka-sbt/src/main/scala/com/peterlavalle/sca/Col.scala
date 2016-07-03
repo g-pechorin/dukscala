@@ -157,34 +157,6 @@ object Col {
 		)(cache)
 	}
 
-	def GLAD(hash: String = "tmpuAXkrKglad")(cache: File): {def c: Remote; def h: Remote} = new {
-		def c: Remote = Remote(
-			s"http://glad.dav1d.de/generated/${hash}/glad.zip",
-			"src"
-		)(cache)
-
-		def h: Remote = Remote(
-			s"http://glad.dav1d.de/generated/${hash}/glad.zip",
-			"include"
-		)(cache)
-	}
-
-	/*
-	object GLAD {
-		def c(hash: String = "tmpuAXkrKglad")(cache: File) =
-			Remote(
-				s"http://glad.dav1d.de/generated/${hash}/glad.zip",
-				"src"
-			)(cache)
-// http://glad.dav1d.de/generated/tmpuAXkrKglad/glad.zip
-		def h(hash: String = "tmpuAXkrKglad")(cache: File) =
-			Remote(
-				s"http://glad.dav1d.de/generated/${hash}/glad.zip",
-				"include"
-			)(cache)
-	}
-	*/
-
 	case class Folder(home: File) extends TSource
 
 	case class Module
