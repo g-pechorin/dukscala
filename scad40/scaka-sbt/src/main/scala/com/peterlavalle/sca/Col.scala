@@ -42,6 +42,25 @@ object Col {
 	val compressorFactory = new CompressorStreamFactory()
 	val archiveFactory = new ArchiveStreamFactory()
 
+	case class Scrape(url: URL, names: Set[String])(cache: File) extends TSource {
+		override lazy val home: File = {
+			val home = new File(cache, s"_${url.toString.hashCode()}_${names.toString().hashCode}.dir")
+			names.foreach {
+				case name: String =>
+					val file = new File(home, name)
+
+					requyre(file.getParentFile.exists() || file.getParentFile.mkdirs())
+
+					if (!file.exists())
+						(new FileOutputStream(file) << url.openStream()).close()
+			}
+			home
+		}
+	}
+
+	def Scrape(url: String, names: String*)(cache: File): Scrape =
+		new Scrape(new URL(url), names.toSet)(cache)
+
 	case class Remote(url: URL, prefix: String)(cache: File) extends TSource {
 		requyre(null != url)
 		requyre(null != prefix)
