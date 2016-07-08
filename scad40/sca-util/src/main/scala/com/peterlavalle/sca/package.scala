@@ -11,7 +11,6 @@ package object sca {
 	sealed trait TWrappedFile {
 		val file: File
 
-
 		def deleteAll(): Unit = {
 			if (file.exists()) {
 				if (file.isDirectory)
@@ -42,28 +41,37 @@ package object sca {
 			recu(file.getAbsoluteFile)
 		}
 
-		def overWriter =
-			new StringWriter {
-				override def flush(): Unit = {
-					super.flush()
-					mkParent
-					if (!file.exists() || Source.fromFile(file).mkString != toString) {
-						new FileWriter(file)
-							.append(toString)
-							.close()
-					}
-				}
+		class OverWriter extends StringWriter {
+			def closeFile: File = {
+				this.close()
+				file
+			}
 
-				override def close(): Unit = {
-					flush()
-					super.close()
-				}
 
-				override def finalize(): Unit = {
-					flush()
-					super.finalize()
+			override def append(csq: CharSequence): OverWriter = super.append(csq).asInstanceOf[OverWriter]
+
+			override def flush(): Unit = {
+				super.flush()
+				mkParent
+				if (!file.exists() || Source.fromFile(file).mkString != toString) {
+					new FileWriter(file)
+						.append(toString)
+						.close()
 				}
 			}
+
+			override def close(): Unit = {
+				flush()
+				super.close()
+			}
+
+			override def finalize(): Unit = {
+				flush()
+				super.finalize()
+			}
+		}
+
+		def overWriter = new OverWriter
 
 		def /(goal: File): String =
 			if (file.getAbsoluteFile != file)
@@ -196,21 +204,34 @@ package object sca {
 
 					recu(0)
 			}
-
 	}
 
-	implicit def wrapInputStream(value: ZipInputStream): TWrappedZipInputStream =
+	implicit def wrapZipInputStream(value: ZipInputStream): TWrappedZipInputStream =
 		new TWrappedZipInputStream {
 			override val stream = value
 		}
 
-	sealed trait TWrappedOutputStream {
-		val stream: OutputStream
+	sealed trait TWrappedInputStream[I <: InputStream] {
+		val stream: I
 
-		def <<(input: InputStream): OutputStream = {
+		def toByteArrayInputStream =
+			new ByteArrayInputStream(
+				(new ByteArrayOutputStream() << stream).toByteArray
+			)
+	}
+
+	implicit def wrapInputStream[I <: InputStream](value: I): TWrappedInputStream[I] =
+		new TWrappedInputStream[I] {
+			override val stream = value
+		}
+
+	sealed trait TWrappedOutputStream[O <: OutputStream] {
+		val stream: O
+
+		def <<(input: InputStream): O = {
 			val buffer = Array.ofDim[Byte](128)
 
-			def recu(len: Int): OutputStream = {
+			def recu(len: Int): O = {
 				len match {
 					case -1 => stream
 					case count =>
@@ -222,9 +243,21 @@ package object sca {
 		}
 	}
 
-	implicit def wrapOutputStream(value: OutputStream): TWrappedOutputStream =
-		new TWrappedOutputStream {
-			override val stream: OutputStream = value
+	implicit def wrapOutputStream[O <: OutputStream](value: O): TWrappedOutputStream[O] =
+		new TWrappedOutputStream[O] {
+			override val stream: O = value
+		}
+
+	sealed trait TWrappedWriter[W <: Writer] {
+		val writer: W
+
+		def mappend[T](things: Iterable[T])(lambda: (T => String)): W =
+			things.foldLeft(writer)((l, t) => l.append(lambda(t)).asInstanceOf[W])
+	}
+
+	implicit def wrapWriter[W <: Writer](value: W): TWrappedWriter[W] =
+		new TWrappedWriter[W] {
+			val writer: W = value
 		}
 
 	sealed trait TWrappedString {
@@ -256,6 +289,7 @@ package object sca {
 			override val string: String = value
 		}
 
+
 	def requyre(requirement: Boolean) {
 		if (!requirement) {
 			val illegalArgumentException: IllegalArgumentException = new scala.IllegalArgumentException("requirement failed")
@@ -277,5 +311,4 @@ package object sca {
 		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
 		throw notImplementedError
 	}
-
 }
