@@ -1,5 +1,8 @@
 Easier (maybe even easy?) embedding of Scala in C++.
 
+* Development is carried out on [BitBucket](https://bitbucket.org/g-pechorin/dukscala)
+* ... and mirrored to [GitHub](https://github.com/g-pechorin/dukscala) sometimes ...
+
 # Goal
 
 This is (intended to be) a *grease-layer* between Scala-JS and C++ via [DukTape][DukTape].
@@ -7,6 +10,7 @@ This is (intended to be) a *grease-layer* between Scala-JS and C++ via [DukTape]
 ... rather than a glue-layer that does it for you, but, not always the way you'd like.
 
 It does this with an IDL and some SBT trickery to prepare things like `CMakeLists.txt` file(s) for projects.
+
 
 # Contents
 
