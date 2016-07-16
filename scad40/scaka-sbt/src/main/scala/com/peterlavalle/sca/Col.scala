@@ -245,7 +245,13 @@ object Col {
 	}
 
 	trait TSolver {
-		def emit(dir: File, modules: Stream[(Module, Boolean)]): Set[File]
+		/**
+			*
+			* @param target where all files should be created
+			* @param modules (all modules to make, ???)
+			* @return a set of all files created
+			*/
+		def emit(target: File, modules: Stream[(Module, Boolean)]): Set[File]
 	}
 
 }

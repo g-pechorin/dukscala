@@ -11,6 +11,14 @@ package object sca {
 	sealed trait TWrappedFile {
 		val file: File
 
+		def streamFiles =
+			file.listFiles() match {
+				case null =>
+					Stream.Empty
+				case some =>
+					some.toStream.map(_.getAbsoluteFile)
+			}
+
 		def deleteAll(): Unit = {
 			if (file.exists()) {
 				if (file.isDirectory)
@@ -46,7 +54,6 @@ package object sca {
 				this.close()
 				file
 			}
-
 
 			override def append(csq: CharSequence): OverWriter = super.append(csq).asInstanceOf[OverWriter]
 

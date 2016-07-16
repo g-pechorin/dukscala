@@ -32,8 +32,11 @@ object ColPlugin extends AutoPlugin {
 
 	override lazy val projectSettings =
 		Seq(
+
+
 			colRoots := Seq(Col.Folder(new File(baseDirectory.value, "src/main/scaka"))),
 			colDependencies := Seq(),
+
 			colModule := {
 				Col.Module(
 					name.value,
@@ -41,10 +44,14 @@ object ColPlugin extends AutoPlugin {
 					colDependencies.value
 				)
 			},
+
+
 			colAggregate := Seq(),
-			colSolvers := Set(
-				ColCMakeApp
-			),
+			colSolvers :=
+				Set(
+					ColAppCMake,
+					ColAppVS2015
+				),
 			col := {
 				colSolvers.value.flatMap {
 					case solver =>
