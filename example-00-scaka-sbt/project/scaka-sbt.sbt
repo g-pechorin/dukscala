@@ -1,3 +1,3 @@
-
-// resolvers += "Peter's DropBox" at "https://dl.dropboxusercontent.com/u/15094498/release/"
-addSbtPlugin("com.peterlavalle" %% "scaka" % "0.0.1-SNAPSHOT")
+resolvers += "Peter's DropBox (Release)" at "https://dl.dropboxusercontent.com/u/15094498/release/"
+resolvers += "Peter's DropBox (Staging)" at "https://dl.dropboxusercontent.com/u/15094498/staging/"
+addSbtPlugin("com.peterlavalle" %% "scaka" % "0.0.1-RELEASE")
