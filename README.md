@@ -17,7 +17,7 @@ It does this with an IDL and some SBT trickery to prepare things like `CMakeList
 There is ...
 
 * a [scaka-sbt demo](example-00-scaka-sbt/) showing how I'm setting up C/++ builds
- * run with `sbt col` and check for `example-00-scaka-sbt/target/ColCMakeApp/CMakeLists.txt`
+	* run with `sbt col` and check for `example-00-scaka-sbt/target/ColCMakeApp/CMakeLists.txt`
 * *out of date* a [proof-of-concept demo](example-01/) showing [Scala-JS][ScalaJS] inside of C++/[DukTape][DukTape]
 	* TODO;
 		* [ ] use scaka-sbt for all build stuff
