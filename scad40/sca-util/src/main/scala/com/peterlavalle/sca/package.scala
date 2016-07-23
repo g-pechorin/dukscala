@@ -1,7 +1,7 @@
 package com.peterlavalle
 
 import java.io._
-import java.util.zip.{ZipEntry, ZipInputStream}
+import java.util.zip._
 
 import scala.io.Source
 import language.implicitConversions
@@ -166,6 +166,12 @@ package object sca {
 			})
 		}
 
+		def AbsoluteParent = {
+			val parent = file.getAbsoluteFile.getParentFile.getAbsoluteFile
+			requyre(parent.isDirectory || parent.mkdirs())
+			parent
+		}
+
 		def AbsolutePath = {
 			def recu(path: String): String =
 				path match {
@@ -225,6 +231,38 @@ package object sca {
 			new ByteArrayInputStream(
 				(new ByteArrayOutputStream() << stream).toByteArray
 			)
+
+		def Inflate = new InflaterInputStream(stream)
+
+		def Deflate = new DeflaterInputStream(stream, new Deflater(Deflater.BEST_COMPRESSION))
+
+		def toByteStream: Stream[Byte] = {
+			val buffer = Array.ofDim[Byte](16)
+
+			stream.read(buffer) match {
+				case -1 =>
+					stream.close()
+					Stream.Empty
+
+				case data =>
+					(0 until data).toStream.map(buffer) ++ toByteStream
+			}
+		}
+
+		def toUByteStream: Stream[Short] =
+			stream.read() match {
+				case -1 =>
+					stream.close()
+					Stream.Empty
+
+				case next: Int =>
+					requyre(0 <= next && next <= 255)
+					next.toShort match {
+						case byte =>
+							requyre(0 <= byte && byte <= 255)
+							byte #:: toUByteStream
+					}
+			}
 	}
 
 	implicit def wrapInputStream[I <: InputStream](value: I): TWrappedInputStream[I] =
@@ -259,6 +297,9 @@ package object sca {
 		val writer: W
 
 		def mappend[T](things: Iterable[T])(lambda: (T => String)): W =
+			things.foldLeft(writer)((l, t) => l.append(lambda(t)).asInstanceOf[W])
+
+		def mappend[T](things: Iterator[T])(lambda: (T => String)): W =
 			things.foldLeft(writer)((l, t) => l.append(lambda(t)).asInstanceOf[W])
 	}
 

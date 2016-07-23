@@ -34,6 +34,16 @@ There is ...
 
 ... sorry-not-sorry
 
+# History
+
+## 0.0.3
+
+* introduced the `Tin.Flue` to compress files into DEFLATE'd header source
+
+## 0.0.2
+
+* switched from `Ginny` to `Col` ... I think ... that might have been earlier
+
 
 [DukTape]: http://duktape.org/
 [ScalaJS]: http://www.scala-js.org/
