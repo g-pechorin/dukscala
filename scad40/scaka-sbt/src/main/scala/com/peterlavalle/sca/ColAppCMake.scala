@@ -52,7 +52,7 @@ object ColAppCMake extends Col.TSolver {
 				.append("\ninclude_directories(")
 				.mappend(modules.flatMap(_._1.fullSet).flatMap(_.roots.toSet)) {
 					case source: Col.TSource =>
-						val home = source.home
+						val home = source.home.getAbsoluteFile
 						if (home.exists()) s"\n\t${home.AbsolutePath}" else ""
 				}
 				.append("\n)\n")

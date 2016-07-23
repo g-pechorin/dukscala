@@ -32,8 +32,6 @@ object ColPlugin extends AutoPlugin {
 
 	override lazy val projectSettings =
 		Seq(
-
-
 			colRoots := Seq(Col.Folder(new File(baseDirectory.value, "src/main/scaka"))),
 			colDependencies := Seq(),
 
@@ -44,7 +42,6 @@ object ColPlugin extends AutoPlugin {
 					colDependencies.value
 				)
 			},
-
 
 			colAggregate := Seq(),
 			colSolvers :=

@@ -17,7 +17,7 @@ object Tin {
 		def contents: Stream[SourceRecord]
 	}
 
-	case class Flue(root: File, pattern: String, replacement: String = "$0.h", asText: Boolean = false) extends TSource {
+	case class Flue(root: File, pattern: String) extends TSource {
 		override def contents: Stream[SourceRecord] =
 			root.list() match {
 				case null =>
@@ -36,11 +36,7 @@ object Tin {
 								else if (!path.matches(pattern))
 									Empty
 								else
-									Stream((path, file.lastModified(), path.replaceFirst(pattern, replacement), () => if (asText)
-										??
-									else {
-										new FileInputStream(file)
-									}))
+									Stream((path, file.lastModified(), path.replaceAll("[^\\w/]+", "_") + ".h", () => new FileInputStream(file)))
 						}
 
 					recu(

@@ -205,6 +205,41 @@ object Col {
 
 		def isEmpty: Boolean =
 			allSourceFiles.isEmpty && allHeaderFiles.isEmpty
+
+		sealed trait TArtifact
+
+		case object Static extends TArtifact
+
+		case object Module extends TArtifact
+
+		case object Binary extends TArtifact
+
+		lazy val artifact = {
+			val contents: Stream[String] = roots.toStream.flatMap(_.contents)
+
+			linked.foreach {
+				case lib =>
+					lib.artifact match {
+						case Static => ;
+						case _ => sys.error(s"Can't link output ${lib.name} into artifact $name")
+					}
+			}
+
+			contents.find(_.matches("main\\.(c|cpp)")) match {
+				case None =>
+					contents.find(_.matches("module\\.(c|cpp)")) match {
+						case None => Static
+						case _ => Module
+					}
+				case _ =>
+					contents.find(_.matches("module\\.(c|cpp)")) match {
+						case None =>
+
+							Binary
+						case _ => sys.error("Ambiguous artifact $name")
+					}
+			}
+		}
 	}
 
 	object Module {
@@ -247,7 +282,7 @@ object Col {
 	trait TSolver {
 		/**
 			*
-			* @param target where all files should be created
+			* @param target  where all files should be created
 			* @param modules (all modules to make, ???)
 			* @return a set of all files created
 			*/
