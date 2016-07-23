@@ -1,15 +1,8 @@
-Easier (maybe even easy?) embedding of Scala in C++.
+Scala and C++ *experiments* with a bunch of "out of date" parts that need to put back together.
 
 * Development is carried out on [BitBucket](https://bitbucket.org/g-pechorin/dukscala)
 * ... and mirrored to [GitHub](https://github.com/g-pechorin/dukscala) sometimes ...
 
-# Goal
-
-This is (intended to be) a *grease-layer* between Scala-JS and C++ via [DukTape][DukTape].
-
-... rather than a glue-layer that does it for you, but, not always the way you'd like.
-
-It does this with an IDL and some SBT trickery to prepare things like `CMakeLists.txt` file(s) for projects.
 
 
 # Contents
@@ -25,10 +18,10 @@ There is ...
 	* TODO;
 		* [ ] use scaka-sbt for all build stuff
 		* [ ] debug whatever is going wrong (did I do this last weekend?)
-* **incomplete** [an example using the binary file tools to pre-process art](example-03-arttool/)
+* *out of date* **incomplete** [an example using the binary file tools to pre-process art](example-03-arttool/)
 	* TODO;
 		* [ ] ??? finish it ???
-* scad40 proper, including
+* *out of date* scad40 proper, including
 	* the Interface Definition Language / binding generator with (decoupled! independent!) output modules for
 		* C++/[Duktape][orgDuktape]
 		* [Scala-JS][orgScalaJS]
