@@ -51,18 +51,16 @@ object ColPlugin extends AutoPlugin {
 				),
 			col := {
 				colSolvers.value.flatMap {
-					case solver =>
+					case solver: Col.TSolver =>
 						solver.emit(
 							target.value / solver.getClass.getSimpleName.replaceAll("\\W", ""),
-							Col.Module.labelArtifacts(
-								(colModule.value, colAggregate.value) match {
-									case (empty, peers) if empty.isEmpty && peers.nonEmpty =>
-										peers.toList
+							((colModule.value, colAggregate.value) match {
+								case (empty, peers) if empty.isEmpty && peers.nonEmpty =>
+									peers.toList
 
-									case (head, tail) =>
-										head :: tail.toList
-								}
-							)
+								case (head, tail) =>
+									head :: tail.toList
+							}).toStream
 						)
 				}
 			}

@@ -36,7 +36,7 @@ object Tin {
 								else if (!path.matches(pattern))
 									Empty
 								else
-									Stream((path, file.lastModified(), path.replaceAll("[^\\w/]+", "_") + ".h", () => new FileInputStream(file)))
+									Stream((path, file.lastModified(), path + ".h", () => new FileInputStream(file)))
 						}
 
 					recu(
@@ -81,7 +81,7 @@ object Tin {
 										 |TIN_DEFLATE_BEGIN(/*unique name of this file*/"$name", /*path to source*/"$path", /*original source length*/$originalLength, /*compressed array length*/${compressed.length})
 										 |
 									""".stripMargin.trim + "\n")
-								.mappend(compressed.grouped(314))(_.map(d => s"'\\$d', ").foldLeft("\t")(_ + _) + "\n")
+								.mappend(compressed.grouped(314))(_.map(d => s"'\\x${Integer.toHexString(d)}', ").foldLeft("\t")(_ + _) + "\n")
 								.append(
 									s"""
 										 |TIN_DEFLATE_CLOSE("$name", "$path", $originalLength, ${compressed.length})

@@ -184,6 +184,10 @@ object Col {
 		roots: Seq[TSource],
 		linked: Seq[Module]
 	) {
+
+		def allFolders: Stream[File] =
+			(roots.toStream.map(_.home) ++ linked.flatMap(_.allFolders)).distinct
+
 		def fullSet: Set[Module] =
 			Set(this) ++ linked.flatMap(_.fullSet)
 
@@ -206,21 +210,14 @@ object Col {
 		def isEmpty: Boolean =
 			allSourceFiles.isEmpty && allHeaderFiles.isEmpty
 
-		sealed trait TArtifact
 
-		case object Static extends TArtifact
-
-		case object Module extends TArtifact
-
-		case object Binary extends TArtifact
-
-		lazy val artifact = {
+		lazy val artifact: Module.TArtifact = {
 			val contents: Stream[String] = roots.toStream.flatMap(_.contents)
 
 			linked.foreach {
-				case lib =>
+				case lib: Module =>
 					lib.artifact match {
-						case Static => ;
+						case Module.Static => ;
 						case _ => sys.error(s"Can't link output ${lib.name} into artifact $name")
 					}
 			}
@@ -228,14 +225,14 @@ object Col {
 			contents.find(_.matches("main\\.(c|cpp)")) match {
 				case None =>
 					contents.find(_.matches("module\\.(c|cpp)")) match {
-						case None => Static
-						case _ => Module
+						case None => Module.Static
+						case _ => Module.Shared
 					}
 				case _ =>
 					contents.find(_.matches("module\\.(c|cpp)")) match {
 						case None =>
 
-							Binary
+							Module.Binary
 						case _ => sys.error("Ambiguous artifact $name")
 					}
 			}
@@ -243,6 +240,15 @@ object Col {
 	}
 
 	object Module {
+
+		sealed trait TArtifact
+
+		case object Static extends TArtifact
+
+		case object Shared extends TArtifact
+
+		case object Binary extends TArtifact
+
 		def inOrder(modules: Iterable[Module]): Stream[Module] = {
 			def recu(expanded: Set[Module], emitted: Set[Module], todo: List[Module]): Stream[Module] = {
 				todo match {
@@ -286,7 +292,7 @@ object Col {
 			* @param modules (all modules to make, ???)
 			* @return a set of all files created
 			*/
-		def emit(target: File, modules: Stream[(Module, Boolean)]): Set[File]
+		def emit(target: File, modules: Stream[Module]): Set[File]
 	}
 
 }

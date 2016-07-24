@@ -3,14 +3,13 @@ package com.peterlavalle.sca
 import java.io.File
 import java.io.{File, StringWriter}
 
-import com.peterlavalle.sca.Col.{Folder, Module}
 
 import language.implicitConversions
 
 object ColAppVS2015 extends Col.TSolver {
 	System.err.println("TODO ; Respect filtering for the TSource things - stop DIY crawling")
 
-	override def emit(target: File, modulesIsApp: Stream[(Col.Module, Boolean)]): Set[File] =
+	override def emit(target: File, modulesIsApp: Stream[Col.Module]): Set[File] =
 		Filters.emit(target, modulesIsApp) ++ Project.emit(target, modulesIsApp)
 
 	type FilterGroup = (File, (String, Set[File]))
@@ -22,7 +21,7 @@ object ColAppVS2015 extends Col.TSolver {
 			"{%08X-5D02-4C97-BBE8-58EE8797EB8A}".format(Math.abs(module.hashCode()))
 	}
 
-	implicit def wrappedModule(value: Module): TWrappedModule =
+	implicit def wrappedModule(value: Col.Module): TWrappedModule =
 		new TWrappedModule {
 			val module = value
 		}
@@ -62,9 +61,9 @@ object ColAppVS2015 extends Col.TSolver {
 	}
 
 	object Filters extends Col.TSolver {
-		override def emit(target: File, modulesIsApp: Stream[(Col.Module, Boolean)]): Set[File] =
-			modulesIsApp.map {
-				case (Col.Module(name: String, roots: Seq[Col.TSource], linked: Seq[Col.Module]), isApp: Boolean) =>
+		override def emit(target: File, modules: Stream[Col.Module]): Set[File] =
+			modules.map {
+				case Col.Module(name: String, roots: Seq[Col.TSource], linked: Seq[Col.Module]) =>
 
 					val folders: List[FilterGroup] =
 						roots.map(makeFIlterGroups)
@@ -134,7 +133,7 @@ object ColAppVS2015 extends Col.TSolver {
 			* @param modules (all modules to make, ???)
 			* @return a set of all files created
 			*/
-		override def emit(target: File, modules: Stream[(Col.Module, Boolean)]): Set[File] =
+		override def emit(target: File, modules: Stream[Col.Module]): Set[File] =
 		Set(
 			(target / s"Solution2015.sln")
 				.overWriter
@@ -146,7 +145,7 @@ object ColAppVS2015 extends Col.TSolver {
 						|MinimumVisualStudioVersion = 10.0.40219.1
 					""".stripMargin.trim + '\n'
 				)
-				.mappend(modules.map(_._1)) {
+				.mappend(modules) {
 					case module: Col.Module =>
 						s"""
 							 |Project("{8BC9CEB8-8B4A-11D0-8D11-00${"%08X".format(Math.abs(module.hashCode()))}42}") = "${module.name}", "${module.name}.vcxproj", "${module.ProjectGuid}"
@@ -165,7 +164,7 @@ object ColAppVS2015 extends Col.TSolver {
 						|	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 					""".stripMargin.trim + '\n'
 				)
-				.mappend(modules.map(_._1)) {
+				.mappend(modules) {
 					case module: Col.Module =>
 						s"""
 							 |		${module.ProjectGuid}.Debug|x64.ActiveCfg = Debug|x64
@@ -189,7 +188,14 @@ object ColAppVS2015 extends Col.TSolver {
 				)
 				.closeFile
 		) ++ modules.map {
-			case (module: Col.Module, isApp: Boolean) =>
+			case module: Col.Module =>
+
+				val isApp =
+					module.artifact match {
+						case Col.Module.Static => false
+						case Col.Module.Binary => true
+					}
+
 
 				val files: Set[File] =
 					module.roots.flatMap(makeFIlterGroups).flatMap { case (_: File, (_: String, files: Set[File])) => files }.toSet
