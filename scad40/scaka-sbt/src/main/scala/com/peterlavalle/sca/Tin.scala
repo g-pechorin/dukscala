@@ -8,7 +8,7 @@ import scala.io.Source
 
 object Tin {
 	type OpenInputStream = () => InputStream
-	type SourceRecord = (String, Long, String, OpenInputStream)
+	type SourceRecord = (String, Long, OpenInputStream)
 
 	trait TSource {
 		/**
@@ -36,7 +36,7 @@ object Tin {
 								else if (!path.matches(pattern))
 									Empty
 								else
-									Stream((path, file.lastModified(), path + ".h", () => new FileInputStream(file)))
+									Stream((path, file.lastModified(), () => new FileInputStream(file)))
 						}
 
 					recu(
@@ -50,46 +50,50 @@ object Tin {
 			case (done: Set[String], next: TSource) =>
 
 				next.contents.foldLeft(done) {
-					case (done: Set[String], (_, _, name: String, _)) if done.contains(name) =>
+					case (done: Set[String], (path: String, _, _)) if done.contains(path.replaceAll("[^\\w]+", "_")) =>
 						// skip output names we've already seen
 						done
 
-					case (done: Set[String], (path: String, date: Long, name: String, data: OpenInputStream)) =>
-						val file = {
-							val file = new File(output, name).getAbsoluteFile
+					case (done: Set[String], (path: String, date: Long, data: OpenInputStream)) =>
+
+						val name: String = path.replaceAll("[^\\w]+", "_")
+
+						// only add
+						if (done.contains(name)) {
+							done
+						} else {
+							val file = new File(output, path + ".h").getAbsoluteFile
 							file.AbsoluteParent
-							file
-						}
 
-						if (file.lastModified() <= date) {
+							if (file.lastModified() <= date) {
 
-							val originalLength = {
-								val length = data().toByteStream.length
+								val originalLength = {
+									val length = data().toByteStream.length
 
-								requyre(length == data().toUByteStream.length)
+									requyre(length == data().toUByteStream.length)
 
-								length
-							}
+									length
+								}
 
-							val compressed = data().Deflate.toUByteStream
+								val compressed = data().Deflate.toUByteStream
 
-							new FileWriter(file)
-								.append(
-									s"""
-										 |// compressed to ${(compressed.length * 100) / originalLength}% of its original size
-										 |// this is all just a big literal char[]
-										 |TIN_DEFLATE_BEGIN(/*unique name of this file*/"$name", /*path to source*/"$path", /*original source length*/$originalLength, /*compressed array length*/${compressed.length})
-										 |
+								new FileWriter(file)
+									.append(
+										s"""
+											 |// compressed to ${(compressed.length * 100) / originalLength}% of its original size
+											 |// this is all just a big literal char[]
+											 |TIN_DEFLATE_BEGIN(/*unique name of this file*/"$name", /*path to source*/"$path", /*original source length*/$originalLength, /*compressed array length*/${compressed.length})
+											 |
 									""".stripMargin.trim + "\n")
-								.mappend(compressed.grouped(314))(_.map(d => s"'\\x${Integer.toHexString(d)}', ").foldLeft("\t")(_ + _) + "\n")
-								.append(
-									s"""
-										 |TIN_DEFLATE_CLOSE("$name", "$path", $originalLength, ${compressed.length})
+									.mappend(compressed.grouped(314))(_.map(d => s"'\\x${Integer.toHexString(d)}', ").foldLeft("\t")(_ + _) + "\n")
+									.append(
+										s"""
+											 |TIN_DEFLATE_CLOSE("$name", "$path", $originalLength, ${compressed.length})
 									""".stripMargin.trim)
-								.close()
+									.close()
+							}
+							done + name
 						}
-
-						done + name
 				}
 		}
 }
