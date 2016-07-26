@@ -1,10 +1,13 @@
 package com.peterlavalle.sca
 
-import java.io.{File, FileInputStream, FileWriter, InputStream}
+import java.io.{File, FileInputStream, InputStream}
 import java.util.zip.Deflater
 
+import ru.eustas.zopfli.{Options, Zopfli}
+import ru.eustas.zopfli.Options.OutputFormat
+
 import scala.collection.immutable.Stream.Empty
-import scala.io.Source
+import scala.collection.mutable
 
 object Tin {
 	type OpenInputStream = () => InputStream
@@ -45,7 +48,51 @@ object Tin {
 			}
 	}
 
-	def apply(output: File, flues: Iterable[TSource]): Set[String] =
+	trait TZLibChain {
+		val name: String
+
+		def apply(inputStream: InputStream): Stream[UByte]
+	}
+
+	val defaultZLibChains: Iterable[TZLibChain] = {
+
+		val zopfli: Seq[ZopfliZLibChain] =
+			Seq(64, 256, 1024, 4 * 1024).flatMap {
+				case masterBlockSize: Int =>
+					Options.BlockSplitting.values().toSeq.flatMap {
+						case split =>
+							Seq(3, 14, 19).map {
+								case numIterations: Int =>
+									ZopfliZLibChain(masterBlockSize, numIterations)
+							}
+					}
+			}
+
+		Seq(
+			Deflater.NO_COMPRESSION, Deflater.BEST_COMPRESSION, Deflater.BEST_SPEED, Deflater.HUFFMAN_ONLY
+		).map(DeflateZLibChain) ++ zopfli
+	}
+
+	case class DeflateZLibChain(i: Int) extends TZLibChain {
+		override val name: String = toString
+
+		override def apply(inputStream: InputStream): Stream[UByte] =
+			inputStream.Deflate(new Deflater(i)).toUByteStream
+	}
+
+	case class ZopfliZLibChain(masterBlockSize: Int, numIterations: Int, blockSplitting: Options.BlockSplitting = Options.BlockSplitting.FIRST) extends TZLibChain {
+		override val name: String = toString
+
+		override def apply(inputStream: InputStream): Stream[UByte] =
+			new Zopfli(masterBlockSize)
+				.compress(
+					new Options(OutputFormat.ZLIB, blockSplitting, numIterations),
+					inputStream.toByteStream.toArray
+				)
+				.toByteArrayInputStream.toUByteStream
+	}
+
+	def apply(chains: Iterable[TZLibChain], output: File, flues: Iterable[TSource]): Set[String] =
 		flues.foldLeft(Set[String]()) {
 			case (done: Set[String], next: TSource) =>
 
@@ -56,43 +103,59 @@ object Tin {
 
 					case (done: Set[String], (path: String, date: Long, data: OpenInputStream)) =>
 
-						val name: String = path.replaceAll("[^\\w]+", "_")
-
 						// only add
-						if (done.contains(name)) {
+						if (done.contains(path)) {
 							done
 						} else {
-							val file = new File(output, path + ".h").getAbsoluteFile
-							file.AbsoluteParent
 
-							if (file.lastModified() <= date) {
 
-								val originalLength = {
-									val length = data().toByteStream.length
+							val originalLength = {
+								val length = data().toByteStream.length
 
-									requyre(length == data().toUByteStream.length)
+								requyre(length == data().toUByteStream.length)
 
-									length
-								}
-
-								val compressed = data().Deflate.toUByteStream
-
-								new FileWriter(file)
-									.append(
-										s"""
-											 |// compressed to ${(compressed.length * 100) / originalLength}% of its original size
-											 |// this is all just a big literal char[]
-											 |TIN_DEFLATE_BEGIN(/*unique name of this file*/"$name", /*path to source*/"$path", /*original source length*/$originalLength, /*compressed array length*/${compressed.length})
-											 |
-									""".stripMargin.trim + "\n")
-									.mappend(compressed.grouped(314))(_.map(d => s"'\\x${Integer.toHexString(d)}', ").foldLeft("\t")(_ + _) + "\n")
-									.append(
-										s"""
-											 |TIN_DEFLATE_CLOSE("$name", "$path", $originalLength, ${compressed.length})
-									""".stripMargin.trim)
-									.close()
+								length
 							}
-							done + name
+							System.out.println(s"Beginning ${path.replace('\\', '/')} ...")
+
+							val symbol: String = path.replaceAll("[\\W_]+", "_")
+
+							chains
+								.map {
+									case tMethod: TZLibChain =>
+
+										System.out.println(s"Compressing file ${path.replace('\\', '/')} with ${tMethod.name}")
+										val compressed = tMethod(data())
+
+										new File(output, path + "." + tMethod.name + ".h").getAbsoluteFile
+											.overWriter
+											.append(
+												s"""
+													 |// path = $path
+													 |// method: ${tMethod.name.reverse.padTo(chains.map(_.name.length).max, ' ').reverse}
+													 |// originalLength = $originalLength
+													 |// compressed.length = ${compressed.length}
+													 |// ratio = ${((compressed.length * 100) / originalLength).toString.reverse.padTo(3, ' ').reverse}% of its original size
+													 |// this is all just a big literal char[]
+													 |TIN_DEFLATE_BEGIN(/*semi-unique name of this file*/$symbol, /*path to source*/"$path", /*original source length*/$originalLength, /*compressed array length*/${compressed.length})
+													 |
+												""".stripMargin.trim + "\n")
+											.mappend(compressed.grouped(314))(_.map(d => s"'\\x${d.toHexString}', ").foldLeft("\t")(_ + _) + "\n")
+											.append(
+												s"""
+													 |TIN_DEFLATE_CLOSE($symbol, "$path", $originalLength, ${compressed.length})
+												""".stripMargin.trim)
+											.closeFile
+								}
+								.reduce((l, r) => if (l.length() > r.length()) r else l) match {
+								case best: File =>
+									(new File(output, path + ".tinflue")
+										.getAbsoluteFile
+										.overWriter << new FileInputStream(best))
+										.close()
+							}
+
+							done + path
 						}
 				}
 		}

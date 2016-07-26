@@ -15,6 +15,8 @@ object TinPlugin extends AutoPlugin {
 		lazy val tinOutput = SettingKey[File](
 			"tinOutput", "???")
 
+		lazy val tinChains = SettingKey[Iterable[Tin.TZLibChain]](
+			"tinChains", "???")
 
 		lazy val tin = TaskKey[(File, Set[String])](
 			"tin", "???")
@@ -28,12 +30,16 @@ object TinPlugin extends AutoPlugin {
 			tinOutput := {
 				target.value / "tinker-flue"
 			},
+			tinChains := {
+				Tin.defaultZLibChains
+			},
 			tin := {
 				val root = tinOutput.value
 
 				requyre(root.isDirectory || root.mkdirs())
 
 				root -> Tin(
+					tinChains.value,
 					tinOutput.value,
 					tinSource.value
 				)

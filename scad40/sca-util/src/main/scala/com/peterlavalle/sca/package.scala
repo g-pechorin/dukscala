@@ -5,6 +5,7 @@ import java.util.zip._
 
 import scala.io.Source
 import language.implicitConversions
+import scala.collection.immutable.Stream.Empty
 
 package object sca {
 
@@ -54,6 +55,9 @@ package object sca {
 				this.close()
 				file
 			}
+
+			def <<(inputStream: InputStream): OverWriter =
+				append(Source.fromInputStream(inputStream).mkString)
 
 			override def append(csq: CharSequence): OverWriter = super.append(csq).asInstanceOf[OverWriter]
 
@@ -224,6 +228,11 @@ package object sca {
 			override val stream = value
 		}
 
+	implicit def toUByte(value: Int): UByte = {
+		requyre(0 <= value && value <= 255)
+		UByte(value.toShort)
+	}
+
 	sealed trait TWrappedInputStream[I <: InputStream] {
 		val stream: I
 
@@ -234,22 +243,31 @@ package object sca {
 
 		def Inflate = new InflaterInputStream(stream)
 
-		def Deflate = new DeflaterInputStream(stream, new Deflater(Deflater.BEST_COMPRESSION))
+		def Deflate: DeflaterInputStream = Deflate(new Deflater(Deflater.BEST_COMPRESSION))
+
+		def Deflate(method: Deflater): DeflaterInputStream = new DeflaterInputStream(stream, method)
 
 		def toByteStream: Stream[Byte] = {
-			val buffer = Array.ofDim[Byte](16)
+			val byteArray =
+				stream match {
+				case byteArray: ByteArrayInputStream =>
+					byteArray
 
-			stream.read(buffer) match {
-				case -1 =>
-					stream.close()
-					Stream.Empty
-
-				case data =>
-					(0 until data).toStream.map(buffer) ++ toByteStream
+				case _ =>
+					stream.toByteArrayInputStream
 			}
+			def recu(buffer: Array[Byte]): Stream[Byte] = {
+				byteArray.read(buffer) match {
+					case read if read <= 0 => Empty
+					case read =>
+						buffer.toStream.take(read) ++ recu(buffer)
+				}
+			}
+
+			recu(Array.ofDim[Byte](256))
 		}
 
-		def toUByteStream: Stream[Short] =
+		def toUByteStream: Stream[UByte] =
 			stream.read() match {
 				case -1 =>
 					stream.close()
@@ -257,11 +275,7 @@ package object sca {
 
 				case next: Int =>
 					requyre(0 <= next && next <= 255)
-					next.toShort match {
-						case byte =>
-							requyre(0 <= byte && byte <= 255)
-							byte #:: toUByteStream
-					}
+					next #:: toUByteStream
 			}
 	}
 

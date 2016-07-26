@@ -6,7 +6,7 @@ lazy val commonSettings =
 		version := "0.0.4-SNAPSHOT",
 		scalaVersion := "2.10.6",
 
-		javacOptions ++= Seq("-source", "1.7", "-target", "1.7"),
+		javacOptions ++= Seq("-source", "1.7"),//, "-target", "1.7"),
 
 		libraryDependencies ++= Seq(
 			"junit" % "junit" % "4.12" % Test,
@@ -29,20 +29,29 @@ lazy val commonSettings =
 		)
 	)
 
-name := "scad40"
+
 lazy val root = (project in file("."))
 	.settings(commonSettings: _*)
+	.settings(
+		name := "scad40"
+	)
 	.aggregate(
 		scaUtil,
 		//		scad40Lib,
 		//		scad40Sbt,
 		//		scad40App,
-		scakaLib
+		scakaSbt,
+		zopfli
 	)
+
+lazy val zopfli =
+	(project in file("zopfli"))
+		.settings(commonSettings: _*)
 
 lazy val scaUtil =
 	(project in file("sca-util"))
 		.settings(commonSettings: _*)
+
 /*
 lazy val scad40Lib =
 	(project in file("scad40-lib"))
@@ -73,16 +82,17 @@ lazy val scad40App =
 		.dependsOn(scad40Lib)
 */
 
-lazy val scakaLib =
+lazy val scakaSbt =
 	(project in file("scaka-sbt"))
 		.settings(commonSettings: _*)
 		.settings(
-			name := "scaka",
 			sbtPlugin := true,
 			libraryDependencies ++= Seq(
 				"org.apache.commons" % "commons-compress" % "1.12",
 				"org.tukaani" % "xz" % "1.5"
 			)
+
 		)
 		//.enablePlugins(SamonPlugin)
 		.dependsOn(scaUtil)
+		.dependsOn(zopfli)
