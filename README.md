@@ -36,6 +36,13 @@ There is ...
 
 # History
 
+## 0.0.4
+
+ * TinFlue /
+  * macros emit a symbol name
+  * [ ] used Zopfli to compress (rather than straightup ZLib)
+  * [ ] strip ZLib headers from compressed streams
+
 ## 0.0.3
 
 * introduced the `Tin.Flue` to compress files into DEFLATE'd header source
