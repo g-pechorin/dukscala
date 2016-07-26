@@ -34,6 +34,7 @@ object ColPlugin extends AutoPlugin {
 		Seq(
 			colRoots := Seq(Col.Folder(new File(baseDirectory.value, "src/main/scaka"))),
 			colDependencies := Seq(),
+
 			colModule := {
 				Col.Module(
 					name.value,
@@ -41,24 +42,25 @@ object ColPlugin extends AutoPlugin {
 					colDependencies.value
 				)
 			},
+
 			colAggregate := Seq(),
-			colSolvers := Set(
-				ColCMakeApp
-			),
+			colSolvers :=
+				Set(
+					ColAppCMake,
+					ColAppVS2015
+				),
 			col := {
 				colSolvers.value.flatMap {
-					case solver =>
+					case solver: Col.TSolver =>
 						solver.emit(
 							target.value / solver.getClass.getSimpleName.replaceAll("\\W", ""),
-							Col.Module.labelArtifacts(
-								(colModule.value, colAggregate.value) match {
-									case (empty, peers) if empty.isEmpty && peers.nonEmpty =>
-										peers.toList
+							((colModule.value, colAggregate.value) match {
+								case (empty, peers) if empty.isEmpty && peers.nonEmpty =>
+									peers.toList
 
-									case (head, tail) =>
-										head :: tail.toList
-								}
-							)
+								case (head, tail) =>
+									head :: tail.toList
+							}).toStream
 						)
 				}
 			}

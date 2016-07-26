@@ -184,6 +184,10 @@ object Col {
 		roots: Seq[TSource],
 		linked: Seq[Module]
 	) {
+
+		def allFolders: Stream[File] =
+			(roots.toStream.map(_.home) ++ linked.flatMap(_.allFolders)).distinct
+
 		def fullSet: Set[Module] =
 			Set(this) ++ linked.flatMap(_.fullSet)
 
@@ -205,9 +209,46 @@ object Col {
 
 		def isEmpty: Boolean =
 			allSourceFiles.isEmpty && allHeaderFiles.isEmpty
+
+
+		lazy val artifact: Module.TArtifact = {
+			val contents: Stream[String] = roots.toStream.flatMap(_.contents)
+
+			linked.foreach {
+				case lib: Module =>
+					lib.artifact match {
+						case Module.Static => ;
+						case _ => sys.error(s"Can't link output ${lib.name} into artifact $name")
+					}
+			}
+
+			contents.find(_.matches("main\\.(c|cpp)")) match {
+				case None =>
+					contents.find(_.matches("module\\.(c|cpp)")) match {
+						case None => Module.Static
+						case _ => Module.Shared
+					}
+				case _ =>
+					contents.find(_.matches("module\\.(c|cpp)")) match {
+						case None =>
+
+							Module.Binary
+						case _ => sys.error("Ambiguous artifact $name")
+					}
+			}
+		}
 	}
 
 	object Module {
+
+		sealed trait TArtifact
+
+		case object Static extends TArtifact
+
+		case object Shared extends TArtifact
+
+		case object Binary extends TArtifact
+
 		def inOrder(modules: Iterable[Module]): Stream[Module] = {
 			def recu(expanded: Set[Module], emitted: Set[Module], todo: List[Module]): Stream[Module] = {
 				todo match {
@@ -245,7 +286,13 @@ object Col {
 	}
 
 	trait TSolver {
-		def emit(dir: File, modules: Stream[(Module, Boolean)]): Set[File]
+		/**
+			*
+			* @param target  where all files should be created
+			* @param modules (all modules to make, ???)
+			* @return a set of all files created
+			*/
+		def emit(target: File, modules: Stream[Module]): Set[File]
 	}
 
 }
