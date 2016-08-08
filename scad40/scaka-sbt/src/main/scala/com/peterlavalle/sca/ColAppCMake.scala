@@ -18,6 +18,8 @@ object ColAppCMake extends Col.TSolver {
 						|add_definitions(
 						|	-DColCMakeApp=true
 						|	-D_CRT_SECURE_NO_WARNINGS
+						|	-D_SCL_SECURE_NO_WARNINGS
+						|	-D_CRT_NONSTDC_NO_WARNINGS
 						|	-DBUILD_SHARED_LIBS=false
 						|#	-DUSE_MSVC_RUNTIME_LIBRARY_DLL=false
 						|	-DCMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}"
