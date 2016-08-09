@@ -43,6 +43,12 @@ lazy val root = (project in file("."))
 lazy val scaUtil =
 	(project in file("sca-util"))
 		.settings(commonSettings: _*)
+		.settings(
+			libraryDependencies ++= Seq(
+				"org.apache.commons" % "commons-compress" % "1.12",
+				"org.tukaani" % "xz" % "1.5"
+			)
+		)
 /*
 lazy val scad40Lib =
 	(project in file("scad40-lib"))
@@ -78,11 +84,7 @@ lazy val scakaLib =
 		.settings(commonSettings: _*)
 		.settings(
 			name := "scaka",
-			sbtPlugin := true,
-			libraryDependencies ++= Seq(
-				"org.apache.commons" % "commons-compress" % "1.12",
-				"org.tukaani" % "xz" % "1.5"
-			)
+			sbtPlugin := true
 		)
 		//.enablePlugins(SamonPlugin)
 		.dependsOn(scaUtil)

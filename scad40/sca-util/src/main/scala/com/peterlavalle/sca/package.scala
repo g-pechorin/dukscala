@@ -1,12 +1,65 @@
 package com.peterlavalle
 
 import java.io._
+import java.net.URL
 import java.util.zip._
+
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
+import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 
 import scala.io.Source
 import language.implicitConversions
+import scala.collection.immutable.Stream.Empty
 
 package object sca {
+
+	private val compressorFactory = new CompressorStreamFactory()
+	private val archiveFactory = new ArchiveStreamFactory()
+
+	sealed trait TWrappedAnyRef {
+		val anyRef: AnyRef
+
+		def HexString: String = {
+
+			val l: Long = anyRef.hashCode() | 0L
+			val r: Long = anyRef.toString.hashCode() | 0L
+
+			(java.lang.Long.toHexString(l).padTo(16, '0') + java.lang.Long.toHexString(r).padTo(16, '0').reverse)
+				.toUpperCase
+		}
+
+
+		def HexString(splits: Int*): String = {
+			def recu(todo: List[Int], togo: String): String =
+				todo match {
+					case Nil => togo
+
+					case next :: tail if next > 0 =>
+						requyre(next < togo.length)
+
+						togo.splitAt(next) match {
+							case (done, left) =>
+								done + "-" + recu(tail, left)
+						}
+
+					case txen :: tail if txen < 0 =>
+						val next = -txen
+						requyre(next < togo.length)
+
+						togo.reverse.splitAt(next) match {
+							case (tfel, enod) =>
+								enod.reverse + "-" + recu(tail, tfel.reverse)
+						}
+				}
+			recu(splits.toList, HexString)
+		}
+	}
+
+	implicit def wrapAnyRef(value: AnyRef): TWrappedAnyRef =
+		new TWrappedAnyRef {
+			override val anyRef: AnyRef = value
+		}
 
 	sealed trait TWrappedFile {
 		val file: File
@@ -19,6 +72,27 @@ package object sca {
 					some.toStream.map(_.getAbsoluteFile)
 			}
 
+		def streamFileNames: Stream[String] =
+			file.listFiles() match {
+				case null => Empty
+				case list: Array[File] =>
+					list.toStream.map(_.getAbsoluteFile).flatMap {
+						case folder: File if folder.isDirectory =>
+							requyre(folder.isDirectory)
+
+							folder.streamFileNames.map {
+								case sub: String =>
+									folder.getName + "/" + sub
+							}
+
+						case file: File if file.isFile =>
+							requyre(!file.isDirectory)
+							val name: String = file.getName
+							Stream(name)
+
+					}
+			}
+
 		def deleteAll(): Unit = {
 			if (file.exists()) {
 				if (file.isDirectory)
@@ -26,6 +100,41 @@ package object sca {
 
 				requyre(file.delete())
 			}
+		}
+
+		def toTarXZStream: Stream[(String, InputStream)] = {
+
+
+			val compressorInputStream: CompressorInputStream =
+				compressorFactory.createCompressorInputStream("xz", new FileInputStream(file).toByteArrayInputStream)
+
+			val archiveInputStream: ArchiveInputStream =
+				archiveFactory.createArchiveInputStream("tar", compressorInputStream)
+
+
+			def archiveStream: Stream[(String, InputStream)] =
+				archiveInputStream.getNextEntry match {
+					case null => Stream.Empty
+
+					case tarEntry: TarArchiveEntry =>
+						if (tarEntry.getName.endsWith("/"))
+							archiveStream
+						else {
+							(tarEntry.getName -> new ByteArrayInputStream({
+								val buffer = Array.ofDim[Byte](tarEntry.getSize.toInt)
+
+								requyre(buffer.length == archiveInputStream.read(buffer))
+
+								buffer
+							})) #:: archiveStream
+						}
+				}
+
+			archiveStream
+		}
+
+		def toZipInputStream: ZipInputStream = {
+			new ZipInputStream(new FileInputStream(file))
 		}
 
 		def mkParent =
@@ -172,6 +281,12 @@ package object sca {
 			parent
 		}
 
+
+		def ParentDirs = {
+			val parent = AbsoluteParent
+			requyre(parent.exists() || parent.mkdirs())
+		}
+
 		def AbsolutePath = {
 			def recu(path: String): String =
 				path match {
@@ -188,6 +303,23 @@ package object sca {
 	implicit def wrapFile(value: File): TWrappedFile =
 		new TWrappedFile {
 			override val file: File = value.getAbsoluteFile
+		}
+
+	sealed trait TWrappedURL {
+		val url: URL
+
+		def toTempFile: File = {
+			val tempFile = File.createTempFile(url.toString.replaceAll("\\W", "_"), ".url")
+
+			(new FileOutputStream(tempFile) << url.openStream()).close()
+			requyre(tempFile.exists())
+			tempFile
+		}
+	}
+
+	implicit def wrapURL(value: URL): TWrappedURL =
+		new TWrappedURL {
+			override val url: URL = value
 		}
 
 	sealed trait TWrappedZipInputStream {

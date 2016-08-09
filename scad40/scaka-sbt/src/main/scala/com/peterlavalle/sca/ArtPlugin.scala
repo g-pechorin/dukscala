@@ -7,28 +7,6 @@ import sbt.{AutoPlugin, SettingKey, TaskKey}
 
 object ArtPlugin extends AutoPlugin {
 
-	object autoImport {
-		lazy val artOut = SettingKey[File](
-			"artOut", "where we should spit out files")
-
-		lazy val artCache = SettingKey[File](
-			"artCache", "where to dump the inevitable crap we generate")
-
-		lazy val artRoots = SettingKey[Seq[File]](
-			"artRoots", "places to look for art files we'll eat")
-
-		lazy val artTools = SettingKey[Seq[Art.TTool]](
-			"artTools", "???")
-
-		lazy val artSweeps = SettingKey[Seq[(String, String, String)]](
-			"artSweeps", "???")
-
-		lazy val art = TaskKey[Seq[File]](
-			"art", "run the art tools")
-	}
-
-	import autoImport._
-
 	override lazy val projectSettings =
 		Seq(
 			artOut := target.value / "art.out",
@@ -60,5 +38,27 @@ object ArtPlugin extends AutoPlugin {
 				}
 			}
 		)
+
+	import autoImport._
+
+	object autoImport {
+		lazy val artOut = SettingKey[File](
+			"artOut", "where we should spit out files")
+
+		lazy val artCache = SettingKey[File](
+			"artCache", "where to dump the inevitable crap we generate")
+
+		lazy val artRoots = SettingKey[Seq[File]](
+			"artRoots", "places to look for art files we'll eat")
+
+		lazy val artTools = SettingKey[Seq[Art.TTool]](
+			"artTools", "???")
+
+		lazy val artSweeps = SettingKey[Seq[(String, String, String)]](
+			"artSweeps", "???")
+
+		lazy val art = TaskKey[Seq[File]](
+			"art", "run the art tools")
+	}
 }
 

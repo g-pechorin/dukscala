@@ -1,37 +1,21 @@
 package com.peterlavalle.sca
 
-import java.io.File
 import java.io.{File, StringWriter}
 
-
-import language.implicitConversions
+import scala.language.implicitConversions
 
 object ColAppVS2015 extends Col.TSolver {
 	System.err.println("TODO ; Respect filtering for the TSource things - stop DIY crawling")
 
-	override def emit(target: File, modulesIsApp: Stream[Col.Module]): Set[File] =
-		Filters.emit(target, modulesIsApp) ++ Project.emit(target, modulesIsApp)
-
 	type FilterGroup = (File, (String, Set[File]))
 
-	trait TWrappedModule {
-		val module: Col.Module
-
-		def ProjectGuid: String =
-			"{%08X-5D02-4C97-BBE8-58EE8797EB8A}".format(Math.abs(module.hashCode()))
-	}
+	override def emit(target: File, modulesIsApp: Stream[Col.Module]): Set[File] =
+		Filters.emit(target, modulesIsApp) ++ Project.emit(target, modulesIsApp)
 
 	implicit def wrappedModule(value: Col.Module): TWrappedModule =
 		new TWrappedModule {
 			val module = value
 		}
-
-	trait TWrappedFile {
-		val file: File
-
-		def UniqueIdentifier: String =
-			"{%08x-90e4-414a-bb0c-7a4a0a4148d5}".format(Math.abs(file.hashCode()))
-	}
 
 	implicit def wrappedFile(value: File): TWrappedFile =
 		new TWrappedFile {
@@ -58,6 +42,20 @@ object ColAppVS2015 extends Col.TSolver {
 			case Col.Folder(home: File) =>
 				recurFilterGroup(home.getName, home)
 		}
+	}
+
+	trait TWrappedModule {
+		val module: Col.Module
+
+		def ProjectGuid: String =
+			"{%08X-5D02-4C97-BBE8-58EE8797EB8A}".format(Math.abs(module.hashCode()))
+	}
+
+	trait TWrappedFile {
+		val file: File
+
+		def UniqueIdentifier: String =
+			"{%08x-90e4-414a-bb0c-7a4a0a4148d5}".format(Math.abs(file.hashCode()))
 	}
 
 	object Filters extends Col.TSolver {

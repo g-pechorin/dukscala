@@ -1,7 +1,6 @@
 package com.peterlavalle.sca
 
 import java.io.File
-import java.net.URL
 
 import sbt.{IO, URL}
 
@@ -15,19 +14,43 @@ object Art {
 		|
 	""".stripMargin
 
-	/**
-		*
-		* @param path path within zip to find CMakeLists.txt. if null - try to auto-find-it
-		* @param from url to get the thing from
-		*/
-	case class CMakeProject(path: String, from: URL) {
+	def CMake(name: String, from: String): CMakeTool = CMakeTool(name, CMakeProject(null, new URL(from)))
 
-		/**
-			* Download and unpack the archive then return a File instance pointing to the path'ed folder
-			*/
-		def apply(cache: File): File =
-			??
-	}
+	def sweep(roots: Seq[File], target: File, tool: TTool, pattern: String, command: String) =
+		roots.foldLeft(tool.doWork(
+			target / "art.out",
+			target / "art.cache"
+		)) {
+			case (work, root: File) =>
+				root.list() match {
+					case null => work
+
+					case list =>
+						def recu(workload: TWorkload, todo: List[String]): TWorkload =
+							todo match {
+								case Nil => workload
+
+								case name :: tail =>
+									val file = new File(root, name)
+
+									recu(
+										if (!name.matches(pattern))
+											workload
+										else
+											workload ++= name.replaceAll(
+												pattern,
+												command.replace("<@ROOT@>", root.AbsolutePath)
+											),
+										file.list() match {
+											case null => tail
+											case children => children.toList.map(name + "/" + _) ++ tail
+										}
+									)
+							}
+
+						recu(work, list.toList)
+				}
+		}.run()
 
 	trait TWorkload {
 		def ++=(job: String): TWorkload
@@ -39,6 +62,20 @@ object Art {
 		val name: String
 
 		def doWork(output: File, cache: File): TWorkload
+	}
+
+	/**
+		*
+		* @param path path within zip to find CMakeLists.txt. if null - try to auto-find-it
+		* @param from url to get the thing from
+		*/
+	case class CMakeProject(path: String, from: URL) {
+
+		/**
+			* Download and unpack the archive then return a File instance pointing to the path'ed folder
+			*/
+		def apply(cache: File): File =
+		??
 	}
 
 	case class CMakeTool(name: String, project: CMakeProject) extends TTool {
@@ -131,45 +168,6 @@ object Art {
 			new Workload(Nil)
 		}
 	}
-
-	def CMake(name: String, from: String): CMakeTool = CMakeTool(name, CMakeProject(null, new URL(from)))
-
-	def sweep(roots: Seq[File], target: File, tool: TTool, pattern: String, command: String) =
-		roots.foldLeft(tool.doWork(
-			target / "art.out",
-			target / "art.cache"
-		)) {
-			case (work, root: File) =>
-				root.list() match {
-					case null => work
-
-					case list =>
-						def recu(workload: TWorkload, todo: List[String]): TWorkload =
-							todo match {
-								case Nil => workload
-
-								case name :: tail =>
-									val file = new File(root, name)
-
-									recu(
-										if (!name.matches(pattern))
-											workload
-										else
-											workload ++= name.replaceAll(
-												pattern,
-												command.replace("<@ROOT@>", root.AbsolutePath)
-											),
-										file.list() match {
-											case null => tail
-											case children => children.toList.map(name + "/" + _) ++ tail
-										}
-									)
-							}
-
-						recu(work, list.toList)
-				}
-		}.run()
-
 
 	case class Sweep(tool: TTool, pattern: String, command: String) {
 		def apply(roots: Seq[File]) =

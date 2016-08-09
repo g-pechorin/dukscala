@@ -1,34 +1,11 @@
 package com.peterlavalle.sca
 
 import java.io.File
-import com.peterlavalle.sca._
+
 import sbt.Keys._
 import sbt.{AutoPlugin, SettingKey, TaskKey}
 
 object ColPlugin extends AutoPlugin {
-
-	object autoImport {
-
-		lazy val colRoots = SettingKey[Seq[Col.TSource]](
-			"colRoots", "file objects that're source roots")
-
-		lazy val colDependencies = SettingKey[Seq[Col.Module]](
-			"colDependencies", "???")
-
-		lazy val colModule = SettingKey[Col.Module](
-			"colModule", "???")
-
-		lazy val colAggregate = SettingKey[Seq[Col.Module]](
-			"colAggregate", "???")
-
-		lazy val colSolvers = SettingKey[Set[Col.TSolver]](
-			"colSolvers", "???")
-
-		lazy val col = TaskKey[Set[File]](
-			"col", "???")
-	}
-
-	import autoImport._
 
 	override lazy val projectSettings =
 		Seq(
@@ -65,5 +42,28 @@ object ColPlugin extends AutoPlugin {
 				}
 			}
 		)
+
+	import autoImport._
+
+	object autoImport {
+
+		lazy val colRoots = SettingKey[Seq[Col.TSource]](
+			"colRoots", "file objects that're source roots")
+
+		lazy val colDependencies = SettingKey[Seq[Col.Module]](
+			"colDependencies", "???")
+
+		lazy val colModule = SettingKey[Col.Module](
+			"colModule", "???")
+
+		lazy val colAggregate = SettingKey[Seq[Col.Module]](
+			"colAggregate", "???")
+
+		lazy val colSolvers = SettingKey[Set[Col.TSolver]](
+			"colSolvers", "???")
+
+		lazy val col = TaskKey[Set[File]](
+			"col", "???")
+	}
 }
 

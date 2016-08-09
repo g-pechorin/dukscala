@@ -1,49 +1,12 @@
 package com.peterlavalle.sca
 
 import java.io.{File, FileInputStream, FileWriter, InputStream}
-import java.util.zip.Deflater
 
 import scala.collection.immutable.Stream.Empty
-import scala.io.Source
 
 object Tin {
 	type OpenInputStream = () => InputStream
 	type SourceRecord = (String, Long, OpenInputStream)
-
-	trait TSource {
-		/**
-			* @return a stream which can be used to read all-the-things coming from this flue/whatnot
-			*/
-		def contents: Stream[SourceRecord]
-	}
-
-	case class Flue(root: File, pattern: String) extends TSource {
-		override def contents: Stream[SourceRecord] =
-			root.list() match {
-				case null =>
-					Stream.Empty
-				case contents: Array[String] =>
-					def recu(todo: Stream[String]): Stream[SourceRecord] =
-						todo.flatMap {
-							case path: String =>
-								val file = new File(root, path)
-								requyre(file.exists())
-
-								if (file.isDirectory)
-									recu(
-										file.list().toList.sorted.toStream.map(path + "/" + _)
-									)
-								else if (!path.matches(pattern))
-									Empty
-								else
-									Stream((path, file.lastModified(), () => new FileInputStream(file)))
-						}
-
-					recu(
-						contents.toList.sorted.toStream
-					)
-			}
-	}
 
 	def apply(output: File, flues: Iterable[TSource]): Set[String] =
 		flues.foldLeft(Set[String]()) {
@@ -96,4 +59,39 @@ object Tin {
 						}
 				}
 		}
+
+	trait TSource {
+		/**
+			* @return a stream which can be used to read all-the-things coming from this flue/whatnot
+			*/
+		def contents: Stream[SourceRecord]
+	}
+
+	case class Flue(root: File, pattern: String) extends TSource {
+		override def contents: Stream[SourceRecord] =
+			root.list() match {
+				case null =>
+					Stream.Empty
+				case contents: Array[String] =>
+					def recu(todo: Stream[String]): Stream[SourceRecord] =
+						todo.flatMap {
+							case path: String =>
+								val file = new File(root, path)
+								requyre(file.exists())
+
+								if (file.isDirectory)
+									recu(
+										file.list().toList.sorted.toStream.map(path + "/" + _)
+									)
+								else if (!path.matches(pattern))
+									Empty
+								else
+									Stream((path, file.lastModified(), () => new FileInputStream(file)))
+						}
+
+					recu(
+						contents.toList.sorted.toStream
+					)
+			}
+	}
 }

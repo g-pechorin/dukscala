@@ -1,7 +1,7 @@
 package com.peterlavalle.sca
 
 import java.io.ByteArrayInputStream
-import java.util.zip.{DeflaterInputStream, Inflater, InflaterInputStream}
+import java.util.zip.{DeflaterInputStream, InflaterInputStream}
 
 import junit.framework.TestCase
 import org.junit.Assert._

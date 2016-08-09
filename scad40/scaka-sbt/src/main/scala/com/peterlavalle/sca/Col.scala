@@ -10,8 +10,47 @@ import sbt.URL
 
 object Col {
 
+	val compressorFactory = new CompressorStreamFactory()
+	val archiveFactory = new ArchiveStreamFactory()
+
+	def Scrape(url: String, names: String*)(cache: File): Scrape =
+		new Scrape(new URL(url), names.toSet)(cache)
+
+	def BitBucket(username: String, projectname: String, revision: String, sub: String = "")(cache: File) = {
+		requyre(sub.matches("(\\w+/)*"))
+		Remote(
+			s"https://bitbucket.org/${username}/${projectname}/get/${revision}.zip",
+			s"${username}-${projectname}-${revision}/${sub}"
+		)(cache)
+	}
+
+	def GitHubZip(username: String, projectname: String, revision: String = "master", sub: String = "")(cache: File) = {
+		requyre(sub.matches("(\\w+/)*"))
+		Remote(
+			s"https://github.com/${username}/${projectname}/archive/${revision}.zip",
+			s"${projectname}-${revision}/${sub}"
+		)(cache)
+	}
+
+	def GitHubRelease(username: String, projectname: String, tag: String, sub: String = "")(cache: File) = {
+		requyre(sub.matches("(\\w+/)*"))
+		Remote(
+			s"https://codeload.github.com/${username}/${projectname}/zip/v${tag}",
+			s"${projectname}-${tag}/${sub}"
+		)(cache)
+	}
+
 	sealed trait TSource {
 		val home: File
+
+		def Filtered(regex: String) = {
+			val real = this
+			new TSource {
+				override val home: File = real.home
+
+				override def contents: Set[String] = real.contents.filter(_.matches(regex))
+			}
+		}
 
 		def contents: Set[String] = {
 			def recu(todo: List[String]): Stream[String] =
@@ -28,19 +67,17 @@ object Col {
 				case list => recu(list.toList).toSet
 			}
 		}
-
-		def Filtered(regex: String) = {
-			val real = this
-			new TSource {
-				override val home: File = real.home
-
-				override def contents: Set[String] = real.contents.filter(_.matches(regex))
-			}
-		}
 	}
 
-	val compressorFactory = new CompressorStreamFactory()
-	val archiveFactory = new ArchiveStreamFactory()
+	trait TSolver {
+		/**
+			*
+			* @param target  where all files should be created
+			* @param modules (all modules to make, ???)
+			* @return a set of all files created
+			*/
+		def emit(target: File, modules: Stream[Module]): Set[File]
+	}
 
 	case class Scrape(url: URL, names: Set[String])(cache: File) extends TSource {
 		override lazy val home: File = {
@@ -57,9 +94,6 @@ object Col {
 			home
 		}
 	}
-
-	def Scrape(url: String, names: String*)(cache: File): Scrape =
-		new Scrape(new URL(url), names.toSet)(cache)
 
 	case class Remote(url: URL, prefix: String)(cache: File) extends TSource {
 		requyre(null != url)
@@ -132,50 +166,6 @@ object Col {
 		}
 	}
 
-	object Remote {
-		def apply(url: String, path: String)(cache: File): Remote =
-			Remote(new URL(url), path match {
-				case _ if null != path => path
-
-				case null if url.endsWith(".zip") =>
-					def deZipUrl(str: String) = str.substring(str.lastIndexOf('/') + 1, str.lastIndexOf('.')) + "/"
-
-					requyre(
-						"0.9.7.5/" == deZipUrl("https://github.com/g-truc/glm/archive/0.9.7.5.zip"),
-						s"""
-							 |expected `${"0.9.7.5/"}`
-							 |> actual `${deZipUrl("https://github.com/g-truc/glm/archive/0.9.7.5.zip")}`
-						""".stripMargin.trim
-					)
-
-					deZipUrl(url)
-			})(cache)
-	}
-
-	def BitBucket(username: String, projectname: String, revision: String, sub: String = "")(cache: File) = {
-		requyre(sub.matches("(\\w+/)*"))
-		Remote(
-			s"https://bitbucket.org/${username}/${projectname}/get/${revision}.zip",
-			s"${username}-${projectname}-${revision}/${sub}"
-		)(cache)
-	}
-
-	def GitHubZip(username: String, projectname: String, revision: String = "master", sub: String = "")(cache: File) = {
-		requyre(sub.matches("(\\w+/)*"))
-		Remote(
-			s"https://github.com/${username}/${projectname}/archive/${revision}.zip",
-			s"${projectname}-${revision}/${sub}"
-		)(cache)
-	}
-
-	def GitHubRelease(username: String, projectname: String, tag: String, sub: String = "")(cache: File) = {
-		requyre(sub.matches("(\\w+/)*"))
-		Remote(
-			s"https://codeload.github.com/${username}/${projectname}/zip/v${tag}",
-			s"${projectname}-${tag}/${sub}"
-		)(cache)
-	}
-
 	case class Folder(home: File) extends TSource
 
 	case class Module
@@ -184,32 +174,6 @@ object Col {
 		roots: Seq[TSource],
 		linked: Seq[Module]
 	) {
-
-		def allFolders: Stream[File] =
-			(roots.toStream.map(_.home) ++ linked.flatMap(_.allFolders)).distinct
-
-		def fullSet: Set[Module] =
-			Set(this) ++ linked.flatMap(_.fullSet)
-
-		def ownSourceFiles =
-			roots.flatMap {
-				case root =>
-					root.contents.filter(_.matches(".*\\.(c|cc|cpp)"))
-						.map(root.home / _)
-			}
-
-		def allSourceFiles: Set[File] =
-			linked.toSet.foldLeft(ownSourceFiles)(_ ++ _.allSourceFiles).toSet
-
-		def ownHeaderFiles =
-			roots.flatMap(root => root.contents.filter(_.matches(".*\\.(h|hh|hpp)")).map(root.home / _))
-
-		def allHeaderFiles: Set[File] =
-			linked.toSet.foldLeft(ownHeaderFiles)(_ ++ _.allHeaderFiles).toSet
-
-		def isEmpty: Boolean =
-			allSourceFiles.isEmpty && allHeaderFiles.isEmpty
-
 
 		lazy val artifact: Module.TArtifact = {
 			val contents: Stream[String] = roots.toStream.flatMap(_.contents)
@@ -237,17 +201,63 @@ object Col {
 					}
 			}
 		}
+
+		def allFolders: Stream[File] =
+			(roots.toStream.map(_.home) ++ linked.flatMap(_.allFolders)).distinct
+
+		def fullSet: Set[Module] =
+			Set(this) ++ linked.flatMap(_.fullSet)
+
+		def ownSourceFiles =
+			roots.flatMap {
+				case root =>
+					root.contents.filter(_.matches(".*\\.(c|cc|cpp)"))
+						.map(root.home / _)
+			}
+
+		def allSourceFiles: Set[File] =
+			linked.toSet.foldLeft(ownSourceFiles)(_ ++ _.allSourceFiles).toSet
+
+		def ownHeaderFiles =
+			roots.flatMap(root => root.contents.filter(_.matches(".*\\.(h|hh|hpp)")).map(root.home / _))
+
+		def allHeaderFiles: Set[File] =
+			linked.toSet.foldLeft(ownHeaderFiles)(_ ++ _.allHeaderFiles).toSet
+
+		def isEmpty: Boolean =
+			allSourceFiles.isEmpty && allHeaderFiles.isEmpty
+	}
+
+	object Remote {
+		def apply(url: String, path: String)(cache: File): Remote =
+			Remote(new URL(url), path match {
+				case _ if null != path => path
+
+				case null if url.endsWith(".zip") =>
+					def deZipUrl(str: String) = str.substring(str.lastIndexOf('/') + 1, str.lastIndexOf('.')) + "/"
+
+					requyre(
+						"0.9.7.5/" == deZipUrl("https://github.com/g-truc/glm/archive/0.9.7.5.zip"),
+						s"""
+							 |expected `${"0.9.7.5/"}`
+							 |> actual `${deZipUrl("https://github.com/g-truc/glm/archive/0.9.7.5.zip")}`
+						""".stripMargin.trim
+					)
+
+					deZipUrl(url)
+			})(cache)
 	}
 
 	object Module {
 
-		sealed trait TArtifact
+		def labelArtifacts(modules: Iterable[Module]): Stream[(Module, Boolean)] = {
+			val used = inOrder(modules).flatMap(_.linked).toSet
 
-		case object Static extends TArtifact
-
-		case object Shared extends TArtifact
-
-		case object Binary extends TArtifact
+			modules.toStream.map {
+				case module: Module =>
+					module -> !used(module)
+			}
+		}
 
 		def inOrder(modules: Iterable[Module]): Stream[Module] = {
 			def recu(expanded: Set[Module], emitted: Set[Module], todo: List[Module]): Stream[Module] = {
@@ -275,24 +285,13 @@ object Col {
 			)
 		}
 
-		def labelArtifacts(modules: Iterable[Module]): Stream[(Module, Boolean)] = {
-			val used = inOrder(modules).flatMap(_.linked).toSet
+		sealed trait TArtifact
 
-			modules.toStream.map {
-				case module: Module =>
-					module -> !used(module)
-			}
-		}
-	}
+		case object Static extends TArtifact
 
-	trait TSolver {
-		/**
-			*
-			* @param target  where all files should be created
-			* @param modules (all modules to make, ???)
-			* @return a set of all files created
-			*/
-		def emit(target: File, modules: Stream[Module]): Set[File]
+		case object Shared extends TArtifact
+
+		case object Binary extends TArtifact
 	}
 
 }
