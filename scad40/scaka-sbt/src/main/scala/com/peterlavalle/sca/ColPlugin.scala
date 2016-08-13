@@ -3,9 +3,11 @@ package com.peterlavalle.sca
 import java.io.File
 
 import sbt.Keys._
-import sbt.{AutoPlugin, SettingKey, TaskKey}
+import sbt.{AutoPlugin, ClasspathDep, ModuleID, ProjectReference, SettingKey, TaskKey}
 
 object ColPlugin extends AutoPlugin {
+
+	import autoImport._
 
 	override lazy val projectSettings =
 		Seq(
@@ -42,8 +44,6 @@ object ColPlugin extends AutoPlugin {
 				}
 			}
 		)
-
-	import autoImport._
 
 	object autoImport {
 

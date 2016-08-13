@@ -292,6 +292,7 @@ object Col {
 		case object Shared extends TArtifact
 
 		case object Binary extends TArtifact
+
 	}
 
 }

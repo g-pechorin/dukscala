@@ -7,6 +7,7 @@ import sbt.{AutoPlugin, SettingKey, TaskKey}
 
 object CulPlugin extends AutoPlugin {
 
+	import autoImport._
 
 	override lazy val projectSettings =
 		Seq(
@@ -39,8 +40,6 @@ object CulPlugin extends AutoPlugin {
 			}
 		)
 
-	import autoImport._
-
 	object autoImport {
 
 		lazy val culRoots = SettingKey[Seq[SourceTree.TSource]](
@@ -61,4 +60,5 @@ object CulPlugin extends AutoPlugin {
 		lazy val cul = TaskKey[Set[File]](
 			"cul", "???")
 	}
+
 }

@@ -13,6 +13,9 @@ lazy val root = (project in file("."))
 			(culModule in graphical).value,
 			(culModule in command).value,
 			(culModule in glm).value
+		),
+		culSolvers := Set(
+			com.peterlavalle.sca.CulSolVS2015
 		)
 	)
 	.enablePlugins(ColPlugin)

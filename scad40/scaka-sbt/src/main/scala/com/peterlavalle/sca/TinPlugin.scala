@@ -7,6 +7,8 @@ import sbt.{AutoPlugin, SettingKey, TaskKey}
 
 object TinPlugin extends AutoPlugin {
 
+	import autoImport._
+
 	override lazy val projectSettings =
 		Seq(
 			tinSource := Seq(),
@@ -25,8 +27,6 @@ object TinPlugin extends AutoPlugin {
 			}
 		)
 
-	import autoImport._
-
 	object autoImport {
 
 		lazy val tinSource = SettingKey[Seq[Tin.TSource]](
@@ -39,4 +39,5 @@ object TinPlugin extends AutoPlugin {
 		lazy val tin = TaskKey[(File, Set[String])](
 			"tin", "???")
 	}
+
 }

@@ -141,13 +141,13 @@ object ColAppVS2015 extends Col.TSolver {
 						|# Visual Studio 14
 						|VisualStudioVersion = 14.0.23107.0
 						|MinimumVisualStudioVersion = 10.0.40219.1
-					""".stripMargin.trim + '\n'
+					""".trimMargin
 				)
 				.mappend(modules) {
 					case module: Col.Module =>
 						s"""
 							 |Project("{8BC9CEB8-8B4A-11D0-8D11-00${"%08X".format(Math.abs(module.hashCode()))}42}") = "${module.name}", "${module.name}.vcxproj", "${module.ProjectGuid}"
-							""".stripMargin.trim + '\n'
+							""".trimMargin
 				}
 				.append(
 					"""
@@ -160,7 +160,7 @@ object ColAppVS2015 extends Col.TSolver {
 						|		Release|Win32 = Release|Win32
 						|	EndGlobalSection
 						|	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-					""".stripMargin.trim + '\n'
+					""".trimMargin
 				)
 				.mappend(modules) {
 					case module: Col.Module =>
@@ -173,7 +173,7 @@ object ColAppVS2015 extends Col.TSolver {
 							 |		${module.ProjectGuid}.Release|x64.Build.0 = Release|x64
 							 |		${module.ProjectGuid}.Release|Win32.ActiveCfg = Release|Win32
 							 |		${module.ProjectGuid}.Release|Win32.Build.0 = Release|Win32
-							""".stripMargin.trim + '\n'
+							""".trimMargin
 				}
 				.append(
 					"""
@@ -182,7 +182,7 @@ object ColAppVS2015 extends Col.TSolver {
 						|		HideSolutionNode = FALSE
 						|	EndGlobalSection
 						|EndGlobal
-					""".stripMargin.trim + '\n'
+					""".trimMargin
 				)
 				.closeFile
 		) ++ modules.map {

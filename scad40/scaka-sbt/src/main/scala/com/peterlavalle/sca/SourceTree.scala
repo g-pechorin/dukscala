@@ -8,21 +8,19 @@ object SourceTree {
 	def of(from: File): TSource =
 		new TSource {
 			override val root: File = from
-			override val contents: Iterable[String] =
-				root.streamFileNames
+			override val name = from.getName
+			override val contents: Iterable[String] = root.streamFileNames
 		}
 
 	def GitHub(cache: File, open: URL => File = _.toTempFile) = new {
 
-
 		def Archive(user: String, repo: String, version: String): TSource =
 			new TSource {
 				override val root: File = cache / s"$user-$repo-$version"
-
 				val prefix: String = s"$repo-$version/"
-
-				override val contents: Iterable[String] =
-					open(new URL(s"https://github.com/$user/$repo/archive/${version}.zip")).toZipInputStream.files
+				val name = s"$user : $repo @ $version"
+				override val contents =
+					open(new URL(s"https://github.com/$user/$repo/archive/$version.zip")).toZipInputStream.files
 						.filter {
 							case (name: String, data: InputStream) =>
 
@@ -46,11 +44,10 @@ object SourceTree {
 		def Release(user: String, repo: String, version: String): TSource =
 			new TSource {
 				override val root: File = cache / s"$user-$repo-$version"
-
 				val prefix: String = s"$repo-$version/"
-
-				override val contents: Iterable[String] =
-					open(new URL(s"https://github.com/$user/$repo/releases/download/v$version/$repo-${version}.tar.xz"))
+				val name = s"$user : $repo @ $version"
+				override val contents =
+					open(new URL(s"https://github.com/$user/$repo/releases/download/v$version/$repo-$version.tar.xz"))
 						.toTarXZStream
 						.filter {
 							case (name: String, data: InputStream) =>
@@ -73,6 +70,7 @@ object SourceTree {
 	}
 
 	trait TSource {
+		val name: String
 		val root: File
 		val contents: Iterable[String]
 
@@ -85,9 +83,9 @@ object SourceTree {
 		def Filtered(lambda: String => Boolean): TSource = {
 			val base = this
 			new TSource {
+				override val contents: Iterable[String] = base.contents.toStream.filter(lambda)
+				override val name: String = base.name
 				override val root: File = base.root
-				override val contents: Iterable[String] =
-					base.contents.toStream.filter(lambda)
 			}
 		}
 
@@ -95,9 +93,9 @@ object SourceTree {
 			val base = this
 			new TSource {
 				requyre(path.matches("((\\w+\\.)*\\w+/)+"))
+				override val contents: Iterable[String] = base.contents.filter(_.startsWith(path)).map(_.substring(path.length))
+				override val name: String = base.name
 				override val root: File = base.root / path
-				override val contents: Iterable[String] =
-					base.contents.filter(_.startsWith(path)).map(_.substring(path.length))
 			}
 		}
 	}

@@ -8,9 +8,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 
-import scala.io.Source
-import language.implicitConversions
 import scala.collection.immutable.Stream.Empty
+import scala.io.Source
+import scala.language.implicitConversions
+import scala.xml.Elem
 
 package object sca {
 
@@ -302,6 +303,11 @@ package object sca {
 
 	implicit def wrapFile(value: File): TWrappedFile =
 		new TWrappedFile {
+			if (null == value) {
+				val nullPointerException = new NullPointerException("File cannot be null")
+				nullPointerException.setStackTrace(nullPointerException.getStackTrace.drop(2))
+				throw nullPointerException
+			}
 			override val file: File = value.getAbsoluteFile
 		}
 
@@ -428,6 +434,9 @@ package object sca {
 	sealed trait TWrappedWriter[W <: Writer] {
 		val writer: W
 
+		def append(elem: Elem): W =
+			writer.append(elem.toString()).asInstanceOf[W]
+
 		def mappend[T](things: Iterable[T])(lambda: (T => String)): W =
 			things.foldLeft(writer)((l, t) => l.append(lambda(t)).asInstanceOf[W])
 
@@ -462,6 +471,9 @@ package object sca {
 				case Array(head: String, tail: String) =>
 					head #:: (tail #! pattern)
 			}
+
+		def trimMargin =
+			string.stripMargin.trim + '\n'
 	}
 
 	implicit def wrapString(value: String): TWrappedString =
@@ -490,5 +502,17 @@ package object sca {
 		val notImplementedError: NotImplementedError = new NotImplementedError()
 		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
 		throw notImplementedError
+	}
+
+	def ??? = {
+		val notImplementedError: NotImplementedError = new NotImplementedError()
+		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
+		throw notImplementedError
+	}
+
+	def !!!(message: Any) = {
+		val runtimeException: RuntimeException = new RuntimeException(message.toString)
+		runtimeException.setStackTrace(runtimeException.getStackTrace.tail.take(7))
+		throw runtimeException
 	}
 }
