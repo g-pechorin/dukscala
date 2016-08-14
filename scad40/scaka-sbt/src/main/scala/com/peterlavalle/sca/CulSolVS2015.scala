@@ -224,16 +224,12 @@ object CulSolVS2015 extends Cul.TSolver {
 							case source =>
 									source.contents.map {
 										case content if content.matches(".*\\.(c|cc|cpp)") =>
-											<ClCompile Include={(source.root / content).AbsolutePath.replace('/', '\\')}>
-												<Filter>
-													{source.name}
-												</Filter>
+											<ClCompile Include={(source.root / content).AbsolutePath}>
+												{Unparsed(s"<Filter>${source.name}</Filter>")}
 											</ClCompile>
 										case content =>
-											<ClInclude Include={(source.root / content).AbsolutePath.replace('/', '\\')}>
-												<Filter>
-													{source.name}
-												</Filter>
+											<ClInclude Include={(source.root / content).AbsolutePath}>
+												{Unparsed(s"<Filter>${source.name}</Filter>")}
 											</ClInclude>
 									}
 
