@@ -29,6 +29,7 @@ object CulPlugin extends AutoPlugin {
 
 			culSolvers :=
 				Set(
+					CulSolVS2015,
 					CulSolCMake
 				),
 

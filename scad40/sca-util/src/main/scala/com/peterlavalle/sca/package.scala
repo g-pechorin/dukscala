@@ -23,7 +23,7 @@ package object sca {
 
 		def HexString: String = {
 
-			val l: Long = anyRef.hashCode() | 0L
+			val l: Long = (anyRef.hashCode() ^ 0xFFFFFFFF) | 0L
 			val r: Long = anyRef.toString.hashCode() | 0L
 
 			(java.lang.Long.toHexString(l).padTo(16, '0') + java.lang.Long.toHexString(r).padTo(16, '0').reverse)
@@ -55,6 +55,25 @@ package object sca {
 				}
 			recu(splits.toList, HexString)
 		}
+	}
+
+
+	implicit def wrapStream[W](value: Stream[W]): TWrappedStream[W] =
+		new TWrappedStream[W] {
+			override val stream: Stream[W] = value
+		}
+
+	trait TWrappedStream[W] {
+		val stream: Stream[W]
+
+		/**
+			* Appends an expansion to each element
+			*/
+		def expansion(lambda: W => Stream[W]): Stream[W] =
+			stream.flatMap {
+				case next =>
+					next #:: lambda(next).expansion(lambda)
+			}
 	}
 
 	implicit def wrapAnyRef(value: AnyRef): TWrappedAnyRef =
@@ -434,7 +453,7 @@ package object sca {
 	sealed trait TWrappedWriter[W <: Writer] {
 		val writer: W
 
-		def append(elem: Elem): W =
+		def appand(elem: Elem): W =
 			writer.append(elem.toString()).asInstanceOf[W]
 
 		def mappend[T](things: Iterable[T])(lambda: (T => String)): W =
@@ -451,6 +470,9 @@ package object sca {
 
 	sealed trait TWrappedString {
 		val string: String
+
+		def urlEncode =
+			java.net.URLEncoder.encode(string, "utf-8")
 
 		def splyt(regex: String, limit: Int): List[String] =
 			if (limit > 0) {

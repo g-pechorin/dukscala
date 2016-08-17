@@ -43,7 +43,7 @@ lazy val glm = (project)
 		culRoots ++= Seq(
 			SourceTree.GitHub(target.value)
 				.Archive("g-truc", "glm", "0.9.7.5")
-				.SubFolder("glm/")
+				.Matches("glm/.+\\.(h|hh|hpp)")
 		)
 	)
 	.enablePlugins(ColPlugin)

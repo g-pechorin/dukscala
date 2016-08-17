@@ -47,9 +47,9 @@ object Cul {
 		def allSourceFiles: Stream[File] =
 			sources.toStream.flatMap(_.files)
 
-		def transitiveFiles: Stream[File] =
-			(sources.toStream ++ transitiveDependencies.toStream.flatMap(_.sources))
-				.flatMap(_.files).distinct
+		def allTransitiveSourceFiles: Stream[File] =
+			(sources #:: transitiveDependencies.map(_.sources).toStream).flatten.flatMap(_.files).distinct
+
 	}
 
 	case class Solution(name: String, targets: Set[Module]) {
@@ -81,6 +81,7 @@ object Cul {
 
 		lazy val leafNodes: Stream[Module] =
 			transitiveNodes filterNot branchNodes.toSet
+
 	}
 
 }

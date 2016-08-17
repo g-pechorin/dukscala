@@ -18,7 +18,7 @@ object SourceTree {
 			new TSource {
 				override val root: File = cache / s"$user-$repo-$version"
 				val prefix: String = s"$repo-$version/"
-				val name = s"$user : $repo @ $version"
+				val name = s"($user, $repo)"
 				override val contents =
 					open(new URL(s"https://github.com/$user/$repo/archive/$version.zip")).toZipInputStream.files
 						.filter {
@@ -45,7 +45,7 @@ object SourceTree {
 			new TSource {
 				override val root: File = cache / s"$user-$repo-$version"
 				val prefix: String = s"$repo-$version/"
-				val name = s"$user : $repo @ $version"
+				val name = s"($user, $repo, $version)"
 				override val contents =
 					open(new URL(s"https://github.com/$user/$repo/releases/download/v$version/$repo-$version.tar.xz"))
 						.toTarXZStream
@@ -77,10 +77,10 @@ object SourceTree {
 		def files: Stream[File] =
 			contents.toStream.map(root / _)
 
-		def Filtered(pattern: String): TSource =
-			Filtered(_ matches pattern)
+		def Matches(pattern: String): TSource =
+			Matches(_ matches pattern)
 
-		def Filtered(lambda: String => Boolean): TSource = {
+		def Matches(lambda: String => Boolean): TSource = {
 			val base = this
 			new TSource {
 				override val contents: Iterable[String] = base.contents.toStream.filter(lambda)
@@ -98,5 +98,9 @@ object SourceTree {
 				override val root: File = base.root / path
 			}
 		}
+
+		def SubDirs: Stream[String] =
+			contents.toStream.map(_.replaceAll("^((.*/)?)[^/]+$", "$1")).distinct
 	}
+
 }
