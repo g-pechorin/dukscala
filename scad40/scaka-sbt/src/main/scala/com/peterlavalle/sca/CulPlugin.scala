@@ -36,7 +36,10 @@ object CulPlugin extends AutoPlugin {
 			cul := {
 				culSolvers.value.flatMap {
 					case solver =>
-						solver(target.value / solver.getClass.getSimpleName, Cul.Solution(name.value, culAggregate.value.toSet))
+						solver(
+							target.value / solver.getClass.getSimpleName.replaceAll("\\W", ""),
+							Cul.Solution(name.value, culAggregate.value.toSet)
+						)
 				}
 			}
 		)

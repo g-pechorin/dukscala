@@ -10,7 +10,7 @@ object SourceTree {
 			override val root: File = from
 			override val name = from.getName
 			override val contents: Iterable[String] = root.streamFileNames
-		}
+		}.Matches("^[^\\.].*$")
 
 	def GitHub(cache: File, open: URL => File = _.toTempFile) = new {
 

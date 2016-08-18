@@ -265,7 +265,7 @@ object CulSolVS2015 extends Cul.TSolver {
 													sub match {
 														case "" => s"${module.name} ${source.name}"
 														case _ =>
-															s"${module.name} ${source.name}\\${sub.dropRight(1).replace('/', '\\')}".replaceAll("[^\\w/\\\\ ]+", "")
+															s"${module.name} ${source.name}\\${sub.dropRight(1).replace('/', '\\')}".replaceAll("[^\\-\\.\\w/\\\\ ]+", "")
 													}
 
 												(key, source.contents.filter {
