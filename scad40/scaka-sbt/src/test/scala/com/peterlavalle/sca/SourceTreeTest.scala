@@ -17,6 +17,10 @@ class SourceTreeTest extends TestCase {
 		(absoluteParent.AbsolutePath match {
 			case inIDEA if inIDEA.endsWith(".idea/modules") =>
 				absoluteParent.getParentFile.getParentFile
+
+			case sbt if sbt.endsWith("/scad40") && (absoluteParent / "scaka-sbt").exists() && (absoluteParent / "build.sbt").exists() =>
+				absoluteParent
+
 		}) / "scaka-sbt"
 	}
 	val rootExamples = {
@@ -82,7 +86,7 @@ class SourceTreeTest extends TestCase {
 			),
 			SourceTree.GitHub(tempFolder / getName / "nuklear")
 				.Archive("vurtun", "nuklear", "e7eb3663320b22a7c4c47982c5f15c70cb30287d")
-				.Filtered(".+\\.(c|cc|cpp|h|hh|hpp|inc)$")
+				.Matches(".+\\.(c|cc|cpp|h|hh|hpp|inc)$")
 				.contents.toSet
 		)
 
@@ -94,7 +98,7 @@ class SourceTreeTest extends TestCase {
 			),
 			SourceTree.GitHub(tempFolder / getName / "nuklear")
 				.Archive("vurtun", "nuklear", "e7eb3663320b22a7c4c47982c5f15c70cb30287d")
-				.Filtered("^nuklear.h$")
+				.Matches("^nuklear.h$")
 				.contents.toSet
 		)
 

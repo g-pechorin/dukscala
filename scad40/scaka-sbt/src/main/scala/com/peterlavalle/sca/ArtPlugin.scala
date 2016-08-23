@@ -7,6 +7,8 @@ import sbt.{AutoPlugin, SettingKey, TaskKey}
 
 object ArtPlugin extends AutoPlugin {
 
+	import autoImport._
+
 	override lazy val projectSettings =
 		Seq(
 			artOut := target.value / "art.out",
@@ -38,8 +40,6 @@ object ArtPlugin extends AutoPlugin {
 				}
 			}
 		)
-
-	import autoImport._
 
 	object autoImport {
 		lazy val artOut = SettingKey[File](

@@ -7,6 +7,7 @@ import sbt.{AutoPlugin, SettingKey, TaskKey}
 
 object CulPlugin extends AutoPlugin {
 
+	import autoImport._
 
 	override lazy val projectSettings =
 		Seq(
@@ -28,18 +29,20 @@ object CulPlugin extends AutoPlugin {
 
 			culSolvers :=
 				Set(
+					CulSolVS2015,
 					CulSolCMake
 				),
 
 			cul := {
 				culSolvers.value.flatMap {
 					case solver =>
-						solver(target.value / solver.getClass.getSimpleName, Cul.Solution(name.value, culAggregate.value.toSet))
+						solver(
+							target.value / solver.getClass.getSimpleName.replaceAll("\\W", ""),
+							Cul.Solution(name.value, culAggregate.value.toSet)
+						)
 				}
 			}
 		)
-
-	import autoImport._
 
 	object autoImport {
 
@@ -61,4 +64,5 @@ object CulPlugin extends AutoPlugin {
 		lazy val cul = TaskKey[Set[File]](
 			"cul", "???")
 	}
+
 }

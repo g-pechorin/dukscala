@@ -8,9 +8,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.compress.compressors.{CompressorInputStream, CompressorStreamFactory}
 
-import scala.io.Source
-import language.implicitConversions
 import scala.collection.immutable.Stream.Empty
+import scala.io.Source
+import scala.language.implicitConversions
+import scala.xml.Elem
 
 package object sca {
 
@@ -22,7 +23,7 @@ package object sca {
 
 		def HexString: String = {
 
-			val l: Long = anyRef.hashCode() | 0L
+			val l: Long = (anyRef.hashCode() ^ 0xFFFFFFFF) | 0L
 			val r: Long = anyRef.toString.hashCode() | 0L
 
 			(java.lang.Long.toHexString(l).padTo(16, '0') + java.lang.Long.toHexString(r).padTo(16, '0').reverse)
@@ -54,6 +55,25 @@ package object sca {
 				}
 			recu(splits.toList, HexString)
 		}
+	}
+
+
+	implicit def wrapStream[W](value: Stream[W]): TWrappedStream[W] =
+		new TWrappedStream[W] {
+			override val stream: Stream[W] = value
+		}
+
+	trait TWrappedStream[W] {
+		val stream: Stream[W]
+
+		/**
+			* Appends an expansion to each element
+			*/
+		def expansion(lambda: W => Stream[W]): Stream[W] =
+			stream.flatMap {
+				case next =>
+					next #:: lambda(next).expansion(lambda)
+			}
 	}
 
 	implicit def wrapAnyRef(value: AnyRef): TWrappedAnyRef =
@@ -302,6 +322,11 @@ package object sca {
 
 	implicit def wrapFile(value: File): TWrappedFile =
 		new TWrappedFile {
+			if (null == value) {
+				val nullPointerException = new NullPointerException("File cannot be null")
+				nullPointerException.setStackTrace(nullPointerException.getStackTrace.drop(2))
+				throw nullPointerException
+			}
 			override val file: File = value.getAbsoluteFile
 		}
 
@@ -428,6 +453,9 @@ package object sca {
 	sealed trait TWrappedWriter[W <: Writer] {
 		val writer: W
 
+		def appand(elem: Elem): W =
+			writer.append(elem.toString()).asInstanceOf[W]
+
 		def mappend[T](things: Iterable[T])(lambda: (T => String)): W =
 			things.foldLeft(writer)((l, t) => l.append(lambda(t)).asInstanceOf[W])
 
@@ -442,6 +470,9 @@ package object sca {
 
 	sealed trait TWrappedString {
 		val string: String
+
+		def urlEncode =
+			java.net.URLEncoder.encode(string, "utf-8")
 
 		def splyt(regex: String, limit: Int): List[String] =
 			if (limit > 0) {
@@ -462,6 +493,9 @@ package object sca {
 				case Array(head: String, tail: String) =>
 					head #:: (tail #! pattern)
 			}
+
+		def trimMargin =
+			string.stripMargin.trim + '\n'
 	}
 
 	implicit def wrapString(value: String): TWrappedString =
@@ -490,5 +524,17 @@ package object sca {
 		val notImplementedError: NotImplementedError = new NotImplementedError()
 		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
 		throw notImplementedError
+	}
+
+	def ??? = {
+		val notImplementedError: NotImplementedError = new NotImplementedError()
+		notImplementedError.setStackTrace(notImplementedError.getStackTrace.tail)
+		throw notImplementedError
+	}
+
+	def !!!(message: Any) = {
+		val runtimeException: RuntimeException = new RuntimeException(message.toString)
+		runtimeException.setStackTrace(runtimeException.getStackTrace.tail.take(7))
+		throw runtimeException
 	}
 }
